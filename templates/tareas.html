@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Tareas{% endblock %}
+{% block page_title %}Tareas{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Tareas</h1>
+        <p class="page-subtitle">Lista de tareas del equipo</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva tarea</button>
+</div>
+
+<form class="filter-bar" method="GET">
+    <select name="status">
+        <option value="">Todos los estados</option>
+        {% for s in ['pendiente','en_progreso','completada'] %}
+        <option value="{{ s }}" {{ 'selected' if sel_status == s }}>{{ s|replace('_',' ')|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <select name="priority">
+        <option value="">Todas las prioridades</option>
+        {% for p in ['alta','media','baja'] %}
+        <option value="{{ p }}" {{ 'selected' if sel_priority == p }}>{{ p|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <select name="assigned_to">
+        <option value="">Todos</option>
+        {% for u in users %}
+        <option value="{{ u.id }}" {{ 'selected' if sel_assigned == u.id|string }}>{{ u.name }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
+    {% if sel_status or sel_priority or sel_assigned %}
+    <a href="{{ url_for('tasks.index') }}" class="btn btn-sm btn-secondary">Limpiar</a>
+    {% endif %}
+</form>
+
+<div class="table-card">
+    {% for t in tasks %}
+    <div class="task-item {{ 'completed' if t.status == 'completada' }}">
+        <form method="POST" action="{{ url_for('tasks.toggle', tid=t.id) }}" style="display:inline">
+            <button type="submit" class="task-check" title="Toggle">
+                {% if t.status == 'completada' %}&#10003;{% endif %}
+            </button>
+        </form>
+        <div class="task-info">
+            <div class="task-title">{{ t.title }}</div>
+            <div class="task-meta">
+                <span class="badge badge-{{ t.priority }}">{{ t.priority }}</span>
+                <span class="badge badge-{{ t.status }}">{{ t.status|replace('_',' ') }}</span>
+                {% if t.assignee %}<span>{{ t.assignee.name }}</span>{% endif %}
+                {% if t.project %}<span>{{ t.project.name }}</span>{% endif %}
+                {% if t.due_date %}<span>{{ t.due_date.strftime('%d/%m/%Y') }}</span>{% endif %}
+            </div>
+        </div>
+        <div class="task-actions">
+            <button class="btn btn-sm btn-secondary" onclick="editTask({{ t.id }}, '{{ t.title|e }}', '{{ t.description|e }}', '{{ t.assigned_to or '' }}', '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}')">Editar</button>
+            <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline" onsubmit="return confirm('Eliminar?')">
+                <button type="submit" class="btn btn-sm btn-danger">X</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+    {% if not tasks %}
+    <div class="empty-state"><p>No hay tareas</p></div>
+    {% endif %}
+</div>
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Nueva tarea</h3><button class="modal-close" onclick="closeModal('createModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('tasks.create') }}">
+            <div class="modal-body">
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Prioridad</label><select name="priority"><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select></div>
+                    <div class="form-group"><label>Asignar a</label><select name="assigned_to"><option value="">Sin asignar</option>{% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Fecha limite</label><input type="date" name="due_date"></div>
+                    <div class="form-group"><label>Proyecto</label><select name="project_id"><option value="">Ninguno</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Editar tarea</h3><button class="modal-close" onclick="closeModal('editModal')">&times;</button></div>
+        <form method="POST" id="editForm" action="">
+            <div class="modal-body">
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Prioridad</label><select name="priority"><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select></div>
+                    <div class="form-group"><label>Estado</label><select name="status"><option value="pendiente">Pendiente</option><option value="en_progreso">En progreso</option><option value="completada">Completada</option></select></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Asignar a</label><select name="assigned_to"><option value="">Sin asignar</option>{% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select></div>
+                    <div class="form-group"><label>Fecha limite</label><input type="date" name="due_date"></div>
+                </div>
+                <div class="form-group"><label>Proyecto</label><select name="project_id"><option value="">Ninguno</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editTask(id, title, description, assigned_to, priority, status, due_date, project_id) {
+    document.getElementById('editForm').action = '/tareas/edit/' + id;
+    populateEditModal({title, description, assigned_to, priority, status, due_date, project_id}, 'editForm');
+    openModal('editModal');
+}
+</script>
+{% endblock %}

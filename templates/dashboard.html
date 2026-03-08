@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Dashboard</h1>
+</div>
+
+<div class="kpi-grid">
+    <div class="kpi-card accent-amber">
+        <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        </div>
+        <div class="kpi-label">Gasto mensual</div>
+        <div class="kpi-value">{{ "%.0f"|format(monthly_cost) }}&euro;</div>
+    </div>
+    <div class="kpi-card accent-cyan">
+        <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+        </div>
+        <div class="kpi-label">Proyectos activos</div>
+        <div class="kpi-value">{{ active_projects }}</div>
+    </div>
+    <div class="kpi-card accent-purple">
+        <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        </div>
+        <div class="kpi-label">Tareas pendientes</div>
+        <div class="kpi-value">{{ pending_tasks }}</div>
+    </div>
+    <div class="kpi-card accent-green">
+        <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.66 17h4.68"/><path d="M12 2a7 7 0 00-2.16 13.66A2 2 0 0111 17.66V19a1 1 0 001 1 1 1 0 001-1v-1.34a2 2 0 011.16-1.82A7 7 0 0012 2z"/></svg>
+        </div>
+        <div class="kpi-label">Ideas nuevas</div>
+        <div class="kpi-value">{{ new_ideas }}</div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <h3>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                Gastos por categoria
+            </h3>
+        </div>
+        <div style="height: 280px;">
+            <canvas id="costChart"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <h3>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                Proyectos por estado
+            </h3>
+        </div>
+        <div style="height: 280px;">
+            <canvas id="projChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+    <!-- Tareas urgentes -->
+    <div class="table-card">
+        <div class="table-card-header">
+            <h3>Tareas urgentes</h3>
+            <a href="{{ url_for('tasks.index') }}" class="btn btn-sm btn-secondary">Ver todas</a>
+        </div>
+        {% if urgent_tasks %}
+        {% for t in urgent_tasks %}
+        <div class="task-item">
+            <div class="task-info">
+                <div class="task-title">{{ t.title }}</div>
+                <div class="task-meta">
+                    <span class="badge badge-{{ t.priority }}">{{ t.priority }}</span>
+                    {% if t.due_date %}<span>{{ t.due_date.strftime('%d/%m') }}</span>{% endif %}
+                    {% if t.assignee %}<span>{{ t.assignee.name }}</span>{% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state"><p>No hay tareas pendientes</p></div>
+        {% endif %}
+    </div>
+
+    <!-- Actividad reciente -->
+    <div class="table-card">
+        <div class="table-card-header">
+            <h3>Actividad reciente</h3>
+            <a href="{{ url_for('activity.index') }}" class="btn btn-sm btn-secondary">Ver todo</a>
+        </div>
+        {% if recent_activity %}
+        {% for log in recent_activity %}
+        <div class="activity-item">
+            <div class="activity-dot"></div>
+            <div class="activity-text">
+                <span class="user">{{ log.user.name if log.user else 'Sistema' }}</span>
+                {{ log.action }} {{ log.target_type }}
+                {% if log.details %} — {{ log.details }}{% endif %}
+                <span class="time">{{ log.created_at.strftime('%d/%m %H:%M') }}</span>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state"><p>Sin actividad reciente</p></div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const costLabels = {{ cost_labels|tojson }};
+    const costValues = {{ cost_values|tojson }};
+    const projLabels = {{ proj_labels|tojson }};
+    const projValues = {{ proj_values|tojson }};
+
+    registerChart(function() { createChart('costChart', 'doughnut', costLabels, costValues, 'EUR/mes'); });
+    registerChart(function() { createChart('projChart', 'doughnut', projLabels, projValues, 'Proyectos'); });
+    rebuildCharts();
+</script>
+{% endblock %}

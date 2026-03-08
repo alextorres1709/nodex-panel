@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Actividad{% endblock %}
+{% block page_title %}Actividad{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Actividad</h1>
+</div>
+
+<div class="table-card">
+    {% for log in logs %}
+    <div class="activity-item">
+        <div class="activity-dot"></div>
+        <div class="activity-text">
+            <span class="user">{{ log.user.name if log.user else 'Sistema' }}</span>
+            {{ log.action }} {{ log.target_type }}
+            {% if log.details %} — {{ log.details }}{% endif %}
+            <span class="time">{{ log.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+        </div>
+    </div>
+    {% endfor %}
+    {% if not logs %}
+    <div class="empty-state"><p>Sin actividad registrada</p></div>
+    {% endif %}
+</div>
+{% endblock %}

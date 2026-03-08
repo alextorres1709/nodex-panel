@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Pagos{% endblock %}
+{% block page_title %}Pagos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Pagos</h1>
+        <p class="page-subtitle">Suscripciones y gastos recurrentes</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('createModal')">+ Nuevo pago</button>
+</div>
+
+<div class="summary-row">
+    <div class="summary-item">
+        <div>
+            <div class="summary-label">Total mensual</div>
+            <div class="summary-value">{{ "%.2f"|format(total_monthly) }}&euro;</div>
+        </div>
+    </div>
+    <div class="summary-item">
+        <div>
+            <div class="summary-label">Total anual</div>
+            <div class="summary-value">{{ "%.2f"|format(total_annual) }}&euro;</div>
+        </div>
+    </div>
+</div>
+
+<form class="filter-bar" method="GET">
+    <select name="category">
+        <option value="">Todas las categorias</option>
+        {% for c in ['herramienta','servidor','servicio','otro'] %}
+        <option value="{{ c }}" {{ 'selected' if sel_category == c }}>{{ c|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <select name="status">
+        <option value="">Todos los estados</option>
+        {% for s in ['activo','cancelado','pendiente'] %}
+        <option value="{{ s }}" {{ 'selected' if sel_status == s }}>{{ s|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
+    {% if sel_category or sel_status %}
+    <a href="{{ url_for('payments.index') }}" class="btn btn-sm btn-secondary">Limpiar</a>
+    {% endif %}
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Importe</th>
+                <th>Frecuencia</th>
+                <th>Categoria</th>
+                <th>Estado</th>
+                <th>Proxima fecha</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in payments %}
+            <tr>
+                <td>{{ p.name }}</td>
+                <td>{{ "%.2f"|format(p.amount) }} {{ p.currency }}</td>
+                <td>{{ p.frequency|capitalize }}</td>
+                <td><span class="badge badge-{{ p.category }}">{{ p.category }}</span></td>
+                <td><span class="badge badge-{{ p.status }}">{{ p.status }}</span></td>
+                <td>{{ p.next_date.strftime('%d/%m/%Y') if p.next_date else '—' }}</td>
+                <td>
+                    <div style="display:flex;gap:4px">
+                        <button class="btn btn-sm btn-secondary" onclick="editPayment({{ p.id }}, '{{ p.name }}', {{ p.amount }}, '{{ p.currency }}', '{{ p.frequency }}', '{{ p.category }}', '{{ p.status }}', '{{ p.next_date or '' }}', '{{ p.notes|e }}')">Editar</button>
+                        <form method="POST" action="{{ url_for('payments.delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('Eliminar este pago?')">
+                            <button type="submit" class="btn btn-sm btn-danger">X</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not payments %}
+            <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-tertiary)">No hay pagos registrados</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Nuevo pago</h3>
+            <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('payments.create') }}">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nombre</label>
+                    <input type="text" name="name" required placeholder="Ej: Claude Pro">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Importe</label>
+                        <input type="number" name="amount" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Moneda</label>
+                        <select name="currency"><option value="EUR">EUR</option><option value="USD">USD</option></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Frecuencia</label>
+                        <select name="frequency">
+                            <option value="mensual">Mensual</option>
+                            <option value="anual">Anual</option>
+                            <option value="unico">Unico</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Categoria</label>
+                        <select name="category">
+                            <option value="herramienta">Herramienta</option>
+                            <option value="servidor">Servidor</option>
+                            <option value="servicio">Servicio</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select name="status">
+                            <option value="activo">Activo</option>
+                            <option value="pendiente">Pendiente</option>
+                            <option value="cancelado">Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Proxima fecha</label>
+                        <input type="date" name="next_date">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notas</label>
+                    <textarea name="notes" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Crear</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Editar pago</h3>
+            <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
+        </div>
+        <form method="POST" id="editForm" action="">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nombre</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Importe</label>
+                        <input type="number" name="amount" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Moneda</label>
+                        <select name="currency"><option value="EUR">EUR</option><option value="USD">USD</option></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Frecuencia</label>
+                        <select name="frequency">
+                            <option value="mensual">Mensual</option>
+                            <option value="anual">Anual</option>
+                            <option value="unico">Unico</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Categoria</label>
+                        <select name="category">
+                            <option value="herramienta">Herramienta</option>
+                            <option value="servidor">Servidor</option>
+                            <option value="servicio">Servicio</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select name="status">
+                            <option value="activo">Activo</option>
+                            <option value="pendiente">Pendiente</option>
+                            <option value="cancelado">Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Proxima fecha</label>
+                        <input type="date" name="next_date">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notas</label>
+                    <textarea name="notes" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editPayment(id, name, amount, currency, frequency, category, status, next_date, notes) {
+    document.getElementById('editForm').action = '/pagos/edit/' + id;
+    populateEditModal({name, amount, currency, frequency, category, status, next_date, notes}, 'editForm');
+    openModal('editModal');
+}
+</script>
+{% endblock %}

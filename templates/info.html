@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Info{% endblock %}
+{% block page_title %}Informacion{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Informacion</h1>
+        <p class="page-subtitle">Datos de la empresa</p>
+    </div>
+    {% if current_user and current_user.is_admin %}
+    <button class="btn btn-primary" onclick="openModal('editModal')">Editar</button>
+    {% endif %}
+</div>
+
+{% if company %}
+<div class="info-card">
+    <div class="info-row"><div class="info-label">Nombre</div><div class="info-value">{{ company.name }}</div></div>
+    <div class="info-row"><div class="info-label">Descripcion</div><div class="info-value">{{ company.description or '—' }}</div></div>
+    <div class="info-row"><div class="info-label">Email</div><div class="info-value">{{ company.email or '—' }}</div></div>
+    <div class="info-row"><div class="info-label">Telefono</div><div class="info-value">{{ company.phone or '—' }}</div></div>
+    <div class="info-row"><div class="info-label">Direccion</div><div class="info-value">{{ company.address or '—' }}</div></div>
+    <div class="info-row"><div class="info-label">Web</div><div class="info-value">{% if company.website %}<a href="{{ company.website }}" target="_blank">{{ company.website }}</a>{% else %}—{% endif %}</div></div>
+    <div class="info-row"><div class="info-label">Info extra</div><div class="info-value">{{ company.extra_info or '—' }}</div></div>
+</div>
+{% else %}
+<div class="empty-state"><p>Sin informacion de empresa. Crea una.</p></div>
+{% endif %}
+
+{% if current_user and current_user.is_admin %}
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Editar informacion</h3><button class="modal-close" onclick="closeModal('editModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('info.edit') }}">
+            <div class="modal-body">
+                <div class="form-group"><label>Nombre</label><input type="text" name="name" value="{{ company.name if company else '' }}"></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="3">{{ company.description if company else '' }}</textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Email</label><input type="email" name="email" value="{{ company.email if company else '' }}"></div>
+                    <div class="form-group"><label>Telefono</label><input type="text" name="phone" value="{{ company.phone if company else '' }}"></div>
+                </div>
+                <div class="form-group"><label>Direccion</label><input type="text" name="address" value="{{ company.address if company else '' }}"></div>
+                <div class="form-group"><label>Website</label><input type="url" name="website" value="{{ company.website if company else '' }}"></div>
+                <div class="form-group"><label>Info extra</label><textarea name="extra_info" rows="3">{{ company.extra_info if company else '' }}</textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

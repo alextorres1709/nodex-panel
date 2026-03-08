@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Credenciales{% endblock %}
+{% block page_title %}Credenciales{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Credenciales</h1>
+        <p class="page-subtitle">Logins, API keys y accesos</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva credencial</button>
+</div>
+
+<form class="filter-bar" method="GET">
+    <select name="category">
+        <option value="">Todas las categorias</option>
+        {% for c in ['hosting','ia','dominio','desarrollo','email','otro'] %}
+        <option value="{{ c }}" {{ 'selected' if sel_category == c }}>{{ c|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
+    {% if sel_category %}<a href="{{ url_for('credentials.index') }}" class="btn btn-sm btn-secondary">Limpiar</a>{% endif %}
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Servicio</th>
+                <th>Usuario / Email</th>
+                <th>Password</th>
+                <th>API Key</th>
+                <th>Categoria</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in creds %}
+            <tr>
+                <td>
+                    {% if c.url %}<a href="{{ c.url }}" target="_blank">{{ c.service }}</a>{% else %}{{ c.service }}{% endif %}
+                </td>
+                <td>
+                    {% if c.username %}<span style="font-weight:500">{{ c.username }}</span>{% endif %}
+                    {% if c.username and c.email %}<br>{% endif %}
+                    {% if c.email %}<span style="font-size:12px;color:var(--text-tertiary)">{{ c.email }}</span>{% endif %}
+                    {% if not c.username and not c.email %}&mdash;{% endif %}
+                </td>
+                <td>
+                    {% if c.password %}
+                    <span class="cred-hidden" id="pw-{{ c.id }}">••••••••</span>
+                    <span class="cred-visible" id="pw-show-{{ c.id }}" style="display:none;font-family:monospace;font-size:12px">{{ c.password }}</span>
+                    <button class="btn-icon" onclick="toggleCred('pw', {{ c.id }})" title="Mostrar" style="margin-left:4px;font-size:11px;padding:3px 6px">👁</button>
+                    {% else %}&mdash;{% endif %}
+                </td>
+                <td>
+                    {% if c.api_key %}
+                    <span class="cred-hidden" id="ak-{{ c.id }}">••••••••</span>
+                    <span class="cred-visible" id="ak-show-{{ c.id }}" style="display:none;font-family:monospace;font-size:12px">{{ c.api_key }}</span>
+                    <button class="btn-icon" onclick="toggleCred('ak', {{ c.id }})" title="Mostrar" style="margin-left:4px;font-size:11px;padding:3px 6px">👁</button>
+                    {% else %}&mdash;{% endif %}
+                </td>
+                <td><span class="badge badge-{{ c.category }}">{{ c.category }}</span></td>
+                <td>
+                    <div style="display:flex;gap:4px">
+                        <button class="btn btn-sm btn-secondary" onclick="editCred({{ c.id }}, '{{ c.service|e }}', '{{ c.url|e }}', '{{ c.username|e }}', '{{ c.email|e }}', '{{ c.password|e }}', '{{ c.api_key|e }}', '{{ c.notes|e }}', '{{ c.category }}')">Editar</button>
+                        <form method="POST" action="{{ url_for('credentials.delete', cid=c.id) }}" style="display:inline" onsubmit="return confirm('Eliminar esta credencial?')">
+                            <button type="submit" class="btn btn-sm btn-danger">X</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not creds %}
+            <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-tertiary)">No hay credenciales guardadas</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+{% if creds %}
+<p style="font-size:11px;color:var(--text-tertiary);margin-top:-16px">Las passwords y API keys se guardan en texto plano en la base de datos local. No compartas el archivo .db.</p>
+{% endif %}
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Nueva credencial</h3><button class="modal-close" onclick="closeModal('createModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('credentials.create') }}">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group"><label>Servicio</label><input type="text" name="service" required placeholder="Ej: Vercel, OpenAI"></div>
+                    <div class="form-group"><label>Categoria</label><select name="category"><option value="hosting">Hosting</option><option value="ia">IA</option><option value="dominio">Dominio</option><option value="desarrollo">Desarrollo</option><option value="email">Email</option><option value="otro">Otro</option></select></div>
+                </div>
+                <div class="form-group"><label>URL</label><input type="url" name="url" placeholder="https://..."></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Usuario</label><input type="text" name="username"></div>
+                    <div class="form-group"><label>Email</label><input type="text" name="email"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Password</label><input type="text" name="password"></div>
+                    <div class="form-group"><label>API Key</label><input type="text" name="api_key"></div>
+                </div>
+                <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Editar credencial</h3><button class="modal-close" onclick="closeModal('editModal')">&times;</button></div>
+        <form method="POST" id="editForm" action="">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group"><label>Servicio</label><input type="text" name="service" required></div>
+                    <div class="form-group"><label>Categoria</label><select name="category"><option value="hosting">Hosting</option><option value="ia">IA</option><option value="dominio">Dominio</option><option value="desarrollo">Desarrollo</option><option value="email">Email</option><option value="otro">Otro</option></select></div>
+                </div>
+                <div class="form-group"><label>URL</label><input type="url" name="url"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Usuario</label><input type="text" name="username"></div>
+                    <div class="form-group"><label>Email</label><input type="text" name="email"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Password</label><input type="text" name="password"></div>
+                    <div class="form-group"><label>API Key</label><input type="text" name="api_key"></div>
+                </div>
+                <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleCred(prefix, id) {
+    var hidden = document.getElementById(prefix + '-' + id);
+    var visible = document.getElementById(prefix + '-show-' + id);
+    if (hidden.style.display === 'none') {
+        hidden.style.display = '';
+        visible.style.display = 'none';
+    } else {
+        hidden.style.display = 'none';
+        visible.style.display = '';
+    }
+}
+
+function editCred(id, service, url, username, email, password, api_key, notes, category) {
+    document.getElementById('editForm').action = '/credenciales/edit/' + id;
+    populateEditModal({service, url, username, email, password, api_key, notes, category}, 'editForm');
+    openModal('editModal');
+}
+</script>
+{% endblock %}

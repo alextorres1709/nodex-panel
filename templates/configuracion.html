@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Configuracion{% endblock %}
+{% block page_title %}Configuracion{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Configuracion</h1>
+</div>
+
+<div class="settings-card">
+    <h3 style="margin-bottom:16px;font-size:16px">Panel NodexAI</h3>
+    <div class="info-row">
+        <div class="info-label">Version</div>
+        <div class="info-value">1.0.0</div>
+    </div>
+    <div class="info-row">
+        <div class="info-label">Base de datos</div>
+        <div class="info-value">SQLite (local)</div>
+    </div>
+    <div class="info-row">
+        <div class="info-label">Tema</div>
+        <div class="info-value">
+            <button class="btn btn-sm btn-secondary" onclick="toggleTheme()">Cambiar tema</button>
+        </div>
+    </div>
+    <div class="info-row">
+        <div class="info-label">Usuario</div>
+        <div class="info-value">{{ current_user.name }} ({{ current_user.role }})</div>
+    </div>
+</div>
+{% endblock %}

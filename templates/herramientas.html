@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Herramientas{% endblock %}
+{% block page_title %}Herramientas{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Herramientas</h1>
+        <p class="page-subtitle">Software y servicios que usamos — Total: {{ "%.2f"|format(total_cost) }}&euro;/mes</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva herramienta</button>
+</div>
+
+<form class="filter-bar" method="GET">
+    <select name="category">
+        <option value="">Todas las categorias</option>
+        {% for c in ['desarrollo','diseno','ia','infraestructura','comunicacion','otro'] %}
+        <option value="{{ c }}" {{ 'selected' if sel_category == c }}>{{ c|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
+    {% if sel_category %}<a href="{{ url_for('tools.index') }}" class="btn btn-sm btn-secondary">Limpiar</a>{% endif %}
+</form>
+
+<div class="tools-grid">
+    {% for t in tools %}
+    <div class="tool-card">
+        <div class="tool-card-header">
+            <div class="tool-card-name">{{ t.name }}</div>
+            {% if t.cost_monthly > 0 %}
+            <div class="tool-card-cost">{{ "%.0f"|format(t.cost_monthly) }}&euro;/mes</div>
+            {% else %}
+            <div class="tool-card-cost" style="color:var(--success)">Gratis</div>
+            {% endif %}
+        </div>
+        <div class="tool-card-desc">{{ t.description or 'Sin descripcion' }}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span class="badge badge-{{ t.category }}">{{ t.category }}</span>
+            <span class="badge badge-{{ 'activo' if t.used_by == 'ambos' else 'pendiente' }}">{{ t.used_by|capitalize }}</span>
+        </div>
+        <div class="tool-card-footer">
+            {% if t.url %}<a href="{{ t.url }}" target="_blank">Abrir &rarr;</a>{% else %}<span></span>{% endif %}
+            <div style="display:flex;gap:4px">
+                <button class="btn btn-sm btn-secondary" onclick="editTool({{ t.id }}, '{{ t.name|e }}', '{{ t.url|e }}', '{{ t.category }}', {{ t.cost_monthly }}, '{{ t.description|e }}', '{{ t.used_by }}')">Editar</button>
+                <form method="POST" action="{{ url_for('tools.delete', tid=t.id) }}" style="display:inline" onsubmit="return confirm('Eliminar?')">
+                    <button type="submit" class="btn btn-sm btn-danger">X</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not tools %}
+<div class="empty-state"><p>No hay herramientas registradas</p></div>
+{% endif %}
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Nueva herramienta</h3><button class="modal-close" onclick="closeModal('createModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('tools.create') }}">
+            <div class="modal-body">
+                <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
+                <div class="form-group"><label>URL</label><input type="url" name="url" placeholder="https://..."></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Categoria</label><select name="category"><option value="desarrollo">Desarrollo</option><option value="diseno">Diseno</option><option value="ia">IA</option><option value="infraestructura">Infraestructura</option><option value="comunicacion">Comunicacion</option><option value="otro">Otro</option></select></div>
+                    <div class="form-group"><label>Coste mensual (&euro;)</label><input type="number" name="cost_monthly" step="0.01" value="0"></div>
+                </div>
+                <div class="form-group"><label>Quien la usa</label><select name="used_by"><option value="ambos">Ambos</option><option value="alex">Alex</option><option value="socio">Socio</option></select></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Editar herramienta</h3><button class="modal-close" onclick="closeModal('editModal')">&times;</button></div>
+        <form method="POST" id="editForm" action="">
+            <div class="modal-body">
+                <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
+                <div class="form-group"><label>URL</label><input type="url" name="url"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Categoria</label><select name="category"><option value="desarrollo">Desarrollo</option><option value="diseno">Diseno</option><option value="ia">IA</option><option value="infraestructura">Infraestructura</option><option value="comunicacion">Comunicacion</option><option value="otro">Otro</option></select></div>
+                    <div class="form-group"><label>Coste mensual (&euro;)</label><input type="number" name="cost_monthly" step="0.01"></div>
+                </div>
+                <div class="form-group"><label>Quien la usa</label><select name="used_by"><option value="ambos">Ambos</option><option value="alex">Alex</option><option value="socio">Socio</option></select></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editTool(id, name, url, category, cost_monthly, description, used_by) {
+    document.getElementById('editForm').action = '/herramientas/edit/' + id;
+    populateEditModal({name, url, category, cost_monthly, description, used_by}, 'editForm');
+    openModal('editModal');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Ideas{% endblock %}
+{% block page_title %}Ideas{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Ideas</h1>
+        <p class="page-subtitle">Lluvia de ideas y propuestas</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva idea</button>
+</div>
+
+<form class="filter-bar" method="GET">
+    <select name="status">
+        <option value="">Todos los estados</option>
+        {% for s in ['nueva','evaluando','aprobada','descartada'] %}
+        <option value="{{ s }}" {{ 'selected' if sel_status == s }}>{{ s|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <select name="category">
+        <option value="">Todas las categorias</option>
+        {% for c in ['feature','proyecto','mejora','otro'] %}
+        <option value="{{ c }}" {{ 'selected' if sel_category == c }}>{{ c|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
+    {% if sel_status or sel_category %}
+    <a href="{{ url_for('ideas.index') }}" class="btn btn-sm btn-secondary">Limpiar</a>
+    {% endif %}
+</form>
+
+<div class="ideas-grid">
+    {% for idea in ideas %}
+    <div class="idea-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div class="idea-card-title">{{ idea.title }}</div>
+            <form method="POST" action="{{ url_for('ideas.vote', iid=idea.id) }}" style="display:inline">
+                <button type="submit" class="vote-btn">+1 ({{ idea.votes }})</button>
+            </form>
+        </div>
+        <div class="idea-card-desc">{{ idea.description or 'Sin descripcion' }}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+            <span class="badge badge-{{ idea.category }}">{{ idea.category }}</span>
+            <span class="badge badge-{{ idea.status }}">{{ idea.status }}</span>
+            {% if idea.project %}
+            <span class="badge badge-proyecto">{{ idea.project.name }}</span>
+            {% else %}
+            <span class="badge badge-mejora">NodexAI General</span>
+            {% endif %}
+        </div>
+        <div class="idea-card-footer">
+            <span style="font-size:11px;color:var(--text-tertiary)">
+                {{ idea.author.name if idea.author else '?' }} &middot; {{ idea.created_at.strftime('%d/%m/%Y') }}
+            </span>
+            <div style="display:flex;gap:4px">
+                <button class="btn btn-sm btn-secondary" onclick="editIdea({{ idea.id }}, '{{ idea.title|e }}', '{{ idea.description|e }}', '{{ idea.category }}', '{{ idea.status }}', '{{ idea.project_id or '' }}')">Editar</button>
+                <form method="POST" action="{{ url_for('ideas.delete', iid=idea.id) }}" style="display:inline" onsubmit="return confirm('Eliminar?')">
+                    <button type="submit" class="btn btn-sm btn-danger">X</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not ideas %}
+<div class="empty-state"><p>No hay ideas todavia. Crea la primera!</p></div>
+{% endif %}
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Nueva idea</h3><button class="modal-close" onclick="closeModal('createModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('ideas.create') }}">
+            <div class="modal-body">
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="3"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Categoria</label><select name="category"><option value="feature">Feature</option><option value="proyecto">Proyecto</option><option value="mejora">Mejora</option><option value="otro">Otro</option></select></div>
+                    <div class="form-group">
+                        <label>Proyecto</label>
+                        <select name="project_id">
+                            <option value="">NodexAI General</option>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Editar idea</h3><button class="modal-close" onclick="closeModal('editModal')">&times;</button></div>
+        <form method="POST" id="editForm" action="">
+            <div class="modal-body">
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="3"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Categoria</label><select name="category"><option value="feature">Feature</option><option value="proyecto">Proyecto</option><option value="mejora">Mejora</option><option value="otro">Otro</option></select></div>
+                    <div class="form-group"><label>Estado</label><select name="status"><option value="nueva">Nueva</option><option value="evaluando">Evaluando</option><option value="aprobada">Aprobada</option><option value="descartada">Descartada</option></select></div>
+                </div>
+                <div class="form-group">
+                    <label>Proyecto</label>
+                    <select name="project_id">
+                        <option value="">NodexAI General</option>
+                        {% for p in projects %}
+                        <option value="{{ p.id }}">{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editIdea(id, title, description, category, status, project_id) {
+    document.getElementById('editForm').action = '/ideas/edit/' + id;
+    populateEditModal({title, description, category, status, project_id}, 'editForm');
+    openModal('editModal');
+}
+</script>
+{% endblock %}
