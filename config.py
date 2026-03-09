@@ -40,5 +40,3 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _get_database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = timedelta(days=30)
-    ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "torres.diez.alex@gmail.com")
-    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "nodex2024")
