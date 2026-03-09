@@ -49,21 +49,21 @@
                 <td>
                     {% if c.password %}
                     <span class="cred-hidden" id="pw-{{ c.id }}">••••••••</span>
-                    <span class="cred-visible" id="pw-show-{{ c.id }}" style="display:none;font-family:monospace;font-size:12px">{{ c.password }}</span>
+                    <span class="cred-visible" id="pw-show-{{ c.id }}" style="display:none;font-family:monospace;font-size:12px">{{ c._decrypted_password }}</span>
                     <button class="btn-icon" onclick="toggleCred('pw', {{ c.id }})" title="Mostrar" style="margin-left:4px;font-size:11px;padding:3px 6px">👁</button>
                     {% else %}&mdash;{% endif %}
                 </td>
                 <td>
                     {% if c.api_key %}
                     <span class="cred-hidden" id="ak-{{ c.id }}">••••••••</span>
-                    <span class="cred-visible" id="ak-show-{{ c.id }}" style="display:none;font-family:monospace;font-size:12px">{{ c.api_key }}</span>
+                    <span class="cred-visible" id="ak-show-{{ c.id }}" style="display:none;font-family:monospace;font-size:12px">{{ c._decrypted_api_key }}</span>
                     <button class="btn-icon" onclick="toggleCred('ak', {{ c.id }})" title="Mostrar" style="margin-left:4px;font-size:11px;padding:3px 6px">👁</button>
                     {% else %}&mdash;{% endif %}
                 </td>
                 <td><span class="badge badge-{{ c.category }}">{{ c.category }}</span></td>
                 <td>
                     <div style="display:flex;gap:4px">
-                        <button class="btn btn-sm btn-secondary" onclick="editCred({{ c.id }}, '{{ c.service|e }}', '{{ c.url|e }}', '{{ c.username|e }}', '{{ c.email|e }}', '{{ c.password|e }}', '{{ c.api_key|e }}', '{{ c.notes|e }}', '{{ c.category }}')">Editar</button>
+                        <button class="btn btn-sm btn-secondary" onclick="editCred({{ c.id }}, '{{ c.service|e }}', '{{ c.url|e }}', '{{ c.username|e }}', '{{ c.email|e }}', '{{ c._decrypted_password|e }}', '{{ c._decrypted_api_key|e }}', '{{ c.notes|e }}', '{{ c.category }}')">Editar</button>
                         <form method="POST" action="{{ url_for('credentials.delete', cid=c.id) }}" style="display:inline" onsubmit="return confirm('Eliminar esta credencial?')">
                             <button type="submit" class="btn btn-sm btn-danger">X</button>
                         </form>
@@ -79,7 +79,7 @@
 </div>
 
 {% if creds %}
-<p style="font-size:11px;color:var(--text-tertiary);margin-top:-16px">Las passwords y API keys se guardan en texto plano en la base de datos local. No compartas el archivo .db.</p>
+<p style="font-size:11px;color:var(--text-tertiary);margin-top:-16px">Las passwords y API keys se guardan encriptadas (AES-128) en la base de datos.</p>
 {% endif %}
 
 <!-- Create Modal -->

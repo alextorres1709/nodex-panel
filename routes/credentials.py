@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from models import db, Credential
 from routes.auth import login_required
 from services.activity import log_activity
+from services.crypto import encrypt, decrypt
 
 credentials_bp = Blueprint("credentials", __name__)
 
@@ -14,6 +15,10 @@ def index():
     if cat:
         q = q.filter_by(category=cat)
     creds = q.order_by(Credential.service).all()
+    # Decrypt sensitive fields for display
+    for c in creds:
+        c._decrypted_password = decrypt(c.password)
+        c._decrypted_api_key = decrypt(c.api_key)
     return render_template("credenciales.html", creds=creds, sel_category=cat)
 
 
@@ -26,8 +31,8 @@ def create():
             url=request.form.get("url", "").strip(),
             username=request.form.get("username", "").strip(),
             email=request.form.get("email", "").strip(),
-            password=request.form.get("password", "").strip(),
-            api_key=request.form.get("api_key", "").strip(),
+            password=encrypt(request.form.get("password", "").strip()),
+            api_key=encrypt(request.form.get("api_key", "").strip()),
             notes=request.form.get("notes", "").strip(),
             category=request.form.get("category", "otro"),
         )
@@ -53,8 +58,8 @@ def edit(cid):
         c.url = request.form.get("url", c.url).strip()
         c.username = request.form.get("username", "").strip()
         c.email = request.form.get("email", "").strip()
-        c.password = request.form.get("password", "").strip()
-        c.api_key = request.form.get("api_key", "").strip()
+        c.password = encrypt(request.form.get("password", "").strip())
+        c.api_key = encrypt(request.form.get("api_key", "").strip())
         c.notes = request.form.get("notes", "").strip()
         c.category = request.form.get("category", c.category)
         log_activity("update", "credential", c.id, f"Editada: {c.service}")
