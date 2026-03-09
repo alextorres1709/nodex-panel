@@ -92,6 +92,16 @@ def seed_data():
              cost_monthly=0, description="Deploy de aplicaciones web", used_by="alex"),
         Tool(name="Discord", url="https://discord.com", category="comunicacion",
              cost_monthly=0, description="Comunicacion interna (a sustituir por este panel)", used_by="ambos"),
+        Tool(name="Supabase", url="https://supabase.com", category="infraestructura",
+             cost_monthly=0, description="Base de datos PostgreSQL (inmobiliaria, madness)", used_by="ambos"),
+        Tool(name="Railway", url="https://railway.app", category="infraestructura",
+             cost_monthly=5, description="Deploy del panel y n8n", used_by="alex"),
+        Tool(name="n8n", url="https://n8n.io", category="desarrollo",
+             cost_monthly=0, description="Automatizaciones (self-hosted en Railway)", used_by="ambos"),
+        Tool(name="Antigravity", url="https://antigravity.dev", category="desarrollo",
+             cost_monthly=0, description="IDE con extension Claude Code", used_by="ambos"),
+        Tool(name="Claude Code", url="https://claude.ai/code", category="ia",
+             cost_monthly=0, description="Extension de programacion IA para el IDE", used_by="ambos"),
     ]
     db.session.add_all(tools)
 
