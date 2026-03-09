@@ -14,49 +14,63 @@
     </div>
 </div>
 
-<div id="jitsi-container" style="width:100%;height:calc(100vh - 180px);border-radius:var(--radius-md);overflow:hidden;"></div>
+<div id="jitsi-container" style="width:100%;height:calc(100vh - 180px);border-radius:var(--radius-md);overflow:hidden;">
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://meet.jit.si/external_api.js"></script>
 <script>
-var api = new JitsiMeetExternalAPI('meet.jit.si', {
-    roomName: '{{ room }}',
-    parentNode: document.getElementById('jitsi-container'),
-    width: '100%',
-    height: '100%',
-    configOverwrite: {
-        startWithAudioMuted: false,
-        startWithVideoMuted: false,
-        disableDeepLinking: true,
-    },
-    interfaceConfigOverwrite: {
-        SHOW_JITSI_WATERMARK: false,
-        SHOW_WATERMARK_FOR_GUESTS: false,
-        DEFAULT_BACKGROUND: '#0a0a0a',
-    },
-});
-
-api.on('readyToClose', function() {
-    disconnectVoice();
-});
-
-function disconnectVoice() {
-    fetch('/cowork/voice/leave', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-    }).then(function() {
-        window.location.href = '{{ url_for("cowork.index") }}';
+    var JITSI_DOMAIN = 'meet.jit.si';
+    var api = new JitsiMeetExternalAPI(JITSI_DOMAIN, {
+        roomName: '{{ room }}',
+        parentNode: document.getElementById('jitsi-container'),
+        width: '100%',
+        height: '100%',
+        userInfo: {
+            displayName: '{{ current_user.name }}',
+        },
+        configOverwrite: {
+            startWithAudioMuted: false,
+            startWithVideoMuted: false,
+            disableDeepLinking: true,
+            prejoinConfig: { enabled: false },
+            disableModeratorIndicator: true,
+            enableLobbyChat: false,
+            hideLobbyButton: true,
+            requireDisplayName: false,
+            enableInsecureRoomNameWarning: false,
+            notifications: [],
+        },
+        interfaceConfigOverwrite: {
+            SHOW_JITSI_WATERMARK: false,
+            SHOW_WATERMARK_FOR_GUESTS: false,
+            DEFAULT_BACKGROUND: '#0a0a0a',
+            DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+            HIDE_INVITE_MORE_HEADER: true,
+        },
     });
-}
 
-function copyLink() {
-    navigator.clipboard.writeText('https://meet.jit.si/{{ room }}').then(function() {
-        var btn = event.target;
-        var orig = btn.textContent;
-        btn.textContent = 'Copiado';
-        setTimeout(function() { btn.textContent = orig; }, 2000);
+    api.on('readyToClose', function () {
+        disconnectVoice();
     });
-}
+
+    function disconnectVoice() {
+        fetch('/cowork/voice/leave', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        }).then(function () {
+            window.location.href = '{{ url_for("cowork.index") }}';
+        });
+    }
+
+    function copyLink() {
+        navigator.clipboard.writeText('https://' + JITSI_DOMAIN + '/{{ room }}').then(function () {
+            var btn = event.target;
+            var orig = btn.textContent;
+            btn.textContent = 'Copiado';
+            setTimeout(function () { btn.textContent = orig; }, 2000);
+        });
+    }
 </script>
 {% endblock %}

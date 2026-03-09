@@ -1,3 +1,4 @@
+import hashlib
 import json
 import time
 from datetime import datetime, timezone
@@ -119,7 +120,9 @@ def join_voice(room_id):
     db.session.add(call)
     log_activity("create", "call", details=f"Unido a canal de voz: {room_id}")
     db.session.commit()
-    jitsi_room = f"nodexai-{room_id}"
+    # Generate unique Jitsi room name to avoid auth requirement on meet.jit.si
+    room_hash = hashlib.sha256(f"nodexai-panel-{room_id}".encode()).hexdigest()[:12]
+    jitsi_room = f"NdxAi{room_id.title().replace('-','')}{room_hash}"
     return jsonify({"room": jitsi_room, "call_id": call.id})
 
 
