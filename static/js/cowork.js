@@ -1,13 +1,30 @@
 let currentChannel = 'general';
 let currentUserId = 0;
+let currentUserName = '';
 let eventSource = null;
 let currentVoiceRoom = null;
 
-function initCowork(channel, userId) {
+function initCowork(channel, userId, userName) {
     currentChannel = channel;
     currentUserId = userId;
+    currentUserName = userName || '';
     scrollToBottom();
     connectSSE();
+
+    // Check if already in a voice channel and update UI
+    var voiceData = localStorage.getItem('nodex_voice');
+    if (voiceData) {
+        try {
+            var data = JSON.parse(voiceData);
+            currentVoiceRoom = data.roomId;
+            var controls = document.getElementById('voiceControls');
+            if (controls) {
+                controls.style.display = 'block';
+                var nameEl = document.getElementById('voiceChannelName');
+                if (nameEl) nameEl.textContent = data.channelName;
+            }
+        } catch (e) { }
+    }
 }
 
 function connectSSE() {
@@ -22,11 +39,11 @@ function connectSSE() {
     }
 
     eventSource = new EventSource('/cowork/stream?channel=' + currentChannel + '&last_id=' + lastId);
-    eventSource.onmessage = function(e) {
+    eventSource.onmessage = function (e) {
         const msg = JSON.parse(e.data);
         appendMessage(msg);
     };
-    eventSource.onerror = function() {
+    eventSource.onerror = function () {
         eventSource.close();
         setTimeout(connectSSE, 5000);
     };
@@ -49,11 +66,11 @@ function appendMessage(msg) {
     div.innerHTML =
         '<div class="cowork-msg-avatar">' + msg.sender.substring(0, 2).toUpperCase() + '</div>' +
         '<div class="cowork-msg-body">' +
-            '<div class="cowork-msg-meta">' +
-                '<span class="cowork-msg-name">' + msg.sender + '</span>' +
-                '<span class="cowork-msg-time">' + msg.created_at + '</span>' +
-            '</div>' +
-            '<div class="cowork-msg-text">' + escapeHtml(msg.content) + '</div>' +
+        '<div class="cowork-msg-meta">' +
+        '<span class="cowork-msg-name">' + msg.sender + '</span>' +
+        '<span class="cowork-msg-time">' + msg.created_at + '</span>' +
+        '</div>' +
+        '<div class="cowork-msg-text">' + escapeHtml(msg.content) + '</div>' +
         '</div>';
     container.appendChild(div);
     scrollToBottom();
@@ -68,52 +85,56 @@ function sendMessage(e) {
     input.value = '';
     fetch('/cowork/send', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({channel: currentChannel, content: content}),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: currentChannel, content: content }),
     })
-    .then(r => r.json())
-    .then(msg => {
-        if (msg.error) {
-            input.value = content;
-        }
-    })
-    .catch(() => { input.value = content; });
+        .then(r => r.json())
+        .then(msg => {
+            if (msg.error) {
+                input.value = content;
+            }
+        })
+        .catch(() => { input.value = content; });
     return false;
 }
 
 function joinVoice(roomId) {
     fetch('/cowork/voice/join/' + roomId, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
     })
-    .then(r => r.json())
-    .then(data => {
-        currentVoiceRoom = roomId;
-        // Show voice controls
-        var controls = document.getElementById('voiceControls');
-        if (controls) {
-            controls.style.display = 'block';
-            var nameEl = document.getElementById('voiceChannelName');
-            if (nameEl) nameEl.textContent = roomId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        }
-        // Open call page in the main area
-        window.location.href = '/cowork/call/' + data.room;
-    });
+        .then(r => r.json())
+        .then(data => {
+            currentVoiceRoom = roomId;
+            var channelName = roomId.replace(/-/g, ' ').replace(/\b\w/g, function (l) { return l.toUpperCase(); });
+
+            // Save to localStorage for persistence across pages
+            localStorage.setItem('nodex_voice', JSON.stringify({
+                room: data.room,
+                roomId: roomId,
+                channelName: channelName,
+                userName: currentUserName,
+            }));
+
+            // Show voice controls in cowork sidebar
+            var controls = document.getElementById('voiceControls');
+            if (controls) {
+                controls.style.display = 'block';
+                var nameEl = document.getElementById('voiceChannelName');
+                if (nameEl) nameEl.textContent = channelName;
+            }
+
+            // Show the floating overlay (calls global function from base.html)
+            showVoiceOverlay(data.room, channelName, currentUserName);
+
+            // Reload page to update voice user indicators
+            setTimeout(function () { window.location.reload(); }, 500);
+        });
 }
 
 function leaveVoice() {
-    fetch('/cowork/voice/leave', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-    })
-    .then(r => r.json())
-    .then(() => {
-        currentVoiceRoom = null;
-        var controls = document.getElementById('voiceControls');
-        if (controls) controls.style.display = 'none';
-        // Reload to update voice user lists
-        window.location.href = '/cowork';
-    });
+    // Use the global leave function from base.html
+    globalLeaveVoice();
 }
 
 function scrollToBottom() {
