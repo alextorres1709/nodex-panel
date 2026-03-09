@@ -17,6 +17,7 @@ def create_app():
     with app.app_context():
         db.create_all()
         seed_data()
+        sync_tools()
 
     # Blueprints
     from routes.auth import auth_bp, _load_current_user
@@ -80,31 +81,6 @@ def seed_data():
     ]
     db.session.add_all(payments)
 
-    # Herramientas
-    tools = [
-        Tool(name="Claude", url="https://claude.ai", category="ia",
-             cost_monthly=20, description="Asistente IA de Anthropic", used_by="ambos"),
-        Tool(name="GitHub", url="https://github.com", category="desarrollo",
-             cost_monthly=0, description="Repositorios de codigo", used_by="ambos"),
-        Tool(name="VSCode", url="https://code.visualstudio.com", category="desarrollo",
-             cost_monthly=0, description="Editor de codigo", used_by="ambos"),
-        Tool(name="Vercel", url="https://vercel.com", category="infraestructura",
-             cost_monthly=0, description="Deploy de aplicaciones web", used_by="alex"),
-        Tool(name="Discord", url="https://discord.com", category="comunicacion",
-             cost_monthly=0, description="Comunicacion interna (a sustituir por este panel)", used_by="ambos"),
-        Tool(name="Supabase", url="https://supabase.com", category="infraestructura",
-             cost_monthly=0, description="Base de datos PostgreSQL (inmobiliaria, madness)", used_by="ambos"),
-        Tool(name="Railway", url="https://railway.app", category="infraestructura",
-             cost_monthly=5, description="Deploy del panel y n8n", used_by="alex"),
-        Tool(name="n8n", url="https://n8n.io", category="desarrollo",
-             cost_monthly=0, description="Automatizaciones (self-hosted en Railway)", used_by="ambos"),
-        Tool(name="Antigravity", url="https://antigravity.dev", category="desarrollo",
-             cost_monthly=0, description="IDE con extension Claude Code", used_by="ambos"),
-        Tool(name="Claude Code", url="https://claude.ai/code", category="ia",
-             cost_monthly=0, description="Extension de programacion IA para el IDE", used_by="ambos"),
-    ]
-    db.session.add_all(tools)
-
     # Proyectos
     projects = [
         Project(name="Panel NodexAI", client_name="Interno", status="activo",
@@ -140,6 +116,43 @@ def seed_data():
     db.session.add_all(ideas)
 
     db.session.commit()
+
+
+# List of all tools - used by both seed_data and sync_tools
+TOOLS_LIST = [
+    {"name": "Claude", "url": "https://claude.ai", "category": "ia",
+     "cost_monthly": 20, "description": "Asistente IA de Anthropic", "used_by": "ambos"},
+    {"name": "GitHub", "url": "https://github.com", "category": "desarrollo",
+     "cost_monthly": 0, "description": "Repositorios de codigo", "used_by": "ambos"},
+    {"name": "VSCode", "url": "https://code.visualstudio.com", "category": "desarrollo",
+     "cost_monthly": 0, "description": "Editor de codigo", "used_by": "ambos"},
+    {"name": "Vercel", "url": "https://vercel.com", "category": "infraestructura",
+     "cost_monthly": 0, "description": "Deploy de aplicaciones web", "used_by": "alex"},
+    {"name": "Discord", "url": "https://discord.com", "category": "comunicacion",
+     "cost_monthly": 0, "description": "Comunicacion interna (a sustituir por este panel)", "used_by": "ambos"},
+    {"name": "Supabase", "url": "https://supabase.com", "category": "infraestructura",
+     "cost_monthly": 0, "description": "Base de datos PostgreSQL (inmobiliaria, madness)", "used_by": "ambos"},
+    {"name": "Railway", "url": "https://railway.app", "category": "infraestructura",
+     "cost_monthly": 5, "description": "Deploy del panel y n8n", "used_by": "alex"},
+    {"name": "n8n", "url": "https://n8n.io", "category": "desarrollo",
+     "cost_monthly": 0, "description": "Automatizaciones (self-hosted en Railway)", "used_by": "ambos"},
+    {"name": "Antigravity", "url": "https://antigravity.dev", "category": "desarrollo",
+     "cost_monthly": 0, "description": "IDE con extension Claude Code", "used_by": "ambos"},
+    {"name": "Claude Code", "url": "https://claude.ai/code", "category": "ia",
+     "cost_monthly": 0, "description": "Extension de programacion IA para el IDE", "used_by": "ambos"},
+]
+
+
+def sync_tools():
+    """Add missing tools on every startup. Does not modify existing ones."""
+    existing = {t.name for t in Tool.query.all()}
+    added = 0
+    for t in TOOLS_LIST:
+        if t["name"] not in existing:
+            db.session.add(Tool(**t))
+            added += 1
+    if added:
+        db.session.commit()
 
 
 app = create_app()
