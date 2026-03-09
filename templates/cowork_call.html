@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Videollamada{% endblock %}
+{% block page_title %}Videollamada{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Videollamada</h1>
+        <p class="page-subtitle">Sala: {{ room }}</p>
+    </div>
+    <a href="{{ url_for('cowork.index') }}" class="btn btn-secondary">Volver al chat</a>
+</div>
+
+<div class="cowork-call-container">
+    <iframe
+        src="https://meet.jit.si/{{ room }}"
+        allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
+        style="width:100%; height:calc(100vh - 180px); border:none; border-radius:var(--radius-md);">
+    </iframe>
+</div>
+{% endblock %}

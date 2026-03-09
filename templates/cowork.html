@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Cowork{% endblock %}
+{% block page_title %}Cowork{% endblock %}
+
+{% block content %}
+<div class="cowork-layout">
+    <!-- Channels sidebar -->
+    <div class="cowork-channels">
+        <div class="cowork-channels-header">Canales</div>
+        <a href="{{ url_for('cowork.index', channel='general') }}" class="cowork-channel {{ 'active' if channel == 'general' }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            General
+        </a>
+        {% for p in projects %}
+        <a href="{{ url_for('cowork.index', channel='project_' ~ p.id) }}" class="cowork-channel {{ 'active' if channel == 'project_' ~ p.id|string }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            {{ p.name }}
+        </a>
+        {% endfor %}
+
+        <div class="cowork-channels-header" style="margin-top:16px">Mensajes directos</div>
+        {% for u in users %}
+        {% if u.id != current_user.id %}
+        {% set dm_channel = 'dm_' ~ ([current_user.id, u.id]|sort|join('_')) %}
+        <a href="{{ url_for('cowork.index', channel=dm_channel) }}" class="cowork-channel {{ 'active' if channel == dm_channel }}">
+            <span class="cowork-avatar-sm">{{ u.name[:2]|upper }}</span>
+            {{ u.name }}
+        </a>
+        {% endif %}
+        {% endfor %}
+
+        <!-- Active calls -->
+        {% if active_calls %}
+        <div class="cowork-channels-header" style="margin-top:16px">Llamadas activas</div>
+        {% for c in active_calls %}
+        <a href="{{ url_for('cowork.call', room=c.room_name) }}" class="cowork-channel cowork-call-active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15.05 5A5 5 0 0119 8.95M15.05 1A9 9 0 0123 8.94m-1 7.98v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+            {{ c.creator.name }} - En llamada
+        </a>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Chat area -->
+    <div class="cowork-chat">
+        <div class="cowork-chat-header">
+            <div>
+                <strong>{{ channel.replace('_', ' ')|capitalize if not channel.startswith('dm_') else '' }}
+                {% if channel.startswith('project_') %}
+                    {% set pid = channel.replace('project_', '')|int %}
+                    {% for p in projects if p.id == pid %}{{ p.name }}{% endfor %}
+                {% elif channel.startswith('dm_') %}
+                    {% set parts = channel.replace('dm_', '').split('_') %}
+                    {% for u in users if u.id|string in parts and u.id != current_user.id %}{{ u.name }}{% endfor %}
+                {% endif %}
+                </strong>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="startCall()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                Videollamada
+            </button>
+        </div>
+
+        <div class="cowork-messages" id="messagesContainer">
+            {% for m in messages %}
+            <div class="cowork-msg {{ 'cowork-msg-own' if m.sender_id == current_user.id }}">
+                <div class="cowork-msg-avatar">{{ m.sender.name[:2]|upper if m.sender else '?' }}</div>
+                <div class="cowork-msg-body">
+                    <div class="cowork-msg-meta">
+                        <span class="cowork-msg-name">{{ m.sender.name if m.sender else '?' }}</span>
+                        <span class="cowork-msg-time">{{ m.created_at.strftime('%H:%M') }}</span>
+                    </div>
+                    <div class="cowork-msg-text">{{ m.content }}</div>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not messages %}
+            <div class="cowork-empty">No hay mensajes en este canal. Escribe el primero.</div>
+            {% endif %}
+        </div>
+
+        <form class="cowork-input" id="chatForm" onsubmit="return sendMessage(event)">
+            <input type="text" id="chatInput" placeholder="Escribe un mensaje..." autocomplete="off">
+            <button type="submit" class="btn btn-primary btn-sm">Enviar</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/cowork.js') }}"></script>
+<script>
+    initCowork('{{ channel }}', {{ current_user.id }});
+</script>
+{% endblock %}

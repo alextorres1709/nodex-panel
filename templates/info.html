@@ -14,15 +14,47 @@
 </div>
 
 {% if company %}
-<div class="info-card">
-    <div class="info-row"><div class="info-label">Nombre</div><div class="info-value">{{ company.name }}</div></div>
-    <div class="info-row"><div class="info-label">Descripcion</div><div class="info-value">{{ company.description or '—' }}</div></div>
-    <div class="info-row"><div class="info-label">Email</div><div class="info-value">{{ company.email or '—' }}</div></div>
-    <div class="info-row"><div class="info-label">Telefono</div><div class="info-value">{{ company.phone or '—' }}</div></div>
-    <div class="info-row"><div class="info-label">Direccion</div><div class="info-value">{{ company.address or '—' }}</div></div>
-    <div class="info-row"><div class="info-label">Web</div><div class="info-value">{% if company.website %}<a href="{{ company.website }}" target="_blank">{{ company.website }}</a>{% else %}—{% endif %}</div></div>
-    <div class="info-row"><div class="info-label">Info extra</div><div class="info-value">{{ company.extra_info or '—' }}</div></div>
+<div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr))">
+    <!-- Identidad -->
+    <div class="card" style="grid-column: span 2">
+        <div class="card-header"><h3>Identidad</h3></div>
+        <div class="info-card" style="border:none;box-shadow:none;padding:0">
+            <div class="info-row"><div class="info-label">Nombre</div><div class="info-value">{{ company.name }}</div></div>
+            <div class="info-row"><div class="info-label">Descripcion</div><div class="info-value">{{ company.description or '—' }}</div></div>
+            <div class="info-row"><div class="info-label">NIF/CIF</div><div class="info-value">{{ company.nif or '—' }}</div></div>
+            <div class="info-row"><div class="info-label">Sector</div><div class="info-value">{{ company.sector or '—' }}</div></div>
+            <div class="info-row"><div class="info-label">Fundacion</div><div class="info-value">{{ company.founded or '—' }}</div></div>
+        </div>
+    </div>
+
+    <!-- Contacto -->
+    <div class="card">
+        <div class="card-header"><h3>Contacto</h3></div>
+        <div class="info-card" style="border:none;box-shadow:none;padding:0">
+            <div class="info-row"><div class="info-label">Email</div><div class="info-value">{% if company.email %}<a href="mailto:{{ company.email }}">{{ company.email }}</a>{% else %}—{% endif %}</div></div>
+            <div class="info-row"><div class="info-label">Telefono</div><div class="info-value">{{ company.phone or '—' }}</div></div>
+            <div class="info-row"><div class="info-label">Direccion</div><div class="info-value">{{ company.address or '—' }}</div></div>
+        </div>
+    </div>
+
+    <!-- Online -->
+    <div class="card">
+        <div class="card-header"><h3>Presencia online</h3></div>
+        <div class="info-card" style="border:none;box-shadow:none;padding:0">
+            <div class="info-row"><div class="info-label">Web</div><div class="info-value">{% if company.website %}<a href="{{ company.website }}" target="_blank">{{ company.website }}</a>{% else %}—{% endif %}</div></div>
+            <div class="info-row"><div class="info-label">LinkedIn</div><div class="info-value">{% if company.linkedin %}<a href="{{ company.linkedin }}" target="_blank">{{ company.linkedin }}</a>{% else %}—{% endif %}</div></div>
+            <div class="info-row"><div class="info-label">GitHub</div><div class="info-value">{% if company.github %}<a href="{{ company.github }}" target="_blank">{{ company.github }}</a>{% else %}—{% endif %}</div></div>
+        </div>
+    </div>
 </div>
+
+{% if company.extra_info %}
+<div class="card" style="margin-top:16px">
+    <div class="card-header"><h3>Informacion adicional</h3></div>
+    <div style="padding:16px 20px;color:var(--text-secondary);line-height:1.6;white-space:pre-wrap">{{ company.extra_info }}</div>
+</div>
+{% endif %}
+
 {% else %}
 <div class="empty-state"><p>Sin informacion de empresa. Crea una.</p></div>
 {% endif %}
@@ -34,13 +66,22 @@
         <form method="POST" action="{{ url_for('info.edit') }}">
             <div class="modal-body">
                 <div class="form-group"><label>Nombre</label><input type="text" name="name" value="{{ company.name if company else '' }}"></div>
-                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="3">{{ company.description if company else '' }}</textarea></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2">{{ company.description if company else '' }}</textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>NIF/CIF</label><input type="text" name="nif" value="{{ company.nif if company else '' }}"></div>
+                    <div class="form-group"><label>Sector</label><input type="text" name="sector" value="{{ company.sector if company else '' }}" placeholder="Ej: Tecnologia / IA"></div>
+                </div>
+                <div class="form-group"><label>Ano de fundacion</label><input type="text" name="founded" value="{{ company.founded if company else '' }}" placeholder="Ej: 2024"></div>
                 <div class="form-row">
                     <div class="form-group"><label>Email</label><input type="email" name="email" value="{{ company.email if company else '' }}"></div>
                     <div class="form-group"><label>Telefono</label><input type="text" name="phone" value="{{ company.phone if company else '' }}"></div>
                 </div>
                 <div class="form-group"><label>Direccion</label><input type="text" name="address" value="{{ company.address if company else '' }}"></div>
-                <div class="form-group"><label>Website</label><input type="url" name="website" value="{{ company.website if company else '' }}"></div>
+                <div class="form-group"><label>Website</label><input type="url" name="website" value="{{ company.website if company else '' }}" placeholder="https://"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>LinkedIn</label><input type="url" name="linkedin" value="{{ company.linkedin if company else '' }}" placeholder="https://linkedin.com/company/..."></div>
+                    <div class="form-group"><label>GitHub</label><input type="url" name="github" value="{{ company.github if company else '' }}" placeholder="https://github.com/..."></div>
+                </div>
                 <div class="form-group"><label>Info extra</label><textarea name="extra_info" rows="3">{{ company.extra_info if company else '' }}</textarea></div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>

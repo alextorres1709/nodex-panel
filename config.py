@@ -34,6 +34,8 @@ def _get_base_dir():
 
 BASE_DIR = _get_base_dir()
 
+APP_VERSION = "1.1.0"
+
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "nodex-panel-secret-key-2024")

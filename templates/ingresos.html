@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% block title %}Ingresos{% endblock %}
+{% block page_title %}Ingresos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Ingresos</h1>
+        <p class="page-subtitle">Facturacion y cobros de proyectos</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('createModal')">+ Nuevo ingreso</button>
+</div>
+
+<div class="summary-row">
+    <div class="summary-item">
+        <div>
+            <div class="summary-label">Cobrado</div>
+            <div class="summary-value" style="color:var(--success)">{{ "%.2f"|format(total_cobrado) }}&euro;</div>
+        </div>
+    </div>
+    <div class="summary-item">
+        <div>
+            <div class="summary-label">Facturado</div>
+            <div class="summary-value" style="color:var(--info)">{{ "%.2f"|format(total_facturado) }}&euro;</div>
+        </div>
+    </div>
+    <div class="summary-item">
+        <div>
+            <div class="summary-label">Pendiente</div>
+            <div class="summary-value" style="color:var(--warning)">{{ "%.2f"|format(total_pendiente) }}&euro;</div>
+        </div>
+    </div>
+</div>
+
+<form class="filter-bar" method="GET">
+    <select name="category">
+        <option value="">Todas las categorias</option>
+        {% for c in ['proyecto','servicio','consultoria','otro'] %}
+        <option value="{{ c }}" {{ 'selected' if sel_category == c }}>{{ c|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <select name="status">
+        <option value="">Todos los estados</option>
+        {% for s in ['cobrado','pendiente','facturado'] %}
+        <option value="{{ s }}" {{ 'selected' if sel_status == s }}>{{ s|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
+    {% if sel_category or sel_status %}
+    <a href="{{ url_for('incomes.index') }}" class="btn btn-sm btn-secondary">Limpiar</a>
+    {% endif %}
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Concepto</th>
+                <th>Cliente</th>
+                <th>Importe</th>
+                <th>Categoria</th>
+                <th>Estado</th>
+                <th>Fecha factura</th>
+                <th>Fecha cobro</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for i in incomes %}
+            <tr>
+                <td>{{ i.name }}</td>
+                <td>{{ i.client_name or '—' }}</td>
+                <td>{{ "%.2f"|format(i.amount) }} {{ i.currency }}</td>
+                <td><span class="badge badge-{{ i.category }}">{{ i.category }}</span></td>
+                <td><span class="badge badge-{{ i.status }}">{{ i.status }}</span></td>
+                <td>{{ i.invoice_date.strftime('%d/%m/%Y') if i.invoice_date else '—' }}</td>
+                <td>{{ i.paid_date.strftime('%d/%m/%Y') if i.paid_date else '—' }}</td>
+                <td>
+                    <div style="display:flex;gap:4px">
+                        <button class="btn btn-sm btn-secondary" onclick="editIncome({{ i.id }}, '{{ i.name|e }}', '{{ i.client_name|e }}', {{ i.amount }}, '{{ i.currency }}', '{{ i.frequency }}', '{{ i.category }}', '{{ i.status }}', '{{ i.project_id or '' }}', '{{ i.invoice_date or '' }}', '{{ i.paid_date or '' }}', '{{ i.notes|e }}')">Editar</button>
+                        <form method="POST" action="{{ url_for('incomes.delete', iid=i.id) }}" style="display:inline" onsubmit="return confirm('Eliminar este ingreso?')">
+                            <button type="submit" class="btn btn-sm btn-danger">X</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not incomes %}
+            <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-tertiary)">No hay ingresos registrados</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Nuevo ingreso</h3>
+            <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('incomes.create') }}">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Concepto</label>
+                    <input type="text" name="name" required placeholder="Ej: Desarrollo web empresa X">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Cliente</label>
+                        <input type="text" name="client_name" placeholder="Nombre del cliente">
+                    </div>
+                    <div class="form-group">
+                        <label>Proyecto</label>
+                        <select name="project_id">
+                            <option value="">Sin proyecto</option>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Importe</label>
+                        <input type="number" name="amount" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Moneda</label>
+                        <select name="currency"><option value="EUR">EUR</option><option value="USD">USD</option></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Frecuencia</label>
+                        <select name="frequency">
+                            <option value="unico">Unico</option>
+                            <option value="mensual">Mensual</option>
+                            <option value="anual">Anual</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Categoria</label>
+                        <select name="category">
+                            <option value="proyecto">Proyecto</option>
+                            <option value="servicio">Servicio</option>
+                            <option value="consultoria">Consultoria</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select name="status">
+                            <option value="pendiente">Pendiente</option>
+                            <option value="facturado">Facturado</option>
+                            <option value="cobrado">Cobrado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha factura</label>
+                        <input type="date" name="invoice_date">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Fecha cobro</label>
+                    <input type="date" name="paid_date">
+                </div>
+                <div class="form-group">
+                    <label>Notas</label>
+                    <textarea name="notes" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Crear</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Editar ingreso</h3>
+            <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
+        </div>
+        <form method="POST" id="editForm" action="">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Concepto</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Cliente</label>
+                        <input type="text" name="client_name">
+                    </div>
+                    <div class="form-group">
+                        <label>Proyecto</label>
+                        <select name="project_id">
+                            <option value="">Sin proyecto</option>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Importe</label>
+                        <input type="number" name="amount" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Moneda</label>
+                        <select name="currency"><option value="EUR">EUR</option><option value="USD">USD</option></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Frecuencia</label>
+                        <select name="frequency">
+                            <option value="unico">Unico</option>
+                            <option value="mensual">Mensual</option>
+                            <option value="anual">Anual</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Categoria</label>
+                        <select name="category">
+                            <option value="proyecto">Proyecto</option>
+                            <option value="servicio">Servicio</option>
+                            <option value="consultoria">Consultoria</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select name="status">
+                            <option value="pendiente">Pendiente</option>
+                            <option value="facturado">Facturado</option>
+                            <option value="cobrado">Cobrado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha factura</label>
+                        <input type="date" name="invoice_date">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Fecha cobro</label>
+                    <input type="date" name="paid_date">
+                </div>
+                <div class="form-group">
+                    <label>Notas</label>
+                    <textarea name="notes" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editIncome(id, name, client_name, amount, currency, frequency, category, status, project_id, invoice_date, paid_date, notes) {
+    document.getElementById('editForm').action = '/ingresos/edit/' + id;
+    populateEditModal({name, client_name, amount, currency, frequency, category, status, project_id, invoice_date, paid_date, notes}, 'editForm');
+    openModal('editModal');
+}
+</script>
+{% endblock %}

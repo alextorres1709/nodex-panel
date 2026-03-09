@@ -49,9 +49,9 @@
 
 /* ═══ DARK MODE ═══ */
 [data-theme="dark"] {
-    --brand-primary: #22c55e;
-    --brand-primary-light: #4ade80;
-    --brand-primary-dark: #16a34a;
+    --brand-primary: #4ccd5c;
+    --brand-primary-light: #6edb7a;
+    --brand-primary-dark: #36b446;
     --brand-cyan: #22d3ee;
     --brand-purple: #a78bfa;
     --brand-amber: #fbbf24;
@@ -62,7 +62,7 @@
     --bg-card-hover: #111111;
     --border-color: rgba(255,255,255,0.08);
     --border-hover: rgba(255,255,255,0.14);
-    --border-focus: rgba(34, 197, 94, 0.5);
+    --border-focus: rgba(76, 205, 92, 0.5);
     --text-primary: #f5f5f5;
     --text-secondary: rgba(255,255,255,0.6);
     --text-tertiary: rgba(255,255,255,0.3);
@@ -533,7 +533,7 @@ a:hover { text-decoration: none; }
 .badge-baja { background: rgba(5,150,105,0.08); color: #059669; border-color: rgba(5,150,105,0.15); }
 
 .badge-admin { background: rgba(124,58,237,0.08); color: #7c3aed; border-color: rgba(124,58,237,0.15); }
-[data-theme="dark"] .badge-admin { background: rgba(34,197,94,0.08); color: #22c55e; border-color: rgba(34,197,94,0.15); }
+[data-theme="dark"] .badge-admin { background: rgba(76,205,92,0.08); color: #4ccd5c; border-color: rgba(76,205,92,0.15); }
 .badge-editor { background: rgba(8,145,178,0.08); color: #0891b2; border-color: rgba(8,145,178,0.15); }
 
 .badge-herramienta { background: rgba(124,58,237,0.08); color: #7c3aed; border-color: rgba(124,58,237,0.15); }
@@ -541,7 +541,7 @@ a:hover { text-decoration: none; }
 .badge-servicio { background: rgba(59,130,246,0.08); color: #2563eb; border-color: rgba(59,130,246,0.15); }
 
 .badge-feature { background: rgba(124,58,237,0.08); color: #7c3aed; border-color: rgba(124,58,237,0.15); }
-[data-theme="dark"] .badge-feature { background: rgba(34,197,94,0.08); color: #22c55e; border-color: rgba(34,197,94,0.15); }
+[data-theme="dark"] .badge-feature { background: rgba(76,205,92,0.08); color: #4ccd5c; border-color: rgba(76,205,92,0.15); }
 .badge-proyecto { background: rgba(124,58,237,0.08); color: #7c3aed; border-color: rgba(124,58,237,0.15); }
 .badge-mejora { background: rgba(8,145,178,0.08); color: #0891b2; border-color: rgba(8,145,178,0.15); }
 
@@ -549,7 +549,7 @@ a:hover { text-decoration: none; }
 .badge-ia { background: rgba(124,58,237,0.08); color: #7c3aed; border-color: rgba(124,58,237,0.15); }
 .badge-dominio { background: rgba(59,130,246,0.08); color: #2563eb; border-color: rgba(59,130,246,0.15); }
 .badge-desarrollo { background: rgba(124,58,237,0.08); color: #7c3aed; border-color: rgba(124,58,237,0.15); }
-[data-theme="dark"] .badge-desarrollo { background: rgba(34,197,94,0.08); color: #22c55e; border-color: rgba(34,197,94,0.15); }
+[data-theme="dark"] .badge-desarrollo { background: rgba(76,205,92,0.08); color: #4ccd5c; border-color: rgba(76,205,92,0.15); }
 .badge-email { background: rgba(217,119,6,0.08); color: #d97706; border-color: rgba(217,119,6,0.15); }
 
 /* ═══ BUTTONS ═══ */
@@ -577,8 +577,8 @@ a:hover { text-decoration: none; }
     background: var(--brand-primary-dark);
     box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
 }
-[data-theme="dark"] .btn-primary { background: #16a34a; color: #ffffff; box-shadow: 0 1px 3px rgba(34, 197, 94, 0.3); }
-[data-theme="dark"] .btn-primary:hover { background: #15803d; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3); }
+[data-theme="dark"] .btn-primary { background: #36b446; color: #ffffff; box-shadow: 0 1px 3px rgba(76, 205, 92, 0.3); }
+[data-theme="dark"] .btn-primary:hover { background: #15803d; box-shadow: 0 4px 12px rgba(76, 205, 92, 0.3); }
 
 .btn-secondary {
     background: transparent;
@@ -652,7 +652,7 @@ a:hover { text-decoration: none; }
 [data-theme="dark"] .form-group input:focus,
 [data-theme="dark"] .form-group select:focus,
 [data-theme="dark"] .form-group textarea:focus {
-    box-shadow: 0 0 0 3px rgba(34,197,94,0.08);
+    box-shadow: 0 0 0 3px rgba(76,205,92,0.08);
 }
 
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -907,11 +907,11 @@ a:hover { text-decoration: none; }
 }
 
 [data-theme="dark"] .vote-btn {
-    background: rgba(34,197,94,0.08);
-    border-color: rgba(34,197,94,0.15);
+    background: rgba(76,205,92,0.08);
+    border-color: rgba(76,205,92,0.15);
 }
 [data-theme="dark"] .vote-btn:hover {
-    background: rgba(34,197,94,0.15);
+    background: rgba(76,205,92,0.15);
 }
 
 /* ═══ ACTIVITY LOG ═══ */
@@ -937,7 +937,7 @@ a:hover { text-decoration: none; }
     box-shadow: 0 0 6px rgba(124, 58, 237, 0.3);
 }
 [data-theme="dark"] .activity-dot {
-    box-shadow: 0 0 6px rgba(34, 197, 94, 0.3);
+    box-shadow: 0 0 6px rgba(76, 205, 92, 0.3);
 }
 
 .activity-text { font-size: 13px; flex: 1; }
@@ -1025,7 +1025,7 @@ a:hover { text-decoration: none; }
     overflow: hidden;
 }
 [data-theme="dark"] .login-logo {
-    box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);
+    box-shadow: 0 0 30px rgba(124, 58, 237, 0.2);
 }
 
 .login-card h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
@@ -1170,10 +1170,200 @@ a:hover { text-decoration: none; }
 
 /* ═══ DARK MODE EXTRAS ═══ */
 [data-theme="dark"] .sidebar { background: var(--bg-card); border-right-color: var(--border-color); }
-[data-theme="dark"] .sidebar-logo { box-shadow: 0 0 20px rgba(34, 197, 94, 0.3); }
-[data-theme="dark"] .sidebar-nav li a.active { background: rgba(34, 197, 94, 0.06); }
-[data-theme="dark"] .sidebar-nav li a.active::before { box-shadow: 0 0 8px rgba(34, 197, 94, 0.4); }
-[data-theme="dark"] .sidebar-user-avatar { background: rgba(34, 197, 94, 0.1); }
+[data-theme="dark"] .sidebar-logo { box-shadow: 0 0 20px rgba(124, 58, 237, 0.3); }
+[data-theme="dark"] .sidebar-nav li a.active { background: rgba(76, 205, 92, 0.06); }
+[data-theme="dark"] .sidebar-nav li a.active::before { box-shadow: 0 0 8px rgba(76, 205, 92, 0.4); }
+[data-theme="dark"] .sidebar-user-avatar { background: rgba(76, 205, 92, 0.1); }
+
+/* ═══ COWORK ═══ */
+.cowork-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 0;
+    height: calc(100vh - var(--header-height) - 40px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-card);
+}
+
+.cowork-channels {
+    border-right: 1px solid var(--border-color);
+    padding: 12px 0;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+}
+
+.cowork-channels-header {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: 8px 16px 4px;
+    letter-spacing: 0.05em;
+}
+
+.cowork-channel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    transition: var(--transition-fast);
+}
+.cowork-channel:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.cowork-channel.active { background: var(--bg-tertiary); color: var(--brand-primary); font-weight: 600; }
+
+.cowork-channel.cowork-call-active {
+    color: var(--success);
+    animation: pulse-call 2s infinite;
+}
+@keyframes pulse-call { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+.cowork-avatar-sm {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--brand-primary);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cowork-chat {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.cowork-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 14px;
+}
+
+.cowork-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cowork-empty {
+    text-align: center;
+    color: var(--text-tertiary);
+    padding: 40px 0;
+    font-size: 13px;
+}
+
+.cowork-msg {
+    display: flex;
+    gap: 10px;
+    max-width: 75%;
+}
+
+.cowork-msg-own {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.cowork-msg-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cowork-msg-own .cowork-msg-avatar {
+    background: var(--brand-primary);
+    color: white;
+}
+
+.cowork-msg-body {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+}
+
+.cowork-msg-own .cowork-msg-body {
+    background: rgba(var(--brand-primary), 0.1);
+}
+[data-theme="dark"] .cowork-msg-own .cowork-msg-body { background: rgba(76, 205, 92, 0.08); }
+:root .cowork-msg-own .cowork-msg-body { background: rgba(124, 58, 237, 0.08); }
+
+.cowork-msg-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.cowork-msg-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.cowork-msg-time {
+    font-size: 10px;
+    color: var(--text-tertiary);
+}
+
+.cowork-msg-text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.cowork-input {
+    display: flex;
+    gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.cowork-input input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: var(--transition-fast);
+}
+.cowork-input input:focus { border-color: var(--brand-primary); }
+
+.cowork-call-container {
+    margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+    .cowork-layout { grid-template-columns: 1fr; height: auto; }
+    .cowork-channels { display: none; }
+    .cowork-messages { min-height: 400px; }
+}
 
 /* ═══ SCROLLBAR ═══ */
 ::-webkit-scrollbar { width: 6px; }

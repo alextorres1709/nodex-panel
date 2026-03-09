@@ -102,6 +102,25 @@ class Idea(db.Model):
     project = db.relationship("Project", foreign_keys=[project_id])
 
 
+class Income(db.Model):
+    __tablename__ = "incomes"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    client_name = db.Column(db.String(200), default="")
+    amount = db.Column(db.Float, default=0)
+    currency = db.Column(db.String(10), default="EUR")
+    frequency = db.Column(db.String(20), default="unico")  # mensual, anual, unico
+    category = db.Column(db.String(50), default="proyecto")  # proyecto, servicio, consultoria, otro
+    status = db.Column(db.String(20), default="pendiente")  # cobrado, pendiente, facturado
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+    invoice_date = db.Column(db.Date, nullable=True)
+    paid_date = db.Column(db.Date, nullable=True)
+    notes = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    project = db.relationship("Project", foreign_keys=[project_id])
+
+
 class Credential(db.Model):
     __tablename__ = "credentials"
     id = db.Column(db.Integer, primary_key=True)
@@ -125,6 +144,11 @@ class CompanyInfo(db.Model):
     email = db.Column(db.String(120), default="")
     address = db.Column(db.String(200), default="")
     website = db.Column(db.String(200), default="")
+    nif = db.Column(db.String(20), default="")
+    founded = db.Column(db.String(10), default="")
+    sector = db.Column(db.String(100), default="")
+    linkedin = db.Column(db.String(200), default="")
+    github = db.Column(db.String(200), default="")
     extra_info = db.Column(db.Text, default="")
 
 
@@ -139,3 +163,27 @@ class ActivityLog(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship("User", foreign_keys=[user_id])
+
+
+class Message(db.Model):
+    __tablename__ = "messages"
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    channel = db.Column(db.String(50), default="general")  # general, project_3, dm_1_2
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    sender = db.relationship("User", foreign_keys=[sender_id])
+
+
+class CallSession(db.Model):
+    __tablename__ = "call_sessions"
+    id = db.Column(db.Integer, primary_key=True)
+    room_name = db.Column(db.String(100), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    started_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    ended_at = db.Column(db.DateTime, nullable=True)
+
+    project = db.relationship("Project", foreign_keys=[project_id])
+    creator = db.relationship("User", foreign_keys=[created_by])

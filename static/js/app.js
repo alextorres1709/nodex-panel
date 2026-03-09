@@ -1,14 +1,14 @@
 // Theme
 function initTheme() {
     const saved = localStorage.getItem('nodex-panel-theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', saved);
+    document.body.setAttribute('data-theme', saved);
     updateToggleIcon(saved);
 }
 
 function toggleTheme() {
-    const current = document.documentElement.getAttribute('data-theme');
+    const current = document.body.getAttribute('data-theme');
     const next = current === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', next);
+    document.body.setAttribute('data-theme', next);
     localStorage.setItem('nodex-panel-theme', next);
     updateToggleIcon(next);
     rebuildCharts();
@@ -26,12 +26,12 @@ function updateToggleIcon(theme) {
 
 // Charts
 function getChartTheme() {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const isDark = document.body.getAttribute('data-theme') === 'dark';
     return {
         text: isDark ? '#e2e8f0' : '#0f172a',
         grid: isDark ? '#1e293b' : '#e2e8f0',
         colors: isDark
-            ? ['#22c55e', '#16a34a', '#4ade80', '#22d3ee', '#fbbf24', '#a78bfa', '#ef4444', '#14b8a6']
+            ? ['#4ccd5c', '#36b446', '#6edb7a', '#22d3ee', '#fbbf24', '#a78bfa', '#ef4444', '#14b8a6']
             : ['#7c3aed', '#6d28d9', '#8b5cf6', '#06b6d4', '#f59e0b', '#a855f7', '#ef4444', '#14b8a6'],
     };
 }

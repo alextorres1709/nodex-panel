@@ -32,10 +32,13 @@ def create_app():
     from routes.users import users_bp
     from routes.settings import settings_bp
     from routes.credentials import credentials_bp
+    from routes.incomes import incomes_bp
+    from routes.cowork import cowork_bp
+    from routes.api import api_bp
 
-    for bp in [auth_bp, dashboard_bp, payments_bp, projects_bp, tools_bp,
-               tasks_bp, ideas_bp, info_bp, activity_bp, users_bp, settings_bp,
-               credentials_bp]:
+    for bp in [auth_bp, dashboard_bp, payments_bp, incomes_bp, projects_bp,
+               tools_bp, tasks_bp, ideas_bp, info_bp, activity_bp, users_bp,
+               settings_bp, credentials_bp, cowork_bp, api_bp]:
         app.register_blueprint(bp)
 
     @app.before_request
@@ -67,6 +70,9 @@ def seed_data():
         description="Soluciones de inteligencia artificial para empresas",
         email="info@nodexai.es",
         website="https://nodexai.es",
+        sector="Tecnologia / Inteligencia Artificial",
+        founded="2024",
+        github="https://github.com/alextorres1709",
     )
     db.session.add(company)
 
