@@ -55,7 +55,7 @@ def seed_data():
     # Usuarios
     alex = User(name="Alex", email="torres.diez.alex@gmail.com", role="admin")
     alex.set_password("nodex2024")
-    socio = User(name="Socio", email="socio@nodexai.es", role="editor")
+    socio = User(name="Socio", email="socio@nodexai.es", role="admin")
     socio.set_password("nodex2024")
     db.session.add_all([alex, socio])
     db.session.flush()
