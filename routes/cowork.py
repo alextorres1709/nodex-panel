@@ -81,6 +81,9 @@ def stream():
     def generate():
         nonlocal last_id
         while True:
+            # Refresh session to see new messages committed by other requests
+            db.session.commit()
+            
             msgs = (
                 Message.query
                 .filter(Message.channel == channel, Message.id > last_id)
