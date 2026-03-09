@@ -1,6 +1,6 @@
 // Theme
 function initTheme() {
-    const saved = localStorage.getItem('nodex-panel-theme') || 'light';
+    const saved = localStorage.getItem('nodex-panel-theme') || 'dark';
     document.documentElement.setAttribute('data-theme', saved);
     updateToggleIcon(saved);
 }
@@ -16,7 +16,12 @@ function toggleTheme() {
 
 function updateToggleIcon(theme) {
     const btn = document.getElementById('themeToggle');
-    if (btn) btn.textContent = theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+    if (!btn) return;
+    if (theme === 'dark') {
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+    } else {
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
+    }
 }
 
 // Charts
@@ -25,7 +30,9 @@ function getChartTheme() {
     return {
         text: isDark ? '#e2e8f0' : '#0f172a',
         grid: isDark ? '#1e293b' : '#e2e8f0',
-        colors: ['#a3e635', '#0a0a0a', '#84cc16', '#22d3ee', '#f59e0b', '#c084fc', '#ef4444', '#14b8a6'],
+        colors: isDark
+            ? ['#22c55e', '#16a34a', '#4ade80', '#22d3ee', '#fbbf24', '#a78bfa', '#ef4444', '#14b8a6']
+            : ['#7c3aed', '#6d28d9', '#8b5cf6', '#06b6d4', '#f59e0b', '#a855f7', '#ef4444', '#14b8a6'],
     };
 }
 

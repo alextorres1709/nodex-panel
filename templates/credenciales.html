@@ -50,14 +50,14 @@
                     {% if c.password %}
                     <span class="cred-hidden" id="pw-{{ c.id }}">••••••••</span>
                     <span class="cred-visible" id="pw-show-{{ c.id }}" style="display:none;font-family:monospace;font-size:12px">{{ c._decrypted_password }}</span>
-                    <button class="btn-icon" onclick="toggleCred('pw', {{ c.id }})" title="Mostrar" style="margin-left:4px;font-size:11px;padding:3px 6px">👁</button>
+                    <button class="btn-icon" onclick="toggleCred('pw', {{ c.id }})" title="Mostrar" style="margin-left:4px;padding:3px 6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
                     {% else %}&mdash;{% endif %}
                 </td>
                 <td>
                     {% if c.api_key %}
                     <span class="cred-hidden" id="ak-{{ c.id }}">••••••••</span>
                     <span class="cred-visible" id="ak-show-{{ c.id }}" style="display:none;font-family:monospace;font-size:12px">{{ c._decrypted_api_key }}</span>
-                    <button class="btn-icon" onclick="toggleCred('ak', {{ c.id }})" title="Mostrar" style="margin-left:4px;font-size:11px;padding:3px 6px">👁</button>
+                    <button class="btn-icon" onclick="toggleCred('ak', {{ c.id }})" title="Mostrar" style="margin-left:4px;padding:3px 6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
                     {% else %}&mdash;{% endif %}
                 </td>
                 <td><span class="badge badge-{{ c.category }}">{{ c.category }}</span></td>
