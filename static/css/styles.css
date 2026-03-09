@@ -1216,11 +1216,58 @@ a:hover { text-decoration: none; }
 .cowork-channel:hover { background: var(--bg-tertiary); color: var(--text-primary); }
 .cowork-channel.active { background: var(--bg-tertiary); color: var(--brand-primary); font-weight: 600; }
 
-.cowork-channel.cowork-call-active {
-    color: var(--success);
-    animation: pulse-call 2s infinite;
+/* Voice channels (Discord-style) */
+.cowork-voice-channel {
+    margin: 0;
 }
-@keyframes pulse-call { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+.cowork-voice-channel-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+.cowork-voice-channel-name:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+.cowork-voice-channel-name svg { opacity: 0.6; }
+
+.cowork-voice-users {
+    padding: 0 16px 4px 38px;
+}
+.cowork-voice-user {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    font-size: 12px;
+    color: var(--success);
+}
+
+.cowork-voice-controls {
+    padding: 8px 12px;
+    margin: 8px 8px 0;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+}
+.cowork-voice-connected {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--success);
+    margin-bottom: 6px;
+}
+
+.cowork-channel-info {
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
 
 .cowork-avatar-sm {
     width: 22px;

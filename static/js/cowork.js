@@ -1,6 +1,7 @@
 let currentChannel = 'general';
 let currentUserId = 0;
 let eventSource = null;
+let currentVoiceRoom = null;
 
 function initCowork(channel, userId) {
     currentChannel = channel;
@@ -80,19 +81,38 @@ function sendMessage(e) {
     return false;
 }
 
-function startCall() {
-    const projectId = currentChannel.startsWith('project_')
-        ? currentChannel.replace('project_', '')
-        : null;
-
-    fetch('/cowork/call/start', {
+function joinVoice(roomId) {
+    fetch('/cowork/voice/join/' + roomId, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({project_id: projectId}),
     })
     .then(r => r.json())
     .then(data => {
+        currentVoiceRoom = roomId;
+        // Show voice controls
+        var controls = document.getElementById('voiceControls');
+        if (controls) {
+            controls.style.display = 'block';
+            var nameEl = document.getElementById('voiceChannelName');
+            if (nameEl) nameEl.textContent = roomId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+        // Open call page in the main area
         window.location.href = '/cowork/call/' + data.room;
+    });
+}
+
+function leaveVoice() {
+    fetch('/cowork/voice/leave', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+    })
+    .then(r => r.json())
+    .then(() => {
+        currentVoiceRoom = null;
+        var controls = document.getElementById('voiceControls');
+        if (controls) controls.style.display = 'none';
+        // Reload to update voice user lists
+        window.location.href = '/cowork';
     });
 }
 

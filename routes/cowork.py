@@ -8,6 +8,12 @@ from services.activity import log_activity
 
 cowork_bp = Blueprint("cowork", __name__)
 
+# Fixed voice channels (like Discord)
+VOICE_CHANNELS = [
+    {"id": "trabajando-1", "name": "Trabajando 1"},
+    {"id": "trabajando-2", "name": "Trabajando 2"},
+]
+
 
 @cowork_bp.route("/cowork")
 @cowork_bp.route("/cowork/<channel>")
@@ -22,19 +28,24 @@ def index(channel="general"):
         .limit(200)
         .all()
     )
-    calls = (
-        CallSession.query
-        .filter_by(ended_at=None)
-        .order_by(CallSession.started_at.desc())
-        .all()
-    )
+    # Active calls grouped by room
+    active_calls = CallSession.query.filter_by(ended_at=None).all()
+    # Build dict: room_name -> list of users in that room
+    voice_rooms = {}
+    for vc in VOICE_CHANNELS:
+        voice_rooms[vc["id"]] = []
+    for c in active_calls:
+        if c.room_name in voice_rooms:
+            voice_rooms[c.room_name].append(c)
+
     return render_template(
         "cowork.html",
         channel=channel,
         messages=messages,
         projects=projects,
         users=users,
-        active_calls=calls,
+        voice_channels=VOICE_CHANNELS,
+        voice_rooms=voice_rooms,
     )
 
 
@@ -85,7 +96,6 @@ def stream():
                     "created_at": m.created_at.strftime("%H:%M"),
                 })
                 yield f"data: {data}\n\n"
-            # Keep-alive
             yield ": heartbeat\n\n"
             time.sleep(2)
 
@@ -93,34 +103,38 @@ def stream():
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-@cowork_bp.route("/cowork/call/start", methods=["POST"])
+@cowork_bp.route("/cowork/voice/join/<room_id>", methods=["POST"])
 @login_required
-def start_call():
-    data = request.get_json() or {}
-    pid = data.get("project_id")
-    room = f"nodexai-{g.user.name.lower()}-{int(time.time())}"
+def join_voice(room_id):
+    # End any existing call for this user first
+    old = CallSession.query.filter_by(created_by=g.user.id, ended_at=None).all()
+    for o in old:
+        o.ended_at = datetime.now(timezone.utc)
+
+    # Create new session in this room
     call = CallSession(
-        room_name=room,
-        project_id=int(pid) if pid else None,
+        room_name=room_id,
         created_by=g.user.id,
     )
     db.session.add(call)
-    log_activity("create", "call", details=f"Videollamada: {room}")
+    log_activity("create", "call", details=f"Unido a canal de voz: {room_id}")
     db.session.commit()
-    return jsonify({"room": room, "call_id": call.id})
+    jitsi_room = f"nodexai-{room_id}"
+    return jsonify({"room": jitsi_room, "call_id": call.id})
+
+
+@cowork_bp.route("/cowork/voice/leave", methods=["POST"])
+@login_required
+def leave_voice():
+    # End all active calls for this user
+    active = CallSession.query.filter_by(created_by=g.user.id, ended_at=None).all()
+    for c in active:
+        c.ended_at = datetime.now(timezone.utc)
+    db.session.commit()
+    return jsonify({"ok": True})
 
 
 @cowork_bp.route("/cowork/call/<room>")
 @login_required
 def call(room):
     return render_template("cowork_call.html", room=room)
-
-
-@cowork_bp.route("/cowork/call/end/<int:call_id>", methods=["POST"])
-@login_required
-def end_call(call_id):
-    c = db.session.get(CallSession, call_id)
-    if c and not c.ended_at:
-        c.ended_at = datetime.now(timezone.utc)
-        db.session.commit()
-    return jsonify({"ok": True})
