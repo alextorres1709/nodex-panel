@@ -13,16 +13,13 @@ def _get_database_url():
     """Get database URL. Supports PostgreSQL (server) and SQLite (local/DMG)."""
     url = os.getenv("DATABASE_URL")
     if url:
-        # Railway/Render use postgres:// but SQLAlchemy requires postgresql://
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
         return url
-    # Fallback: local SQLite
-    if getattr(sys, "frozen", False):
-        support = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "NodexAI Panel")
-        os.makedirs(support, exist_ok=True)
-        return f"sqlite:///{os.path.join(support, 'nodex_panel.db')}"
-    return f"sqlite:///{os.path.join(os.path.dirname(os.path.abspath(__file__)), 'nodex_panel.db')}"
+    
+    # Fallback: Remote Railway PostgreSQL (External TCP)
+    # This ensures all DMG installations connect to the same shared database
+    return "postgresql://postgres:QBvmWZgCvlBsNsqTNmjVmrKJidsHSYQH@shinkansen.proxy.rlwy.net:24887/railway"
 
 
 def _get_base_dir():
