@@ -1,5 +1,6 @@
+from concurrent.futures import ThreadPoolExecutor
 from sqlalchemy.orm import joinedload
-from flask import Blueprint, render_template, request, redirect, url_for, flash, g
+from flask import Blueprint, render_template, request, redirect, url_for, flash, g, current_app
 from models import db, Idea, Project
 from routes.auth import login_required
 from services.activity import log_activity
@@ -7,18 +8,35 @@ from services.activity import log_activity
 ideas_bp = Blueprint("ideas", __name__)
 
 
+def _run_in_app(app, fn):
+    with app.app_context():
+        return fn()
+
+
 @ideas_bp.route("/ideas")
 @login_required
 def index():
+    app = current_app._get_current_object()
     status = request.args.get("status", "")
     cat = request.args.get("category", "")
-    q = Idea.query.options(joinedload(Idea.author), joinedload(Idea.project))
-    if status:
-        q = q.filter_by(status=status)
-    if cat:
-        q = q.filter_by(category=cat)
-    ideas = q.order_by(Idea.votes.desc(), Idea.created_at.desc()).all()
-    projects = Project.query.order_by(Project.name).all()
+
+    def q_ideas():
+        q = Idea.query.options(joinedload(Idea.author), joinedload(Idea.project))
+        if status:
+            q = q.filter_by(status=status)
+        if cat:
+            q = q.filter_by(category=cat)
+        return q.order_by(Idea.votes.desc(), Idea.created_at.desc()).all()
+
+    def q_projects():
+        return Project.query.order_by(Project.name).all()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f_ideas = pool.submit(_run_in_app, app, q_ideas)
+        f_projects = pool.submit(_run_in_app, app, q_projects)
+
+    ideas = f_ideas.result()
+    projects = f_projects.result()
     return render_template("ideas.html", ideas=ideas, projects=projects, sel_status=status, sel_category=cat)
 
 

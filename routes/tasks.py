@@ -1,6 +1,7 @@
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 from sqlalchemy.orm import joinedload
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from models import db, Task, User, Project
 from routes.auth import login_required
 from services.activity import log_activity
@@ -8,22 +9,43 @@ from services.activity import log_activity
 tasks_bp = Blueprint("tasks", __name__)
 
 
+def _run_in_app(app, fn):
+    with app.app_context():
+        return fn()
+
+
 @tasks_bp.route("/tareas")
 @login_required
 def index():
+    app = current_app._get_current_object()
     status = request.args.get("status", "")
     priority = request.args.get("priority", "")
     assigned = request.args.get("assigned_to", "")
-    q = Task.query.options(joinedload(Task.assignee), joinedload(Task.project))
-    if status:
-        q = q.filter_by(status=status)
-    if priority:
-        q = q.filter_by(priority=priority)
-    if assigned:
-        q = q.filter_by(assigned_to=int(assigned))
-    tasks = q.order_by(Task.due_date.asc().nullslast(), Task.created_at.desc()).all()
-    users = User.query.filter_by(active=True).all()
-    projects = Project.query.order_by(Project.name).all()
+
+    def q_tasks():
+        q = Task.query.options(joinedload(Task.assignee), joinedload(Task.project))
+        if status:
+            q = q.filter_by(status=status)
+        if priority:
+            q = q.filter_by(priority=priority)
+        if assigned:
+            q = q.filter_by(assigned_to=int(assigned))
+        return q.order_by(Task.due_date.asc().nullslast(), Task.created_at.desc()).all()
+
+    def q_users():
+        return User.query.filter_by(active=True).all()
+
+    def q_projects():
+        return Project.query.order_by(Project.name).all()
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        f_tasks = pool.submit(_run_in_app, app, q_tasks)
+        f_users = pool.submit(_run_in_app, app, q_users)
+        f_projects = pool.submit(_run_in_app, app, q_projects)
+
+    tasks = f_tasks.result()
+    users = f_users.result()
+    projects = f_projects.result()
     return render_template("tareas.html", tasks=tasks, users=users, projects=projects,
                            sel_status=status, sel_priority=priority, sel_assigned=assigned)
 
