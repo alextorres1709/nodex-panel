@@ -72,14 +72,44 @@ def main():
     )
     server_thread.start()
 
-    # Create native window pointing to the Flask server
+    # Dark loading page shown while Flask boots
+    LOADING_HTML = """
+    <html>
+    <body style="margin:0;background:#0d1117;display:flex;justify-content:center;align-items:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;flex-direction:column;gap:20px">
+        <div style="color:white;font-size:22px;font-weight:600;letter-spacing:1px">NodexAI</div>
+        <div style="color:#8b949e;font-size:13px">Iniciando panel...</div>
+        <div style="width:200px;height:3px;background:#21262d;border-radius:3px;overflow:hidden;margin-top:8px">
+            <div style="width:0%;height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:3px;animation:load 2s ease-in-out infinite"></div>
+        </div>
+        <style>
+            @keyframes load { 0%{width:0%;margin-left:0} 50%{width:60%;margin-left:20%} 100%{width:0%;margin-left:100%} }
+        </style>
+    </body>
+    </html>
+    """
+
     window = webview.create_window(
         "NodexAI Panel",
-        f"http://127.0.0.1:{port}",
+        html=LOADING_HTML,
         width=1280,
         height=820,
         min_size=(900, 600),
     )
+
+    def _wait_and_navigate(win):
+        """Wait for Flask to be ready then navigate to it."""
+        import urllib.request
+        url = f"http://127.0.0.1:{port}"
+        for _ in range(60):  # up to 6 seconds
+            try:
+                urllib.request.urlopen(url, timeout=1)
+                win.load_url(url)
+                return
+            except Exception:
+                time.sleep(0.1)
+        win.load_url(url)  # try anyway
+
+    threading.Thread(target=_wait_and_navigate, args=(window,), daemon=True).start()
 
     webview.start(private_mode=False)
 

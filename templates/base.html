@@ -298,170 +298,191 @@
         // Auto-init on every page load
         initVoiceOverlay();
     </script>
+    </script>
+
+    <!-- Dark loading overlay for SPA transitions -->
+    <div id="spaLoader" style="display:none;position:fixed;inset:0;z-index:9999;background:#0d1117;justify-content:center;align-items:center;flex-direction:column;gap:16px">
+        <div style="color:#8b949e;font-size:14px;font-family:sans-serif">Cargando...</div>
+        <div style="width:180px;height:3px;background:#21262d;border-radius:3px;overflow:hidden">
+            <div id="spaLoaderBar" style="width:0%;height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:3px;transition:width 0.3s"></div>
+        </div>
+    </div>
 
     <!-- ═══ PREFETCH SPA NAVIGATION ═══ -->
     <script>
-        (function () {
-            var _pageCache = {};
-            var _prefetching = false;
+    (function() {
+        var _pageCache = {};
+        var _prefetching = false;
+        var FULL_RELOAD_PATHS = ['/cowork'];
 
-            // Get all sidebar navigation links (excluding logout)
-            function getSidebarLinks() {
-                var links = document.querySelectorAll('.sidebar-nav a[href]');
-                var result = [];
-                for (var i = 0; i < links.length; i++) {
-                    var href = links[i].getAttribute('href');
-                    if (href && href !== '#' && !href.includes('logout')) {
-                        result.push(href);
-                    }
+        function needsFullReload(url) {
+            for (var i = 0; i < FULL_RELOAD_PATHS.length; i++) {
+                if (url.indexOf(FULL_RELOAD_PATHS[i]) === 0) return true;
+            }
+            return false;
+        }
+
+        function getSidebarLinks() {
+            var links = document.querySelectorAll('.sidebar-nav a[href]');
+            var result = [];
+            for (var i = 0; i < links.length; i++) {
+                var href = links[i].getAttribute('href');
+                if (href && href !== '#' && !href.includes('logout') && !needsFullReload(href)) {
+                    result.push(href);
                 }
-                return result;
             }
+            return result;
+        }
 
-            // Parse fetched HTML and extract main content + page title
-            function parsePageHTML(html) {
-                var parser = new DOMParser();
-                var doc = parser.parseFromString(html, 'text/html');
-                var main = doc.querySelector('.main-content');
-                var title = doc.querySelector('.header-title');
-                return {
-                    mainHTML: main ? main.innerHTML : null,
-                    titleText: title ? title.textContent : '',
-                    fullDoc: doc
-                };
+        function parsePageHTML(html) {
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(html, 'text/html');
+            var main = doc.querySelector('.main-content');
+            var title = doc.querySelector('.header-title');
+            var allScripts = doc.querySelectorAll('body script');
+            var pageScripts = [];
+            for (var i = 0; i < allScripts.length; i++) {
+                var s = allScripts[i];
+                var txt = s.textContent || '';
+                if (txt.indexOf('PREFETCH SPA') !== -1) continue;
+                if (txt.indexOf('initVoiceOverlay') !== -1) continue;
+                if (txt.indexOf('toggleSidebar') !== -1) continue;
+                if (txt.indexOf('toggleTheme') !== -1) continue;
+                pageScripts.push({ src: s.src || '', text: txt });
             }
+            return {
+                mainHTML: main ? main.innerHTML : null,
+                titleText: title ? title.textContent : '',
+                scripts: pageScripts
+            };
+        }
 
-            // Prefetch a single page
-            function prefetchPage(url) {
-                if (_pageCache[url]) return Promise.resolve();
-                return fetch(url, { credentials: 'same-origin' })
-                    .then(function (r) { return r.text(); })
-                    .then(function (html) {
-                        var parsed = parsePageHTML(html);
-                        if (parsed.mainHTML) {
-                            _pageCache[url] = parsed;
-                        }
-                    })
-                    .catch(function () { });
-            }
+        function prefetchPage(url) {
+            if (_pageCache[url]) return Promise.resolve();
+            return fetch(url, { credentials: 'same-origin' })
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    var parsed = parsePageHTML(html);
+                    if (parsed.mainHTML) _pageCache[url] = parsed;
+                })
+                .catch(function() {});
+        }
 
-            // Prefetch ALL sidebar pages in background
-            function prefetchAll() {
-                if (_prefetching) return;
-                _prefetching = true;
-                var links = getSidebarLinks();
-                var current = window.location.pathname;
-                // Stagger fetches to avoid overwhelming the server
-                var delay = 0;
-                links.forEach(function (href) {
-                    if (href !== current) {
-                        setTimeout(function () { prefetchPage(href); }, delay);
-                        delay += 200; // 200ms between each prefetch
-                    }
-                });
-            }
-
-            // Swap page content from cache
-            function navigateTo(url) {
-                var cached = _pageCache[url];
-                if (!cached) return false; // fallback to normal navigation
-
-                // Update main content
-                var main = document.querySelector('.main-content');
-                if (main) main.innerHTML = cached.mainHTML;
-
-                // Update header title
-                var headerTitle = document.querySelector('.header-title');
-                if (headerTitle) headerTitle.textContent = cached.titleText;
-
-                // Update active sidebar link
-                var allLinks = document.querySelectorAll('.sidebar-nav a[href]');
-                allLinks.forEach(function (link) {
-                    link.classList.remove('active');
-                    if (link.getAttribute('href') === url) {
-                        link.classList.add('active');
-                    }
-                });
-
-                // Update browser URL without reload
-                history.pushState({ url: url }, '', url);
-
-                // Re-init any Chart.js canvases in the new content
-                if (cached.fullDoc) {
-                    var scripts = cached.fullDoc.querySelectorAll('script');
-                    scripts.forEach(function (s) {
-                        if (s.textContent && s.textContent.includes('Chart')) {
-                            var newScript = document.createElement('script');
-                            newScript.textContent = s.textContent;
-                            document.body.appendChild(newScript);
-                        }
-                    });
+        function prefetchAll() {
+            if (_prefetching) return;
+            _prefetching = true;
+            var links = getSidebarLinks();
+            var current = window.location.pathname;
+            var delay = 0;
+            links.forEach(function(href) {
+                if (href !== current) {
+                    setTimeout(function() { prefetchPage(href); }, delay);
+                    delay += 150;
                 }
+            });
+        }
 
-                // Re-run page-specific inline scripts
+        function execScripts(scripts) {
+            for (var i = 0; i < scripts.length; i++) {
+                var s = scripts[i];
+                var el = document.createElement('script');
+                if (s.src) el.src = s.src;
+                else if (s.text) el.textContent = s.text;
+                document.body.appendChild(el);
+            }
+        }
+
+        function navigateTo(url) {
+            var cached = _pageCache[url];
+            if (!cached) return false;
+
+            var main = document.querySelector('.main-content');
+            if (main) main.innerHTML = cached.mainHTML;
+
+            var headerTitle = document.querySelector('.header-title');
+            if (headerTitle) headerTitle.textContent = cached.titleText;
+
+            document.querySelectorAll('.sidebar-nav a[href]').forEach(function(link) {
+                link.classList.remove('active');
+                var h = link.getAttribute('href');
+                if (h === url) link.classList.add('active');
+                if ((url === '/' || url === '/dashboard') && (h === '/' || h === '/dashboard'))
+                    link.classList.add('active');
+            });
+
+            history.pushState({ url: url }, '', url);
+
+            if (main) {
                 var inlineScripts = main.querySelectorAll('script');
-                inlineScripts.forEach(function (s) {
-                    var newScript = document.createElement('script');
-                    if (s.src) {
-                        newScript.src = s.src;
-                    } else {
-                        newScript.textContent = s.textContent;
-                    }
-                    s.parentNode.replaceChild(newScript, s);
-                });
-
-                // Scroll to top
-                main.scrollTop = 0;
-
-                return true;
+                for (var i = 0; i < inlineScripts.length; i++) {
+                    var s = inlineScripts[i];
+                    var newS = document.createElement('script');
+                    if (s.src) newS.src = s.src;
+                    else newS.textContent = s.textContent;
+                    s.parentNode.replaceChild(newS, s);
+                }
             }
 
-            // Intercept sidebar link clicks
-            document.addEventListener('click', function (e) {
-                var link = e.target.closest('.sidebar-nav a[href]');
-                if (!link) return;
-                var href = link.getAttribute('href');
-                if (!href || href === '#' || href.includes('logout')) return;
+            if (cached.scripts && cached.scripts.length) execScripts(cached.scripts);
+            if (main) main.scrollTop = 0;
+            return true;
+        }
 
-                // Try instant navigation from cache
-                if (_pageCache[href]) {
-                    e.preventDefault();
-                    navigateTo(href);
-                }
-                // Otherwise let it load normally — it will cache when we come back
-            });
+        function showLoader() {
+            var loader = document.getElementById('spaLoader');
+            var bar = document.getElementById('spaLoaderBar');
+            if (loader) { loader.style.display = 'flex'; bar.style.width = '30%'; }
+            setTimeout(function() { if (bar) bar.style.width = '70%'; }, 200);
+        }
+        function hideLoader() {
+            var loader = document.getElementById('spaLoader');
+            var bar = document.getElementById('spaLoaderBar');
+            if (bar) bar.style.width = '100%';
+            setTimeout(function() { if (loader) loader.style.display = 'none'; }, 200);
+        }
 
-            // Handle browser back/forward
-            window.addEventListener('popstate', function (e) {
-                if (e.state && e.state.url && _pageCache[e.state.url]) {
-                    navigateTo(e.state.url);
-                } else {
-                    window.location.reload();
-                }
-            });
+        document.addEventListener('click', function(e) {
+            var link = e.target.closest('.sidebar-nav a[href]');
+            if (!link) return;
+            var href = link.getAttribute('href');
+            if (!href || href === '#' || href.includes('logout')) return;
+            if (needsFullReload(href)) { showLoader(); return; }
+            if (_pageCache[href]) {
+                e.preventDefault();
+                navigateTo(href);
+            } else {
+                showLoader();
+            }
+        });
 
-            // Cache current page and start prefetching others after load
-            setTimeout(function () {
-                var currentPath = window.location.pathname;
-                // Cache current page
+        window.addEventListener('popstate', function(e) {
+            if (e.state && e.state.url && _pageCache[e.state.url]) {
+                navigateTo(e.state.url);
+            } else {
+                window.location.reload();
+            }
+        });
+
+        setTimeout(function() {
+            var p = window.location.pathname;
+            if (!needsFullReload(p)) {
                 var main = document.querySelector('.main-content');
                 var title = document.querySelector('.header-title');
                 if (main) {
-                    _pageCache[currentPath] = {
+                    _pageCache[p] = {
                         mainHTML: main.innerHTML,
                         titleText: title ? title.textContent : '',
-                        fullDoc: null
+                        scripts: []
                     };
                 }
-                // Also cache "/" and "/dashboard" as the same
-                if (currentPath === '/' || currentPath === '/dashboard') {
-                    _pageCache['/'] = _pageCache[currentPath];
-                    _pageCache['/dashboard'] = _pageCache[currentPath];
+                if (p === '/' || p === '/dashboard') {
+                    _pageCache['/'] = _pageCache[p];
+                    _pageCache['/dashboard'] = _pageCache[p];
                 }
-                // Start prefetching all other pages
-                prefetchAll();
-            }, 500);
-        })();
+            }
+            prefetchAll();
+        }, 300);
+    })();
     </script>
 
     {% block scripts %}{% endblock %}
