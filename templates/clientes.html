@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Clientes{% endblock %}
+{% block page_title %}CRM — Clientes{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Clientes</h1>
+    <button class="btn btn-primary" onclick="document.getElementById('addModal').style.display='flex'">+ Nuevo
+        cliente</button>
+</div>
+
+<!-- Pipeline Kanban -->
+<div class="kpi-grid" style="margin-bottom: 24px;">
+    <a href="{{ url_for('clients.index') }}" class="kpi-card accent-cyan {{ 'ring' if not current_stage }}"
+        style="text-decoration:none;cursor:pointer">
+        <div class="kpi-label">Todos</div>
+        <div class="kpi-value">{{ clients|length }}</div>
+    </a>
+    <a href="{{ url_for('clients.index', stage='lead') }}"
+        class="kpi-card accent-amber {{ 'ring' if current_stage == 'lead' }}"
+        style="text-decoration:none;cursor:pointer">
+        <div class="kpi-label">Leads</div>
+        <div class="kpi-value">{{ stages.lead }}</div>
+    </a>
+    <a href="{{ url_for('clients.index', stage='propuesta') }}"
+        class="kpi-card accent-purple {{ 'ring' if current_stage == 'propuesta' }}"
+        style="text-decoration:none;cursor:pointer">
+        <div class="kpi-label">Propuesta</div>
+        <div class="kpi-value">{{ stages.propuesta }}</div>
+    </a>
+    <a href="{{ url_for('clients.index', stage='negociacion') }}"
+        class="kpi-card accent-green {{ 'ring' if current_stage == 'negociacion' }}"
+        style="text-decoration:none;cursor:pointer">
+        <div class="kpi-label">Negociación</div>
+        <div class="kpi-value">{{ stages.negociacion }}</div>
+    </a>
+    <a href="{{ url_for('clients.index', stage='cerrado') }}"
+        class="kpi-card accent-green {{ 'ring' if current_stage == 'cerrado' }}"
+        style="text-decoration:none;cursor:pointer">
+        <div class="kpi-label">Cerrado ✓</div>
+        <div class="kpi-value">{{ stages.cerrado }}</div>
+    </a>
+</div>
+
+<!-- Client Table -->
+<div class="table-card">
+    <div class="table-card-header">
+        <h3>{% if current_stage %}{{ current_stage|capitalize }}{% else %}Todos los clientes{% endif %}</h3>
+    </div>
+    {% if clients %}
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Empresa</th>
+                    <th>Email</th>
+                    <th>Teléfono</th>
+                    <th>Etapa</th>
+                    <th>Origen</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in clients %}
+                <tr>
+                    <td><strong>{{ c.name }}</strong></td>
+                    <td>{{ c.company }}</td>
+                    <td>{{ c.email }}</td>
+                    <td>{{ c.phone }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('clients.update_stage', cid=c.id) }}"
+                            style="display:inline">
+                            <select name="stage" onchange="this.form.submit()" class="inline-select">
+                                <option value="lead" {{ 'selected' if c.pipeline_stage=='lead' }}>Lead</option>
+                                <option value="propuesta" {{ 'selected' if c.pipeline_stage=='propuesta' }}>Propuesta
+                                </option>
+                                <option value="negociacion" {{ 'selected' if c.pipeline_stage=='negociacion' }}>
+                                    Negociación</option>
+                                <option value="cerrado" {{ 'selected' if c.pipeline_stage=='cerrado' }}>Cerrado</option>
+                                <option value="perdido" {{ 'selected' if c.pipeline_stage=='perdido' }}>Perdido</option>
+                            </select>
+                        </form>
+                    </td>
+                    <td>{{ c.source }}</td>
+                    <td class="actions-cell">
+                        <button class="btn btn-sm btn-secondary"
+                            onclick="editClient({{ c.id }}, '{{ c.name }}', '{{ c.company }}', '{{ c.email }}', '{{ c.phone }}', '{{ c.address }}', '{{ c.nif }}', '{{ c.tags }}', '{{ c.pipeline_stage }}', '{{ c.source }}', `{{ c.notes|replace('`','') }}`)">Editar</button>
+                        <form method="POST" action="{{ url_for('clients.delete', cid=c.id) }}" style="display:inline"
+                            onsubmit="return confirm('¿Eliminar cliente?')">
+                            <button type="submit" class="btn btn-sm btn-danger">×</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No hay clientes{% if current_stage %} en esta etapa{% endif %}</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Modal -->
+<div id="addModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Nuevo cliente</h3>
+            <button class="modal-close" onclick="this.closest('.modal').style.display='none'">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('clients.create') }}">
+            <div class="form-grid">
+                <div class="form-group"><label>Nombre *</label><input name="name" required class="form-input"></div>
+                <div class="form-group"><label>Empresa</label><input name="company" class="form-input"></div>
+                <div class="form-group"><label>Email</label><input name="email" type="email" class="form-input"></div>
+                <div class="form-group"><label>Teléfono</label><input name="phone" class="form-input"></div>
+                <div class="form-group"><label>NIF</label><input name="nif" class="form-input"></div>
+                <div class="form-group"><label>Origen</label>
+                    <select name="source" class="form-input">
+                        <option value="">—</option>
+                        <option value="web">Web</option>
+                        <option value="referido">Referido</option>
+                        <option value="redes">Redes sociales</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Etapa</label>
+                    <select name="pipeline_stage" class="form-input">
+                        <option value="lead">Lead</option>
+                        <option value="propuesta">Propuesta</option>
+                        <option value="negociacion">Negociación</option>
+                        <option value="cerrado">Cerrado</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Etiquetas</label><input name="tags" placeholder="web, diseño, urgent"
+                        class="form-input"></div>
+            </div>
+            <div class="form-group"><label>Dirección</label><input name="address" class="form-input"></div>
+            <div class="form-group"><label>Notas</label><textarea name="notes" rows="3" class="form-input"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Crear cliente</button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Editar cliente</h3>
+            <button class="modal-close" onclick="this.closest('.modal').style.display='none'">&times;</button>
+        </div>
+        <form method="POST" id="editForm">
+            <div class="form-grid">
+                <div class="form-group"><label>Nombre *</label><input name="name" id="ed_name" required
+                        class="form-input"></div>
+                <div class="form-group"><label>Empresa</label><input name="company" id="ed_company" class="form-input">
+                </div>
+                <div class="form-group"><label>Email</label><input name="email" id="ed_email" class="form-input"></div>
+                <div class="form-group"><label>Teléfono</label><input name="phone" id="ed_phone" class="form-input">
+                </div>
+                <div class="form-group"><label>NIF</label><input name="nif" id="ed_nif" class="form-input"></div>
+                <div class="form-group"><label>Origen</label>
+                    <select name="source" id="ed_source" class="form-input">
+                        <option value="">—</option>
+                        <option value="web">Web</option>
+                        <option value="referido">Referido</option>
+                        <option value="redes">Redes sociales</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Etapa</label>
+                    <select name="pipeline_stage" id="ed_stage" class="form-input">
+                        <option value="lead">Lead</option>
+                        <option value="propuesta">Propuesta</option>
+                        <option value="negociacion">Negociación</option>
+                        <option value="cerrado">Cerrado</option>
+                        <option value="perdido">Perdido</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Etiquetas</label><input name="tags" id="ed_tags" class="form-input">
+                </div>
+            </div>
+            <div class="form-group"><label>Dirección</label><input name="address" id="ed_address" class="form-input">
+            </div>
+            <div class="form-group"><label>Notas</label><textarea name="notes" id="ed_notes" rows="3"
+                    class="form-input"></textarea></div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Guardar</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function editClient(id, name, company, email, phone, address, nif, tags, stage, source, notes) {
+        document.getElementById('editForm').action = '/clientes/' + id + '/edit';
+        document.getElementById('ed_name').value = name;
+        document.getElementById('ed_company').value = company;
+        document.getElementById('ed_email').value = email;
+        document.getElementById('ed_phone').value = phone;
+        document.getElementById('ed_address').value = address;
+        document.getElementById('ed_nif').value = nif;
+        document.getElementById('ed_tags').value = tags;
+        document.getElementById('ed_stage').value = stage;
+        document.getElementById('ed_source').value = source;
+        document.getElementById('ed_notes').value = notes;
+        document.getElementById('editModal').style.display = 'flex';
+    }
+</script>
+{% endblock %}

@@ -52,6 +52,14 @@
                         </svg>
                         Ingresos
                     </a></li>
+                <li><a href="{{ url_for('clients.index') }}"
+                        class="{{ 'active' if request.endpoint and request.endpoint.startswith('clients.') }}">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        Clientes
+                    </a></li>
                 <li><a href="{{ url_for('projects.index') }}"
                         class="{{ 'active' if request.endpoint and request.endpoint.startswith('projects.') }}">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -161,6 +169,28 @@
         <header class="header">
             <div class="header-title">{% block page_title %}Panel{% endblock %}</div>
             <div class="header-actions">
+                <!-- Notification bell -->
+                <div class="notif-wrapper" id="notifWrapper">
+                    <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 01-3.46 0" />
+                        </svg>
+                        <span class="notif-badge" id="notifBadge"
+                            style="display:{% if notif_count %}flex{% else %}none{% endif %}">{{ notif_count or ''
+                            }}</span>
+                    </button>
+                    <div class="notif-panel" id="notifPanel" style="display:none">
+                        <div class="notif-panel-header">
+                            <span>Notificaciones</span>
+                            <button onclick="markAllRead()" class="notif-mark-all">Marcar todo leído</button>
+                        </div>
+                        <div class="notif-list" id="notifList">
+                            <div class="notif-empty">Sin notificaciones</div>
+                        </div>
+                    </div>
+                </div>
                 <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()"></button>
             </div>
         </header>
@@ -297,6 +327,75 @@
 
         // Auto-init on every page load
         initVoiceOverlay();
+    </script>
+
+    <!-- ═══ NOTIFICATION SYSTEM ═══ -->
+    <script>
+        function toggleNotifPanel() {
+            var p = document.getElementById('notifPanel');
+            if (p.style.display === 'none') {
+                p.style.display = 'block';
+                loadNotifications();
+            } else {
+                p.style.display = 'none';
+            }
+        }
+
+        function loadNotifications() {
+            fetch('/api/notifications').then(function (r) { return r.json() }).then(function (data) {
+                var list = document.getElementById('notifList');
+                if (!data.notifications || data.notifications.length === 0) {
+                    list.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
+                    return;
+                }
+                var html = '';
+                data.notifications.forEach(function (n) {
+                    var cls = n.read ? 'notif-item read' : 'notif-item';
+                    var icons = { message: '💬', task: '📋', payment: '💰', system: '⚙️', info: 'ℹ️' };
+                    var icon = icons[n.type] || '🔔';
+                    html += '<a href="' + (n.link || '#') + '" class="' + cls + '" onclick="markNotifRead(' + n.id + ')">'
+                        + '<span class="notif-icon">' + icon + '</span>'
+                        + '<div class="notif-content"><div class="notif-title">' + n.title + '</div>'
+                        + '<div class="notif-time">' + n.created_at + '</div></div></a>';
+                });
+                list.innerHTML = html;
+            });
+        }
+
+        function markNotifRead(id) {
+            fetch('/api/notifications/' + id + '/read', { method: 'POST' });
+        }
+
+        function markAllRead() {
+            fetch('/api/notifications/read-all', { method: 'POST' }).then(function () {
+                var badge = document.getElementById('notifBadge');
+                badge.style.display = 'none';
+                badge.textContent = '';
+                loadNotifications();
+            });
+        }
+
+        // Poll for new notifications every 15s
+        setInterval(function () {
+            fetch('/api/notifications/unread-count').then(function (r) { return r.json() }).then(function (data) {
+                var badge = document.getElementById('notifBadge');
+                if (data.count > 0) {
+                    badge.style.display = 'flex';
+                    badge.textContent = data.count;
+                } else {
+                    badge.style.display = 'none';
+                    badge.textContent = '';
+                }
+            }).catch(function () { });
+        }, 15000);
+
+        // Close panel on outside click
+        document.addEventListener('click', function (e) {
+            var w = document.getElementById('notifWrapper');
+            if (w && !w.contains(e.target)) {
+                document.getElementById('notifPanel').style.display = 'none';
+            }
+        });
     </script>
 
     {% block scripts %}{% endblock %}

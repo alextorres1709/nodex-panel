@@ -187,3 +187,78 @@ class CallSession(db.Model):
 
     project = db.relationship("Project", foreign_keys=[project_id])
     creator = db.relationship("User", foreign_keys=[created_by])
+
+
+# ═══════════════════════════════════════
+# ENTERPRISE MODELS (v1.4)
+# ═══════════════════════════════════════
+
+class Client(db.Model):
+    __tablename__ = "clients"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    company = db.Column(db.String(200), default="")
+    email = db.Column(db.String(200), default="")
+    phone = db.Column(db.String(50), default="")
+    address = db.Column(db.Text, default="")
+    nif = db.Column(db.String(30), default="")
+    tags = db.Column(db.String(300), default="")
+    pipeline_stage = db.Column(db.String(30), default="lead")  # lead, propuesta, negociacion, cerrado, perdido
+    source = db.Column(db.String(50), default="")
+    notes = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class Notification(db.Model):
+    __tablename__ = "notifications"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    type = db.Column(db.String(30), default="info")  # message, task, payment, system
+    title = db.Column(db.String(300), default="")
+    body = db.Column(db.Text, default="")
+    link = db.Column(db.String(300), default="")
+    read = db.Column(db.Boolean, default=False, index=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User", foreign_keys=[user_id])
+
+
+class TimeEntry(db.Model):
+    __tablename__ = "time_entries"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id"), nullable=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+    description = db.Column(db.String(300), default="")
+    minutes = db.Column(db.Integer, default=0)
+    date = db.Column(db.Date, default=lambda: datetime.now(timezone.utc).date())
+    started_at = db.Column(db.DateTime, nullable=True)
+    ended_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User", foreign_keys=[user_id])
+    task = db.relationship("Task", foreign_keys=[task_id])
+    project = db.relationship("Project", foreign_keys=[project_id])
+
+
+class Invoice(db.Model):
+    __tablename__ = "invoices"
+    id = db.Column(db.Integer, primary_key=True)
+    number = db.Column(db.String(30), unique=True, nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey("clients.id"), nullable=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+    items = db.Column(db.Text, default="[]")  # JSON: [{description, qty, unit_price}]
+    subtotal = db.Column(db.Float, default=0)
+    tax_rate = db.Column(db.Float, default=21)  # IVA %
+    tax_amount = db.Column(db.Float, default=0)
+    total = db.Column(db.Float, default=0)
+    status = db.Column(db.String(20), default="borrador")  # borrador, enviada, cobrada, vencida
+    issue_date = db.Column(db.Date, default=lambda: datetime.now(timezone.utc).date())
+    due_date = db.Column(db.Date, nullable=True)
+    paid_date = db.Column(db.Date, nullable=True)
+    notes = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    client = db.relationship("Client", foreign_keys=[client_id])
+    project = db.relationship("Project", foreign_keys=[project_id])
+

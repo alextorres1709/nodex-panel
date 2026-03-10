@@ -52,10 +52,13 @@ def create_app():
     from routes.incomes import incomes_bp
     from routes.cowork import cowork_bp
     from routes.api import api_bp
+    from routes.notifications import notifications_bp
+    from routes.clients import clients_bp
 
     for bp in [auth_bp, dashboard_bp, payments_bp, incomes_bp, projects_bp,
                tools_bp, tasks_bp, ideas_bp, info_bp, activity_bp, users_bp,
-               settings_bp, credentials_bp, cowork_bp, api_bp]:
+               settings_bp, credentials_bp, cowork_bp, api_bp, notifications_bp,
+               clients_bp]:
         app.register_blueprint(bp)
 
     @app.before_request
@@ -64,7 +67,12 @@ def create_app():
 
     @app.context_processor
     def inject_user():
-        return {"current_user": g.get("user")}
+        user = g.get("user")
+        notif_count = 0
+        if user:
+            from services.notifications import get_unread_count
+            notif_count = get_unread_count(user.id)
+        return {"current_user": user, "notif_count": notif_count}
 
     return app
 

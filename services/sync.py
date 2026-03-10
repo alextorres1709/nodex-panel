@@ -25,6 +25,10 @@ SYNC_TABLES = [
     "activity_log",
     "messages",
     "call_sessions",
+    "clients",
+    "notifications",
+    "time_entries",
+    "invoices",
 ]
 
 SYNC_INTERVAL = 30  # seconds

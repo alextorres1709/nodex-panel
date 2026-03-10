@@ -65,6 +65,18 @@ def send():
     )
     db.session.add(msg)
     db.session.commit()
+
+    # Notify other users about the new message
+    from services.notifications import notify_all_except
+    preview = msg.content[:80] + ("..." if len(msg.content) > 80 else "")
+    notify_all_except(
+        sender_id=g.user.id,
+        type="message",
+        title=f"{g.user.name}: {preview}",
+        body=msg.content,
+        link="/cowork",
+    )
+
     return jsonify({
         "id": msg.id,
         "sender": g.user.name,
