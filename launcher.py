@@ -81,12 +81,6 @@ def main():
         min_size=(900, 600),
     )
 
-    # Check for updates after window loads
-    update_thread = threading.Thread(
-        target=check_for_updates, args=(window,), daemon=True
-    )
-    update_thread.start()
-
     webview.start(private_mode=False)
 
 

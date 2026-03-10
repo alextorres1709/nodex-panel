@@ -13,6 +13,12 @@ def index():
     return render_template("info.html", company=company)
 
 
+@info_bp.route("/changelog")
+@login_required
+def changelog():
+    return render_template("changelog.html")
+
+
 @info_bp.route("/info/edit", methods=["POST"])
 @admin_required
 def edit():

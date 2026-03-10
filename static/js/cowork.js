@@ -97,8 +97,13 @@ function sendMessage(e) {
         .catch(() => { input.value = content; });
     return false;
 }
+function joinVoice(roomId, btnElement) {
+    if (btnElement) {
+        if (btnElement.disabled) return;
+        btnElement.disabled = true;
+        btnElement.textContent = "Conectando...";
+    }
 
-function joinVoice(roomId) {
     fetch('/cowork/voice/join/' + roomId, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -129,6 +134,12 @@ function joinVoice(roomId) {
 
             // Reload page to update voice user indicators
             setTimeout(function () { window.location.reload(); }, 500);
+        })
+        .catch(() => {
+            if (btnElement) {
+                btnElement.disabled = false;
+                btnElement.textContent = "Unirse";
+            }
         });
 }
 

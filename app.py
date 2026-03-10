@@ -15,9 +15,12 @@ def create_app():
     db.init_app(app)
 
     with app.app_context():
-        db.create_all()
-        seed_data()
-        sync_tools()
+        # Only run migrations/seeding if explicitly requested or on the Railway server
+        # This prevents the desktop app from making 200+ slow remote DB queries on startup
+        if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RUN_MIGRATIONS"):
+            db.create_all()
+            seed_data()
+            sync_tools()
 
     # Blueprints
     from routes.auth import auth_bp, _load_current_user
