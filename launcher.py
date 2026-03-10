@@ -19,43 +19,6 @@ def start_server(app, port):
     app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
 
 
-def check_for_updates(window):
-    """Check Railway server for new version and show banner if available."""
-    try:
-        time.sleep(5)  # Wait for app to load
-        from config import APP_VERSION
-        import urllib.request
-        import json
-
-        # Try the Railway server URL (set via env or default)
-        server_url = os.getenv("NODEX_SERVER_URL", "")
-        if not server_url:
-            return
-
-        req = urllib.request.Request(f"{server_url}/api/version", method="GET")
-        req.add_header("User-Agent", "NodexAI-Panel")
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.loads(resp.read().decode())
-
-        remote_version = data.get("version", "")
-        download_url = data.get("download_url", "")
-
-        if remote_version and remote_version != APP_VERSION and download_url:
-            js = f"""
-            (function() {{
-                if (document.getElementById('update-banner')) return;
-                var b = document.createElement('div');
-                b.id = 'update-banner';
-                b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#7c3aed;color:white;padding:10px 20px;display:flex;align-items:center;justify-content:center;gap:12px;font-family:Inter,sans-serif;font-size:13px;';
-                b.innerHTML = 'Nueva version {remote_version} disponible <a href="{download_url}" target="_blank" style="color:white;font-weight:700;text-decoration:underline;">Descargar</a> <button onclick="this.parentNode.remove()" style="background:none;border:none;color:white;cursor:pointer;font-size:16px;margin-left:8px;">&times;</button>';
-                document.body.prepend(b);
-            }})();
-            """
-            window.evaluate_js(js)
-    except Exception:
-        pass  # Silent fail — don't block the app
-
-
 def main():
     if getattr(sys, "frozen", False):
         sys.path.insert(0, sys._MEIPASS)
@@ -65,6 +28,17 @@ def main():
 
     port = find_free_port()
     flask_app = create_app()
+
+    # Add restart endpoint for auto-updater
+    @flask_app.route("/__restart__")
+    def _restart():
+        threading.Thread(target=_delayed_restart, daemon=True).start()
+        return "Restarting...", 200
+
+    def _delayed_restart():
+        time.sleep(0.5)
+        from services.updater import _restart_app
+        _restart_app()
 
     # Run Flask in a daemon thread
     server_thread = threading.Thread(
@@ -98,17 +72,22 @@ def main():
     )
 
     def _wait_and_navigate(win):
-        """Wait for Flask to be ready then navigate to it."""
+        """Wait for Flask to be ready, navigate, then check for updates."""
         import urllib.request
         url = f"http://127.0.0.1:{port}"
-        for _ in range(60):  # up to 6 seconds
+        for _ in range(60):
             try:
                 urllib.request.urlopen(url, timeout=1)
                 win.load_url(url)
+                # Start auto-updater after successful navigation
+                from services.updater import check_and_update
+                threading.Thread(
+                    target=check_and_update, args=(win,), daemon=True
+                ).start()
                 return
             except Exception:
                 time.sleep(0.1)
-        win.load_url(url)  # try anyway
+        win.load_url(url)
 
     threading.Thread(target=_wait_and_navigate, args=(window,), daemon=True).start()
 
