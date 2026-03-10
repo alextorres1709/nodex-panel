@@ -31,7 +31,7 @@ def _get_base_dir():
 
 BASE_DIR = _get_base_dir()
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 
 
 class Config:
@@ -39,3 +39,13 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _get_database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = timedelta(days=30)
+    # Connection pool: keep 10 connections alive, allow bursts to 20
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_size": 10,
+        "max_overflow": 20,
+        "pool_pre_ping": True,      # auto-reconnect stale connections
+        "pool_recycle": 300,         # recycle connections every 5 min
+        "connect_args": {
+            "connect_timeout": 5,    # fail fast on connection issues
+        },
+    }

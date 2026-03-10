@@ -3,8 +3,12 @@ from sqlalchemy.orm import joinedload
 from flask import Blueprint, render_template, current_app
 from models import db, Payment, Project, Task, Idea, ActivityLog
 from routes.auth import login_required
+from services.cache import cache_get, cache_set
 
 dashboard_bp = Blueprint("dashboard", __name__)
+
+CACHE_KEY = "dashboard_data"
+CACHE_TTL = 15  # seconds
 
 
 def _run_in_app(app, fn):
@@ -13,20 +17,14 @@ def _run_in_app(app, fn):
         return fn()
 
 
-@dashboard_bp.route("/")
-@dashboard_bp.route("/dashboard")
-@login_required
-def index():
-    app = current_app._get_current_object()
-
-    # Define all queries as small functions
+def _fetch_dashboard_data(app):
+    """Fetch all dashboard data using parallel threads."""
     def q_payments():
         rows = Payment.query.filter_by(status="activo").all()
-        total = sum(
+        return sum(
             p.amount if p.frequency == "mensual" else p.amount / 12 if p.frequency == "anual" else 0
             for p in rows
         )
-        return total
 
     def q_active_projects():
         return Project.query.filter_by(status="activo").count()
@@ -73,7 +71,6 @@ def index():
             .all()
         )
 
-    # Fire ALL queries in parallel threads
     with ThreadPoolExecutor(max_workers=8) as pool:
         f_cost = pool.submit(_run_in_app, app, q_payments)
         f_projects = pool.submit(_run_in_app, app, q_active_projects)
@@ -84,25 +81,32 @@ def index():
         f_urgent = pool.submit(_run_in_app, app, q_urgent_tasks)
         f_activity = pool.submit(_run_in_app, app, q_recent_activity)
 
-    monthly_cost = f_cost.result()
-    active_projects = f_projects.result()
-    pending_tasks = f_tasks.result()
-    new_ideas = f_ideas.result()
     cost_labels, cost_values = f_cost_chart.result()
     proj_labels, proj_values = f_proj_chart.result()
-    urgent_tasks = f_urgent.result()
-    recent_activity = f_activity.result()
 
-    return render_template(
-        "dashboard.html",
-        monthly_cost=monthly_cost,
-        active_projects=active_projects,
-        pending_tasks=pending_tasks,
-        new_ideas=new_ideas,
-        cost_labels=cost_labels,
-        cost_values=cost_values,
-        proj_labels=proj_labels,
-        proj_values=proj_values,
-        urgent_tasks=urgent_tasks,
-        recent_activity=recent_activity,
-    )
+    return {
+        "monthly_cost": f_cost.result(),
+        "active_projects": f_projects.result(),
+        "pending_tasks": f_tasks.result(),
+        "new_ideas": f_ideas.result(),
+        "cost_labels": cost_labels,
+        "cost_values": cost_values,
+        "proj_labels": proj_labels,
+        "proj_values": proj_values,
+        "urgent_tasks": f_urgent.result(),
+        "recent_activity": f_activity.result(),
+    }
+
+
+@dashboard_bp.route("/")
+@dashboard_bp.route("/dashboard")
+@login_required
+def index():
+    # Try cache first — avoids ALL DB queries for 15 seconds
+    data = cache_get(CACHE_KEY)
+    if not data:
+        app = current_app._get_current_object()
+        data = _fetch_dashboard_data(app)
+        cache_set(CACHE_KEY, data, CACHE_TTL)
+
+    return render_template("dashboard.html", **data)

@@ -2,6 +2,7 @@ from functools import wraps
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, g
 from models import db, User
 from services.activity import log_activity
+from services.cache import cache_get, cache_set
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -12,7 +13,13 @@ def _load_current_user():
     g.user = None
     uid = session.get("user_id")
     if uid:
-        g.user = db.session.get(User, uid)
+        cache_key = f"user_{uid}"
+        user = cache_get(cache_key)
+        if user is None:
+            user = db.session.get(User, uid)
+            if user:
+                cache_set(cache_key, user, ttl=60)
+        g.user = user
         if g.user and not g.user.active:
             session.clear()
             g.user = None
