@@ -298,6 +298,172 @@
         // Auto-init on every page load
         initVoiceOverlay();
     </script>
+
+    <!-- ═══ PREFETCH SPA NAVIGATION ═══ -->
+    <script>
+        (function () {
+            var _pageCache = {};
+            var _prefetching = false;
+
+            // Get all sidebar navigation links (excluding logout)
+            function getSidebarLinks() {
+                var links = document.querySelectorAll('.sidebar-nav a[href]');
+                var result = [];
+                for (var i = 0; i < links.length; i++) {
+                    var href = links[i].getAttribute('href');
+                    if (href && href !== '#' && !href.includes('logout')) {
+                        result.push(href);
+                    }
+                }
+                return result;
+            }
+
+            // Parse fetched HTML and extract main content + page title
+            function parsePageHTML(html) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var main = doc.querySelector('.main-content');
+                var title = doc.querySelector('.header-title');
+                return {
+                    mainHTML: main ? main.innerHTML : null,
+                    titleText: title ? title.textContent : '',
+                    fullDoc: doc
+                };
+            }
+
+            // Prefetch a single page
+            function prefetchPage(url) {
+                if (_pageCache[url]) return Promise.resolve();
+                return fetch(url, { credentials: 'same-origin' })
+                    .then(function (r) { return r.text(); })
+                    .then(function (html) {
+                        var parsed = parsePageHTML(html);
+                        if (parsed.mainHTML) {
+                            _pageCache[url] = parsed;
+                        }
+                    })
+                    .catch(function () { });
+            }
+
+            // Prefetch ALL sidebar pages in background
+            function prefetchAll() {
+                if (_prefetching) return;
+                _prefetching = true;
+                var links = getSidebarLinks();
+                var current = window.location.pathname;
+                // Stagger fetches to avoid overwhelming the server
+                var delay = 0;
+                links.forEach(function (href) {
+                    if (href !== current) {
+                        setTimeout(function () { prefetchPage(href); }, delay);
+                        delay += 200; // 200ms between each prefetch
+                    }
+                });
+            }
+
+            // Swap page content from cache
+            function navigateTo(url) {
+                var cached = _pageCache[url];
+                if (!cached) return false; // fallback to normal navigation
+
+                // Update main content
+                var main = document.querySelector('.main-content');
+                if (main) main.innerHTML = cached.mainHTML;
+
+                // Update header title
+                var headerTitle = document.querySelector('.header-title');
+                if (headerTitle) headerTitle.textContent = cached.titleText;
+
+                // Update active sidebar link
+                var allLinks = document.querySelectorAll('.sidebar-nav a[href]');
+                allLinks.forEach(function (link) {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === url) {
+                        link.classList.add('active');
+                    }
+                });
+
+                // Update browser URL without reload
+                history.pushState({ url: url }, '', url);
+
+                // Re-init any Chart.js canvases in the new content
+                if (cached.fullDoc) {
+                    var scripts = cached.fullDoc.querySelectorAll('script');
+                    scripts.forEach(function (s) {
+                        if (s.textContent && s.textContent.includes('Chart')) {
+                            var newScript = document.createElement('script');
+                            newScript.textContent = s.textContent;
+                            document.body.appendChild(newScript);
+                        }
+                    });
+                }
+
+                // Re-run page-specific inline scripts
+                var inlineScripts = main.querySelectorAll('script');
+                inlineScripts.forEach(function (s) {
+                    var newScript = document.createElement('script');
+                    if (s.src) {
+                        newScript.src = s.src;
+                    } else {
+                        newScript.textContent = s.textContent;
+                    }
+                    s.parentNode.replaceChild(newScript, s);
+                });
+
+                // Scroll to top
+                main.scrollTop = 0;
+
+                return true;
+            }
+
+            // Intercept sidebar link clicks
+            document.addEventListener('click', function (e) {
+                var link = e.target.closest('.sidebar-nav a[href]');
+                if (!link) return;
+                var href = link.getAttribute('href');
+                if (!href || href === '#' || href.includes('logout')) return;
+
+                // Try instant navigation from cache
+                if (_pageCache[href]) {
+                    e.preventDefault();
+                    navigateTo(href);
+                }
+                // Otherwise let it load normally — it will cache when we come back
+            });
+
+            // Handle browser back/forward
+            window.addEventListener('popstate', function (e) {
+                if (e.state && e.state.url && _pageCache[e.state.url]) {
+                    navigateTo(e.state.url);
+                } else {
+                    window.location.reload();
+                }
+            });
+
+            // Cache current page and start prefetching others after load
+            setTimeout(function () {
+                var currentPath = window.location.pathname;
+                // Cache current page
+                var main = document.querySelector('.main-content');
+                var title = document.querySelector('.header-title');
+                if (main) {
+                    _pageCache[currentPath] = {
+                        mainHTML: main.innerHTML,
+                        titleText: title ? title.textContent : '',
+                        fullDoc: null
+                    };
+                }
+                // Also cache "/" and "/dashboard" as the same
+                if (currentPath === '/' || currentPath === '/dashboard') {
+                    _pageCache['/'] = _pageCache[currentPath];
+                    _pageCache['/dashboard'] = _pageCache[currentPath];
+                }
+                // Start prefetching all other pages
+                prefetchAll();
+            }, 500);
+        })();
+    </script>
+
     {% block scripts %}{% endblock %}
 </body>
 
