@@ -19,12 +19,59 @@ def start_server(app, port):
     app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
 
 
+def _patch_media_permissions():
+    """
+    Monkey-patch pywebview's Cocoa BrowserDelegate to auto-grant
+    camera/mic permissions so Jitsi doesn't ask every time.
+    """
+    try:
+        from webview.platforms.cocoa import BrowserView
+        import objc
+
+        # WKPermissionDecision.grant = 1
+        WK_PERMISSION_GRANT = 1
+
+        def _media_permission_handler(
+            self, webview, origin, frame, media_type, decisionHandler
+        ):
+            """Auto-grant camera and microphone permissions."""
+            decisionHandler(WK_PERMISSION_GRANT)
+
+        # Register as an Objective-C method with the correct signature
+        # Signature: void (id, SEL, WKWebView, WKSecurityOrigin, WKFrameInfo, WKMediaCaptureType, block)
+        sel_name = (
+            "webView:requestMediaCapturePermissionForOrigin:"
+            "initiatedByFrame:type:decisionHandler:"
+        )
+        _media_permission_handler = objc.selector(
+            _media_permission_handler,
+            selector=sel_name.encode(),
+            signature=b"v@:@@@q@?",
+        )
+
+        # Add the method to BrowserDelegate
+        BrowserDelegate = BrowserView.BrowserDelegate
+        import objc as _objc
+        _objc.classAddMethod(
+            BrowserDelegate,
+            sel_name.encode(),
+            _media_permission_handler,
+        )
+
+    except Exception as e:
+        import logging
+        logging.getLogger("launcher").warning(f"Could not patch media permissions: {e}")
+
+
 def main():
     if getattr(sys, "frozen", False):
         sys.path.insert(0, sys._MEIPASS)
 
     from app import create_app
     import webview
+
+    # Patch before creating any windows
+    _patch_media_permissions()
 
     port = find_free_port()
     flask_app = create_app()
