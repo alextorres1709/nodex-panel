@@ -7,6 +7,8 @@ auth_bp = Blueprint("auth", __name__)
 
 
 def _load_current_user():
+    if request.path.startswith('/static/'):
+        return
     g.user = None
     uid = session.get("user_id")
     if uid:
