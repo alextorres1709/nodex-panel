@@ -2,9 +2,8 @@ import hashlib
 import json
 import time
 from datetime import datetime, timezone
-from concurrent.futures import ThreadPoolExecutor
 from sqlalchemy.orm import joinedload
-from flask import Blueprint, render_template, request, redirect, url_for, flash, g, Response, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, g, Response, jsonify
 from models import db, Message, CallSession, Project, User
 from routes.auth import login_required
 from services.activity import log_activity
@@ -18,46 +17,21 @@ VOICE_CHANNELS = [
 ]
 
 
-def _run_in_app(app, fn):
-    with app.app_context():
-        return fn()
-
-
 @cowork_bp.route("/cowork")
 @cowork_bp.route("/cowork/<channel>")
 @login_required
 def index(channel="general"):
-    app = current_app._get_current_object()
-
-    def q_projects():
-        return Project.query.order_by(Project.name).all()
-
-    def q_users():
-        return User.query.filter_by(active=True).all()
-
-    def q_messages():
-        return (
-            Message.query
-            .options(joinedload(Message.sender))
-            .filter_by(channel=channel)
-            .order_by(Message.created_at.asc())
-            .limit(200)
-            .all()
-        )
-
-    def q_calls():
-        return CallSession.query.options(joinedload(CallSession.creator)).filter_by(ended_at=None).all()
-
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        f_projects = pool.submit(_run_in_app, app, q_projects)
-        f_users = pool.submit(_run_in_app, app, q_users)
-        f_messages = pool.submit(_run_in_app, app, q_messages)
-        f_calls = pool.submit(_run_in_app, app, q_calls)
-
-    projects = f_projects.result()
-    users = f_users.result()
-    messages = f_messages.result()
-    active_calls = f_calls.result()
+    projects = Project.query.order_by(Project.name).all()
+    users = User.query.filter_by(active=True).all()
+    messages = (
+        Message.query
+        .options(joinedload(Message.sender))
+        .filter_by(channel=channel)
+        .order_by(Message.created_at.asc())
+        .limit(200)
+        .all()
+    )
+    active_calls = CallSession.query.options(joinedload(CallSession.creator)).filter_by(ended_at=None).all()
 
     # Build dict: room_name -> list of users in that room
     voice_rooms = {}

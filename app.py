@@ -1,8 +1,11 @@
 import os
+import logging
 from datetime import datetime, timezone, date, timedelta
 from flask import Flask, g
-from config import Config, BASE_DIR
+from config import Config, BASE_DIR, REMOTE_DATABASE_URL
 from models import db, User, Payment, Project, Tool, Task, Idea, Credential, CompanyInfo
+
+logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 
 
 def create_app():
@@ -15,12 +18,23 @@ def create_app():
     db.init_app(app)
 
     with app.app_context():
-        # Only run migrations/seeding if explicitly requested or on the Railway server
-        # This prevents the desktop app from making 200+ slow remote DB queries on startup
-        if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RUN_MIGRATIONS"):
-            db.create_all()
-            seed_data()
-            sync_tools()
+        # Create local SQLite tables (instant, ~5ms)
+        db.create_all()
+
+        # Start background sync from Railway PostgreSQL
+        from services.sync import SyncManager, sync_manager
+        import services.sync as sync_mod
+        mgr = SyncManager(
+            local_url=Config.SQLALCHEMY_DATABASE_URI,
+            remote_url=REMOTE_DATABASE_URL,
+        )
+        sync_mod.sync_manager = mgr
+        mgr.start()
+
+        # If local DB is empty, wait briefly for first sync to populate it
+        if not User.query.first():
+            logging.getLogger("app").info("Local DB empty — waiting for first sync...")
+            mgr.wait_first_sync(timeout=10)
 
     # Blueprints
     from routes.auth import auth_bp, _load_current_user

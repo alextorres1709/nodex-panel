@@ -9,19 +9,6 @@ except ImportError:
     pass
 
 
-def _get_database_url():
-    """Get database URL. Supports PostgreSQL (server) and SQLite (local/DMG)."""
-    url = os.getenv("DATABASE_URL")
-    if url:
-        if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql://", 1)
-        return url
-    
-    # Fallback: Remote Railway PostgreSQL (External TCP)
-    # This ensures all DMG installations connect to the same shared database
-    return "postgresql://postgres:QBvmWZgCvlBsNsqTNmjVmrKJidsHSYQH@shinkansen.proxy.rlwy.net:24887/railway"
-
-
 def _get_base_dir():
     """Return the directory containing templates/static."""
     if getattr(sys, "frozen", False):
@@ -29,23 +16,35 @@ def _get_base_dir():
     return os.path.dirname(os.path.abspath(__file__))
 
 
-BASE_DIR = _get_base_dir()
+def _get_local_db_path():
+    """Return path to the local SQLite database."""
+    if getattr(sys, "frozen", False):
+        # Packaged app: ~/Library/Application Support/NodexAI/
+        data_dir = os.path.join(os.path.expanduser("~"), "Library",
+                                "Application Support", "NodexAI")
+    else:
+        # Development: project directory
+        data_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(data_dir, exist_ok=True)
+    return os.path.join(data_dir, "panel.db")
 
-APP_VERSION = "1.2.0"
+
+BASE_DIR = _get_base_dir()
+LOCAL_DB_PATH = _get_local_db_path()
+
+APP_VERSION = "1.3.0"
+
+# Remote Railway PostgreSQL — used ONLY for background sync, never for page loads
+REMOTE_DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:QBvmWZgCvlBsNsqTNmjVmrKJidsHSYQH@shinkansen.proxy.rlwy.net:24887/railway"
+)
+if REMOTE_DATABASE_URL.startswith("postgres://"):
+    REMOTE_DATABASE_URL = REMOTE_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "nodex-panel-secret-key-2024")
-    SQLALCHEMY_DATABASE_URI = _get_database_url()
+    SQLALCHEMY_DATABASE_URI = f"sqlite:///{LOCAL_DB_PATH}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = timedelta(days=30)
-    # Connection pool: keep 10 connections alive, allow bursts to 20
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_size": 10,
-        "max_overflow": 20,
-        "pool_pre_ping": True,      # auto-reconnect stale connections
-        "pool_recycle": 300,         # recycle connections every 5 min
-        "connect_args": {
-            "connect_timeout": 5,    # fail fast on connection issues
-        },
-    }

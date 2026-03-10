@@ -1,6 +1,5 @@
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from models import db, Income, Project
 from routes.auth import login_required
 from services.activity import log_activity
@@ -8,53 +7,28 @@ from services.activity import log_activity
 incomes_bp = Blueprint("incomes", __name__)
 
 
-def _run_in_app(app, fn):
-    with app.app_context():
-        return fn()
-
-
 @incomes_bp.route("/ingresos")
 @login_required
 def index():
-    app = current_app._get_current_object()
     cat = request.args.get("category", "")
     status = request.args.get("status", "")
+    q = Income.query
+    if cat:
+        q = q.filter_by(category=cat)
+    if status:
+        q = q.filter_by(status=status)
+    incomes = q.order_by(Income.created_at.desc()).all()
 
-    def q_incomes():
-        q = Income.query
-        if cat:
-            q = q.filter_by(category=cat)
-        if status:
-            q = q.filter_by(status=status)
-        return q.order_by(Income.created_at.desc()).all()
+    cobrado = Income.query.filter_by(status="cobrado").all()
+    total_cobrado = sum(i.amount for i in cobrado)
 
-    def q_cobrado():
-        rows = Income.query.filter_by(status="cobrado").all()
-        return sum(i.amount for i in rows)
+    pendiente = Income.query.filter_by(status="pendiente").all()
+    total_pendiente = sum(i.amount for i in pendiente)
 
-    def q_pendiente():
-        rows = Income.query.filter_by(status="pendiente").all()
-        return sum(i.amount for i in rows)
+    facturado = Income.query.filter_by(status="facturado").all()
+    total_facturado = sum(i.amount for i in facturado)
 
-    def q_facturado():
-        rows = Income.query.filter_by(status="facturado").all()
-        return sum(i.amount for i in rows)
-
-    def q_projects():
-        return Project.query.order_by(Project.name).all()
-
-    with ThreadPoolExecutor(max_workers=5) as pool:
-        f_incomes = pool.submit(_run_in_app, app, q_incomes)
-        f_cobrado = pool.submit(_run_in_app, app, q_cobrado)
-        f_pendiente = pool.submit(_run_in_app, app, q_pendiente)
-        f_facturado = pool.submit(_run_in_app, app, q_facturado)
-        f_projects = pool.submit(_run_in_app, app, q_projects)
-
-    incomes = f_incomes.result()
-    total_cobrado = f_cobrado.result()
-    total_pendiente = f_pendiente.result()
-    total_facturado = f_facturado.result()
-    projects = f_projects.result()
+    projects = Project.query.order_by(Project.name).all()
 
     return render_template(
         "ingresos.html",
