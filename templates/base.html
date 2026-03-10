@@ -298,191 +298,167 @@
         // Auto-init on every page load
         initVoiceOverlay();
     </script>
-    </script>
-
-    <!-- Dark loading overlay for SPA transitions -->
-    <div id="spaLoader" style="display:none;position:fixed;inset:0;z-index:9999;background:#0d1117;justify-content:center;align-items:center;flex-direction:column;gap:16px">
-        <div style="color:#8b949e;font-size:14px;font-family:sans-serif">Cargando...</div>
-        <div style="width:180px;height:3px;background:#21262d;border-radius:3px;overflow:hidden">
-            <div id="spaLoaderBar" style="width:0%;height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:3px;transition:width 0.3s"></div>
-        </div>
-    </div>
 
     <!-- ═══ PREFETCH SPA NAVIGATION ═══ -->
     <script>
-    (function() {
-        var _pageCache = {};
-        var _prefetching = false;
-        var FULL_RELOAD_PATHS = ['/cowork'];
+        (function () {
+            var _pageCache = {};
+            var _prefetching = false;
+            var FULL_RELOAD_PATHS = ['/cowork'];
 
-        function needsFullReload(url) {
-            for (var i = 0; i < FULL_RELOAD_PATHS.length; i++) {
-                if (url.indexOf(FULL_RELOAD_PATHS[i]) === 0) return true;
-            }
-            return false;
-        }
-
-        function getSidebarLinks() {
-            var links = document.querySelectorAll('.sidebar-nav a[href]');
-            var result = [];
-            for (var i = 0; i < links.length; i++) {
-                var href = links[i].getAttribute('href');
-                if (href && href !== '#' && !href.includes('logout') && !needsFullReload(href)) {
-                    result.push(href);
+            function needsFullReload(url) {
+                for (var i = 0; i < FULL_RELOAD_PATHS.length; i++) {
+                    if (url.indexOf(FULL_RELOAD_PATHS[i]) === 0) return true;
                 }
+                return false;
             }
-            return result;
-        }
 
-        function parsePageHTML(html) {
-            var parser = new DOMParser();
-            var doc = parser.parseFromString(html, 'text/html');
-            var main = doc.querySelector('.main-content');
-            var title = doc.querySelector('.header-title');
-            var allScripts = doc.querySelectorAll('body script');
-            var pageScripts = [];
-            for (var i = 0; i < allScripts.length; i++) {
-                var s = allScripts[i];
-                var txt = s.textContent || '';
-                if (txt.indexOf('PREFETCH SPA') !== -1) continue;
-                if (txt.indexOf('initVoiceOverlay') !== -1) continue;
-                if (txt.indexOf('toggleSidebar') !== -1) continue;
-                if (txt.indexOf('toggleTheme') !== -1) continue;
-                pageScripts.push({ src: s.src || '', text: txt });
-            }
-            return {
-                mainHTML: main ? main.innerHTML : null,
-                titleText: title ? title.textContent : '',
-                scripts: pageScripts
-            };
-        }
-
-        function prefetchPage(url) {
-            if (_pageCache[url]) return Promise.resolve();
-            return fetch(url, { credentials: 'same-origin' })
-                .then(function(r) { return r.text(); })
-                .then(function(html) {
-                    var parsed = parsePageHTML(html);
-                    if (parsed.mainHTML) _pageCache[url] = parsed;
-                })
-                .catch(function() {});
-        }
-
-        function prefetchAll() {
-            if (_prefetching) return;
-            _prefetching = true;
-            var links = getSidebarLinks();
-            var current = window.location.pathname;
-            var delay = 0;
-            links.forEach(function(href) {
-                if (href !== current) {
-                    setTimeout(function() { prefetchPage(href); }, delay);
-                    delay += 150;
+            function getSidebarLinks() {
+                var links = document.querySelectorAll('.sidebar-nav a[href]');
+                var result = [];
+                for (var i = 0; i < links.length; i++) {
+                    var href = links[i].getAttribute('href');
+                    if (href && href !== '#' && !href.includes('logout') && !needsFullReload(href)) {
+                        result.push(href);
+                    }
                 }
-            });
-        }
-
-        function execScripts(scripts) {
-            for (var i = 0; i < scripts.length; i++) {
-                var s = scripts[i];
-                var el = document.createElement('script');
-                if (s.src) el.src = s.src;
-                else if (s.text) el.textContent = s.text;
-                document.body.appendChild(el);
+                return result;
             }
-        }
 
-        function navigateTo(url) {
-            var cached = _pageCache[url];
-            if (!cached) return false;
+            function parsePageHTML(html) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var main = doc.querySelector('.main-content');
+                var title = doc.querySelector('.header-title');
+                var allScripts = doc.querySelectorAll('body script');
+                var pageScripts = [];
+                for (var i = 0; i < allScripts.length; i++) {
+                    var s = allScripts[i];
+                    var txt = s.textContent || '';
+                    if (txt.indexOf('PREFETCH SPA') !== -1) continue;
+                    if (txt.indexOf('initVoiceOverlay') !== -1) continue;
+                    if (txt.indexOf('toggleSidebar') !== -1) continue;
+                    if (txt.indexOf('toggleTheme') !== -1) continue;
+                    pageScripts.push({ src: s.src || '', text: txt });
+                }
+                return {
+                    mainHTML: main ? main.innerHTML : null,
+                    titleText: title ? title.textContent : '',
+                    scripts: pageScripts
+                };
+            }
 
-            var main = document.querySelector('.main-content');
-            if (main) main.innerHTML = cached.mainHTML;
+            function prefetchPage(url) {
+                if (_pageCache[url]) return Promise.resolve();
+                return fetch(url, { credentials: 'same-origin' })
+                    .then(function (r) { return r.text(); })
+                    .then(function (html) {
+                        var parsed = parsePageHTML(html);
+                        if (parsed.mainHTML) _pageCache[url] = parsed;
+                    })
+                    .catch(function () { });
+            }
 
-            var headerTitle = document.querySelector('.header-title');
-            if (headerTitle) headerTitle.textContent = cached.titleText;
+            function prefetchAll() {
+                if (_prefetching) return;
+                _prefetching = true;
+                var links = getSidebarLinks();
+                var current = window.location.pathname;
+                var delay = 0;
+                links.forEach(function (href) {
+                    if (href !== current) {
+                        setTimeout(function () { prefetchPage(href); }, delay);
+                        delay += 150;
+                    }
+                });
+            }
 
-            document.querySelectorAll('.sidebar-nav a[href]').forEach(function(link) {
-                link.classList.remove('active');
-                var h = link.getAttribute('href');
-                if (h === url) link.classList.add('active');
-                if ((url === '/' || url === '/dashboard') && (h === '/' || h === '/dashboard'))
-                    link.classList.add('active');
-            });
-
-            history.pushState({ url: url }, '', url);
-
-            if (main) {
-                var inlineScripts = main.querySelectorAll('script');
-                for (var i = 0; i < inlineScripts.length; i++) {
-                    var s = inlineScripts[i];
-                    var newS = document.createElement('script');
-                    if (s.src) newS.src = s.src;
-                    else newS.textContent = s.textContent;
-                    s.parentNode.replaceChild(newS, s);
+            function execScripts(scripts) {
+                for (var i = 0; i < scripts.length; i++) {
+                    var s = scripts[i];
+                    var el = document.createElement('script');
+                    if (s.src) el.src = s.src;
+                    else if (s.text) el.textContent = s.text;
+                    document.body.appendChild(el);
                 }
             }
 
-            if (cached.scripts && cached.scripts.length) execScripts(cached.scripts);
-            if (main) main.scrollTop = 0;
-            return true;
-        }
+            function navigateTo(url) {
+                var cached = _pageCache[url];
+                if (!cached) return false;
 
-        function showLoader() {
-            var loader = document.getElementById('spaLoader');
-            var bar = document.getElementById('spaLoaderBar');
-            if (loader) { loader.style.display = 'flex'; bar.style.width = '30%'; }
-            setTimeout(function() { if (bar) bar.style.width = '70%'; }, 200);
-        }
-        function hideLoader() {
-            var loader = document.getElementById('spaLoader');
-            var bar = document.getElementById('spaLoaderBar');
-            if (bar) bar.style.width = '100%';
-            setTimeout(function() { if (loader) loader.style.display = 'none'; }, 200);
-        }
-
-        document.addEventListener('click', function(e) {
-            var link = e.target.closest('.sidebar-nav a[href]');
-            if (!link) return;
-            var href = link.getAttribute('href');
-            if (!href || href === '#' || href.includes('logout')) return;
-            if (needsFullReload(href)) { showLoader(); return; }
-            if (_pageCache[href]) {
-                e.preventDefault();
-                navigateTo(href);
-            } else {
-                showLoader();
-            }
-        });
-
-        window.addEventListener('popstate', function(e) {
-            if (e.state && e.state.url && _pageCache[e.state.url]) {
-                navigateTo(e.state.url);
-            } else {
-                window.location.reload();
-            }
-        });
-
-        setTimeout(function() {
-            var p = window.location.pathname;
-            if (!needsFullReload(p)) {
                 var main = document.querySelector('.main-content');
-                var title = document.querySelector('.header-title');
+                if (main) main.innerHTML = cached.mainHTML;
+
+                var headerTitle = document.querySelector('.header-title');
+                if (headerTitle) headerTitle.textContent = cached.titleText;
+
+                document.querySelectorAll('.sidebar-nav a[href]').forEach(function (link) {
+                    link.classList.remove('active');
+                    var h = link.getAttribute('href');
+                    if (h === url) link.classList.add('active');
+                    if ((url === '/' || url === '/dashboard') && (h === '/' || h === '/dashboard'))
+                        link.classList.add('active');
+                });
+
+                history.pushState({ url: url }, '', url);
+
                 if (main) {
-                    _pageCache[p] = {
-                        mainHTML: main.innerHTML,
-                        titleText: title ? title.textContent : '',
-                        scripts: []
-                    };
+                    var inlineScripts = main.querySelectorAll('script');
+                    for (var i = 0; i < inlineScripts.length; i++) {
+                        var s = inlineScripts[i];
+                        var newS = document.createElement('script');
+                        if (s.src) newS.src = s.src;
+                        else newS.textContent = s.textContent;
+                        s.parentNode.replaceChild(newS, s);
+                    }
                 }
-                if (p === '/' || p === '/dashboard') {
-                    _pageCache['/'] = _pageCache[p];
-                    _pageCache['/dashboard'] = _pageCache[p];
-                }
+
+                if (cached.scripts && cached.scripts.length) execScripts(cached.scripts);
+                if (main) main.scrollTop = 0;
+                return true;
             }
-            prefetchAll();
-        }, 300);
-    })();
+
+            document.addEventListener('click', function (e) {
+                var link = e.target.closest('.sidebar-nav a[href]');
+                if (!link) return;
+                var href = link.getAttribute('href');
+                if (!href || href === '#' || href.includes('logout')) return;
+                if (needsFullReload(href)) return;
+                if (_pageCache[href]) {
+                    e.preventDefault();
+                    navigateTo(href);
+                }
+            });
+
+            window.addEventListener('popstate', function (e) {
+                if (e.state && e.state.url && _pageCache[e.state.url]) {
+                    navigateTo(e.state.url);
+                } else {
+                    window.location.reload();
+                }
+            });
+
+            setTimeout(function () {
+                var p = window.location.pathname;
+                if (!needsFullReload(p)) {
+                    var main = document.querySelector('.main-content');
+                    var title = document.querySelector('.header-title');
+                    if (main) {
+                        _pageCache[p] = {
+                            mainHTML: main.innerHTML,
+                            titleText: title ? title.textContent : '',
+                            scripts: []
+                        };
+                    }
+                    if (p === '/' || p === '/dashboard') {
+                        _pageCache['/'] = _pageCache[p];
+                        _pageCache['/dashboard'] = _pageCache[p];
+                    }
+                }
+                prefetchAll();
+            }, 300);
+        })();
     </script>
 
     {% block scripts %}{% endblock %}

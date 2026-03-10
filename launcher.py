@@ -94,6 +94,7 @@ def main():
         width=1280,
         height=820,
         min_size=(900, 600),
+        background_color='#0d1117',
     )
 
     def _wait_and_navigate(win):
