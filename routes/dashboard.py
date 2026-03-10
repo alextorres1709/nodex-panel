@@ -1,3 +1,4 @@
+from sqlalchemy.orm import joinedload
 from flask import Blueprint, render_template
 from models import db, Payment, Project, Task, Idea, ActivityLog
 from routes.auth import login_required
@@ -41,6 +42,7 @@ def index():
     # Tareas urgentes
     urgent_tasks = (
         Task.query
+        .options(joinedload(Task.assignee))
         .filter(Task.status.in_(["pendiente", "en_progreso"]))
         .order_by(Task.due_date.asc().nullslast(), Task.priority.desc())
         .limit(5)
@@ -50,6 +52,7 @@ def index():
     # Actividad reciente
     recent_activity = (
         ActivityLog.query
+        .options(joinedload(ActivityLog.user))
         .order_by(ActivityLog.created_at.desc())
         .limit(8)
         .all()

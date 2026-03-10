@@ -1,4 +1,5 @@
 from datetime import datetime
+from sqlalchemy.orm import joinedload
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from models import db, Task, User, Project
 from routes.auth import login_required
@@ -13,7 +14,7 @@ def index():
     status = request.args.get("status", "")
     priority = request.args.get("priority", "")
     assigned = request.args.get("assigned_to", "")
-    q = Task.query
+    q = Task.query.options(joinedload(Task.assignee), joinedload(Task.project))
     if status:
         q = q.filter_by(status=status)
     if priority:

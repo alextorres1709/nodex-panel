@@ -2,6 +2,7 @@ import hashlib
 import json
 import time
 from datetime import datetime, timezone
+from sqlalchemy.orm import joinedload
 from flask import Blueprint, render_template, request, redirect, url_for, flash, g, Response, jsonify
 from models import db, Message, CallSession, Project, User
 from routes.auth import login_required
@@ -24,13 +25,14 @@ def index(channel="general"):
     users = User.query.filter_by(active=True).all()
     messages = (
         Message.query
+        .options(joinedload(Message.sender))
         .filter_by(channel=channel)
         .order_by(Message.created_at.asc())
         .limit(200)
         .all()
     )
     # Active calls grouped by room
-    active_calls = CallSession.query.filter_by(ended_at=None).all()
+    active_calls = CallSession.query.options(joinedload(CallSession.creator)).filter_by(ended_at=None).all()
     # Build dict: room_name -> list of users in that room
     voice_rooms = {}
     for vc in VOICE_CHANNELS:
@@ -86,6 +88,7 @@ def stream():
             
             msgs = (
                 Message.query
+                .options(joinedload(Message.sender))
                 .filter(Message.channel == channel, Message.id > last_id)
                 .order_by(Message.id.asc())
                 .all()

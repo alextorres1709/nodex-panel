@@ -1,3 +1,4 @@
+from sqlalchemy.orm import joinedload
 from flask import Blueprint, render_template, request, redirect, url_for, flash, g
 from models import db, Idea, Project
 from routes.auth import login_required
@@ -11,7 +12,7 @@ ideas_bp = Blueprint("ideas", __name__)
 def index():
     status = request.args.get("status", "")
     cat = request.args.get("category", "")
-    q = Idea.query
+    q = Idea.query.options(joinedload(Idea.author), joinedload(Idea.project))
     if status:
         q = q.filter_by(status=status)
     if cat:
