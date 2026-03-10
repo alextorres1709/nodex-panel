@@ -113,19 +113,31 @@ def stream():
 @cowork_bp.route("/cowork/voice/join/<room_id>", methods=["POST"])
 @login_required
 def join_voice(room_id):
-    # End any existing call for this user first
-    old = CallSession.query.filter_by(created_by=g.user.id, ended_at=None).all()
-    for o in old:
-        o.ended_at = datetime.now(timezone.utc)
+    # Check if user is already actively calling anywhere
+    active_calls = CallSession.query.filter_by(created_by=g.user.id, ended_at=None).all()
+    
+    existing_call = None
+    for call in active_calls:
+        if call.room_name == room_id:
+            existing_call = call
+        else:
+            # End calls in other rooms
+            call.ended_at = datetime.now(timezone.utc)
+            
+    if existing_call:
+        # User is already in this exact room, just return it without creating duplicate
+        call = existing_call
+        db.session.commit()
+    else:
+        # Create new session in this room
+        call = CallSession(
+            room_name=room_id,
+            created_by=g.user.id,
+        )
+        db.session.add(call)
+        log_activity("create", "call", details=f"Unido a canal de voz: {room_id}")
+        db.session.commit()
 
-    # Create new session in this room
-    call = CallSession(
-        room_name=room_id,
-        created_by=g.user.id,
-    )
-    db.session.add(call)
-    log_activity("create", "call", details=f"Unido a canal de voz: {room_id}")
-    db.session.commit()
     # Generate unique Jitsi room name to avoid auth requirement on meet.jit.si
     room_hash = hashlib.sha256(f"nodexai-panel-{room_id}".encode()).hexdigest()[:12]
     jitsi_room = f"NdxAi{room_id.title().replace('-','')}{room_hash}"
