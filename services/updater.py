@@ -1,6 +1,7 @@
 """
 Auto-updater: checks GitHub Releases for new versions, downloads and
 replaces the app bundle, then offers to restart.
+Works with PRIVATE repos via GitHub API + token.
 """
 import os
 import sys
@@ -19,6 +20,10 @@ SERVER_URL = os.getenv(
     "NODEX_SERVER_URL",
     "https://nodex-panel-production.up.railway.app"
 )
+
+# GitHub repo for release downloads (private repo)
+GITHUB_REPO = "alextorres1709/nodex-panel"
+GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 APP_BUNDLE_PATH = "/Applications/NodexAI Panel.app"
 
@@ -74,12 +79,16 @@ def check_and_update(window):
         # 2. Show "downloading" banner
         _show_banner(window, f"Descargando actualización v{remote_version}...", show_restart=False)
 
-        # 3. Download DMG
+        # 3. Download DMG via GitHub API (works with private repos)
         tmp_dir = tempfile.mkdtemp(prefix="nodex_update_")
         dmg_path = os.path.join(tmp_dir, "update.dmg")
 
-        log.info(f"Downloading {download_url}...")
-        urllib.request.urlretrieve(download_url, dmg_path)
+        log.info(f"Downloading update...")
+        if not _download_release_asset(dmg_path):
+            log.error("Failed to download update")
+            _show_banner(window, "Error al descargar la actualización", show_restart=False)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            return
         log.info(f"Downloaded to {dmg_path}")
 
         # 4. Mount DMG
@@ -151,12 +160,53 @@ def _is_newer(remote, local):
         return remote != local
 
 
+def _download_release_asset(dest_path):
+    """
+    Download the DMG asset from the latest GitHub Release.
+    Works with private repos by using the GitHub API.
+    """
+    try:
+        # Get latest release info
+        req = urllib.request.Request(GITHUB_API)
+        req.add_header("User-Agent", "NodexAI-Panel")
+        req.add_header("Accept", "application/vnd.github+json")
+
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            release = json.loads(resp.read().decode())
+
+        # Find the .dmg asset
+        asset_url = None
+        for asset in release.get("assets", []):
+            if asset["name"].endswith(".dmg"):
+                asset_url = asset["url"]  # API URL, not browser URL
+                break
+
+        if not asset_url:
+            log.error("No .dmg asset found in latest release")
+            return False
+
+        # Download the asset binary via API
+        req = urllib.request.Request(asset_url)
+        req.add_header("User-Agent", "NodexAI-Panel")
+        req.add_header("Accept", "application/octet-stream")
+
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            with open(dest_path, "wb") as f:
+                shutil.copyfileobj(resp, f)
+
+        return os.path.getsize(dest_path) > 1_000_000  # Sanity: must be > 1MB
+
+    except Exception as e:
+        log.error(f"Download failed: {e}")
+        return False
+
+
 def _show_banner(window, message, show_restart=False):
     """Show a banner at the top of the app via JS injection."""
     restart_btn = ""
     if show_restart:
         restart_btn = (
-            '<button onclick="fetch(\\'/__restart__\\')" '
+            '<button onclick="fetch(\'/__restart__\')" '
             'style="background:white;color:#7c3aed;border:none;padding:4px 14px;'
             'border-radius:6px;font-weight:700;cursor:pointer;font-size:12px;'
             'margin-left:8px">Reiniciar</button>'
