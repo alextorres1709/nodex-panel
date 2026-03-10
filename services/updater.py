@@ -1,7 +1,7 @@
 """
 Auto-updater: checks GitHub Releases for new versions, downloads and
 replaces the app bundle, then offers to restart.
-Works with PRIVATE repos via GitHub API + token.
+Uses the public GitHub API — no Railway dependency needed.
 """
 import os
 import sys
@@ -11,17 +11,9 @@ import logging
 import subprocess
 import tempfile
 import urllib.request
-import threading
 
 log = logging.getLogger("updater")
 
-# Railway server URL — the /api/version endpoint lives here
-SERVER_URL = os.getenv(
-    "NODEX_SERVER_URL",
-    "https://nodex-panel-production.up.railway.app"
-)
-
-# GitHub repo for release downloads (private repo)
 GITHUB_REPO = "alextorres1709/nodex-panel"
 GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
@@ -31,9 +23,7 @@ APP_BUNDLE_PATH = "/Applications/NodexAI Panel.app"
 def _get_app_path():
     """Get the path to the running .app bundle."""
     if getattr(sys, "frozen", False):
-        # Inside PyInstaller bundle: …/NodexAI Panel.app/Contents/MacOS/…
         path = os.path.dirname(sys.executable)
-        # Walk up to find the .app directory
         while path and not path.endswith(".app"):
             path = os.path.dirname(path)
         if path.endswith(".app"):
@@ -42,56 +32,70 @@ def _get_app_path():
 
 
 def check_and_update(window):
-    """Background thread: check for updates, download, install, prompt restart."""
+    """Background thread: check GitHub for updates, download, install, prompt restart."""
     try:
         import time
-        time.sleep(8)  # Let the app fully load first
+        time.sleep(8)
 
         from config import APP_VERSION
 
-        # 1. Check version
+        # 1. Check latest release on GitHub
         log.info(f"Checking for updates (current: {APP_VERSION})...")
-        req = urllib.request.Request(f"{SERVER_URL}/api/version", method="GET")
+        req = urllib.request.Request(GITHUB_API)
         req.add_header("User-Agent", "NodexAI-Panel")
+        req.add_header("Accept", "application/vnd.github+json")
         try:
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                data = json.loads(resp.read().decode())
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                release = json.loads(resp.read().decode())
         except Exception as e:
             log.info(f"Update check failed (offline?): {e}")
             return
 
-        remote_version = data.get("version", "")
-        download_url = data.get("download_url", "")
+        # Extract version from tag (e.g. "v1.3.3" -> "1.3.3")
+        tag = release.get("tag_name", "")
+        remote_version = tag.lstrip("v")
 
-        if not remote_version or not download_url:
+        if not remote_version:
             return
 
         if remote_version == APP_VERSION:
             log.info("Already up to date")
             return
 
-        # Compare versions (simple: newer = different and remote > local)
         if not _is_newer(remote_version, APP_VERSION):
             return
 
         log.info(f"New version available: {remote_version}")
 
-        # 2. Show "downloading" banner
-        _show_banner(window, f"Descargando actualización v{remote_version}...", show_restart=False)
+        # 2. Find the .dmg download URL from assets
+        download_url = None
+        for asset in release.get("assets", []):
+            if asset["name"].endswith(".dmg"):
+                download_url = asset["browser_download_url"]
+                break
 
-        # 3. Download DMG via GitHub API (works with private repos)
+        if not download_url:
+            log.error("No .dmg asset found in latest release")
+            return
+
+        # 3. Show "downloading" banner
+        _show_banner(window, f"Descargando v{remote_version}...", show_restart=False)
+
+        # 4. Download DMG
         tmp_dir = tempfile.mkdtemp(prefix="nodex_update_")
         dmg_path = os.path.join(tmp_dir, "update.dmg")
 
-        log.info(f"Downloading update...")
-        if not _download_release_asset(dmg_path):
-            log.error("Failed to download update")
-            _show_banner(window, "Error al descargar la actualización", show_restart=False)
+        log.info(f"Downloading {download_url}...")
+        urllib.request.urlretrieve(download_url, dmg_path)
+
+        if os.path.getsize(dmg_path) < 1_000_000:
+            log.error("Downloaded file too small, aborting")
             shutil.rmtree(tmp_dir, ignore_errors=True)
             return
+
         log.info(f"Downloaded to {dmg_path}")
 
-        # 4. Mount DMG
+        # 5. Mount DMG
         mount_point = os.path.join(tmp_dir, "mount")
         os.makedirs(mount_point, exist_ok=True)
 
@@ -102,9 +106,10 @@ def check_and_update(window):
         if result.returncode != 0:
             log.error(f"Failed to mount DMG: {result.stderr}")
             _show_banner(window, "Error al montar la actualización", show_restart=False)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
             return
 
-        # 5. Find .app inside mounted DMG
+        # 6. Find .app inside mounted DMG
         app_name = None
         for item in os.listdir(mount_point):
             if item.endswith(".app"):
@@ -114,21 +119,20 @@ def check_and_update(window):
         if not app_name:
             log.error("No .app found in DMG")
             subprocess.run(["hdiutil", "detach", mount_point, "-quiet"], capture_output=True)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
             return
 
         source_app = os.path.join(mount_point, app_name)
         target_app = _get_app_path()
 
-        # 6. Replace: delete old, copy new
-        log.info(f"Installing: {source_app} → {target_app}")
-
-        # Use rsync to overwrite in-place (safe even while running)
+        # 7. Replace with rsync (safe even while running)
+        log.info(f"Installing: {source_app} -> {target_app}")
         result = subprocess.run(
             ["rsync", "-a", "--delete", source_app + "/", target_app + "/"],
             capture_output=True, text=True
         )
 
-        # 7. Unmount and clean up
+        # 8. Unmount and clean up
         subprocess.run(["hdiutil", "detach", mount_point, "-quiet"], capture_output=True)
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -139,12 +143,8 @@ def check_and_update(window):
 
         log.info(f"Update to v{remote_version} installed successfully")
 
-        # 8. Show restart banner
-        _show_banner(
-            window,
-            f"v{remote_version} instalada ✓",
-            show_restart=True
-        )
+        # 9. Show restart banner
+        _show_banner(window, f"v{remote_version} instalada ✓", show_restart=True)
 
     except Exception as e:
         log.warning(f"Update error: {e}")
@@ -158,47 +158,6 @@ def _is_newer(remote, local):
         return r > l
     except (ValueError, AttributeError):
         return remote != local
-
-
-def _download_release_asset(dest_path):
-    """
-    Download the DMG asset from the latest GitHub Release.
-    Works with private repos by using the GitHub API.
-    """
-    try:
-        # Get latest release info
-        req = urllib.request.Request(GITHUB_API)
-        req.add_header("User-Agent", "NodexAI-Panel")
-        req.add_header("Accept", "application/vnd.github+json")
-
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            release = json.loads(resp.read().decode())
-
-        # Find the .dmg asset
-        asset_url = None
-        for asset in release.get("assets", []):
-            if asset["name"].endswith(".dmg"):
-                asset_url = asset["url"]  # API URL, not browser URL
-                break
-
-        if not asset_url:
-            log.error("No .dmg asset found in latest release")
-            return False
-
-        # Download the asset binary via API
-        req = urllib.request.Request(asset_url)
-        req.add_header("User-Agent", "NodexAI-Panel")
-        req.add_header("Accept", "application/octet-stream")
-
-        with urllib.request.urlopen(req, timeout=300) as resp:
-            with open(dest_path, "wb") as f:
-                shutil.copyfileobj(resp, f)
-
-        return os.path.getsize(dest_path) > 1_000_000  # Sanity: must be > 1MB
-
-    except Exception as e:
-        log.error(f"Download failed: {e}")
-        return False
 
 
 def _show_banner(window, message, show_restart=False):
@@ -230,9 +189,8 @@ def _show_banner(window, message, show_restart=False):
 
 
 def _restart_app():
-    """Relaunch the app by exec-ing the current executable."""
+    """Relaunch the app."""
     app_path = _get_app_path()
     if app_path and os.path.isdir(app_path):
         os.execv("/usr/bin/open", ["open", "-n", app_path])
-    # Fallback: just quit and let user reopen
     sys.exit(0)
