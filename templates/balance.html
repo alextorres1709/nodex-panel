@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Balance P&L{% endblock %}
+{% block page_title %}Balance — P&L{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Balance P&L</h1>
+        <p class="page-subtitle">Profit & Loss — {{ year }}</p>
+    </div>
+    <div style="display:flex;gap:8px">
+        <a href="{{ url_for('balance.index', year=year-1) }}" class="btn btn-sm btn-secondary">&larr; {{ year-1 }}</a>
+        <a href="{{ url_for('balance.index', year=year+1) }}" class="btn btn-sm btn-secondary">{{ year+1 }} &rarr;</a>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom:28px">
+    <div class="kpi-card accent-green">
+        <div class="kpi-label">Ingresos anuales</div>
+        <div class="kpi-value">{{ "%.0f"|format(annual_income) }}&euro;</div>
+    </div>
+    <div class="kpi-card accent-amber">
+        <div class="kpi-label">Gastos anuales</div>
+        <div class="kpi-value">{{ "%.0f"|format(annual_expense) }}&euro;</div>
+    </div>
+    <div class="kpi-card {{ 'accent-green' if annual_net >= 0 else 'accent-amber' }}">
+        <div class="kpi-label">Balance neto</div>
+        <div class="kpi-value" style="color:{{ 'var(--success)' if annual_net >= 0 else 'var(--danger)' }}">{{ "%+.0f"|format(annual_net) }}&euro;</div>
+    </div>
+    <div class="kpi-card accent-purple">
+        <div class="kpi-label">MRR</div>
+        <div class="kpi-value">{{ "%.0f"|format(mrr_income) }}&euro;</div>
+        <div class="kpi-subtitle">Gasto recurrente: {{ "%.0f"|format(mrr_expense) }}&euro;/mes</div>
+    </div>
+</div>
+
+<!-- Monthly P&L Chart -->
+<div class="chart-card" style="margin-bottom:28px">
+    <div class="chart-card-header">
+        <h3>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Ingresos vs Gastos — {{ year }}
+        </h3>
+    </div>
+    <div style="height:300px"><canvas id="plChart"></canvas></div>
+</div>
+
+<!-- Monthly P&L Table -->
+<div class="table-card">
+    <div class="table-card-header"><h3>Detalle mensual</h3></div>
+    <table class="data-table">
+        <thead><tr><th>Mes</th><th>Ingresos</th><th>Gastos</th><th>Neto</th></tr></thead>
+        <tbody>
+        {% for m in months %}
+        <tr>
+            <td><strong>{{ m.label }}</strong></td>
+            <td style="color:var(--success)">{{ "%.0f"|format(m.income) }}&euro;</td>
+            <td style="color:var(--danger)">{{ "%.0f"|format(m.expense) }}&euro;</td>
+            <td style="color:{{ 'var(--success)' if m.net >= 0 else 'var(--danger)' }};font-weight:700">{{ "%+.0f"|format(m.net) }}&euro;</td>
+        </tr>
+        {% endfor %}
+        <tr style="font-weight:800;border-top:2px solid var(--border-color)">
+            <td>TOTAL</td>
+            <td style="color:var(--success)">{{ "%.0f"|format(annual_income) }}&euro;</td>
+            <td style="color:var(--danger)">{{ "%.0f"|format(annual_expense) }}&euro;</td>
+            <td style="color:{{ 'var(--success)' if annual_net >= 0 else 'var(--danger)' }}">{{ "%+.0f"|format(annual_net) }}&euro;</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Breakdown -->
+<div class="pl-grid">
+    <div class="pl-section">
+        <div class="pl-section-header">Gastos por categoría (mensual)</div>
+        {% for cat, total in expense_cats %}
+        <div class="pl-row"><span>{{ cat|capitalize }}</span><span>{{ "%.0f"|format(total) }}&euro;/mes</span></div>
+        {% endfor %}
+        {% if not expense_cats %}<p style="font-size:13px;color:var(--text-tertiary)">Sin datos</p>{% endif %}
+    </div>
+    <div class="pl-section">
+        <div class="pl-section-header">Ingresos por categoría ({{ year }})</div>
+        {% for cat, total in income_cats %}
+        <div class="pl-row"><span>{{ cat|capitalize }}</span><span>{{ "%.0f"|format(total) }}&euro;</span></div>
+        {% endfor %}
+        {% if not income_cats %}<p style="font-size:13px;color:var(--text-tertiary)">Sin datos</p>{% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var months = {{ months|tojson }};
+var labels = months.map(function(m) { return m.label; });
+var incomes = months.map(function(m) { return m.income; });
+var expenses = months.map(function(m) { return m.expense; });
+
+registerChart(function() {
+    var ctx = document.getElementById('plChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Ingresos', data: incomes, backgroundColor: 'rgba(5,150,105,0.7)', borderRadius: 6 },
+                { label: 'Gastos', data: expenses, backgroundColor: 'rgba(239,68,68,0.7)', borderRadius: 6 },
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() } } },
+            scales: {
+                y: { ticks: { color: 'rgba(255,255,255,0.4)', callback: function(v) { return v + '€' } }, grid: { color: 'rgba(255,255,255,0.06)' } },
+                x: { ticks: { color: 'rgba(255,255,255,0.4)' }, grid: { display: false } }
+            }
+        }
+    });
+});
+rebuildCharts();
+</script>
+{% endblock %}

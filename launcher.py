@@ -23,22 +23,31 @@ def _patch_media_permissions():
     """
     Monkey-patch pywebview's Cocoa BrowserDelegate to auto-grant
     camera/mic permissions so Jitsi doesn't ask every time.
+    Disabled on macOS 26+ due to WebKit API changes that cause crashes.
     """
+    import platform
+    try:
+        major_ver = int(platform.mac_ver()[0].split(".")[0])
+        if major_ver >= 26:
+            return  # Skip patch on macOS 26+ (incompatible WebKit API)
+    except Exception:
+        pass
+
     try:
         from webview.platforms.cocoa import BrowserView
         import objc
 
-        # WKPermissionDecision.grant = 1
         WK_PERMISSION_GRANT = 1
 
         def _media_permission_handler(
             self, webview, origin, frame, media_type, decisionHandler
         ):
             """Auto-grant camera and microphone permissions."""
-            decisionHandler(WK_PERMISSION_GRANT)
+            try:
+                decisionHandler(WK_PERMISSION_GRANT)
+            except Exception:
+                pass
 
-        # Register as an Objective-C method with the correct signature
-        # Signature: void (id, SEL, WKWebView, WKSecurityOrigin, WKFrameInfo, WKMediaCaptureType, block)
         sel_name = (
             "webView:requestMediaCapturePermissionForOrigin:"
             "initiatedByFrame:type:decisionHandler:"
@@ -49,10 +58,8 @@ def _patch_media_permissions():
             signature=b"v@:@@@q@?",
         )
 
-        # Add the method to BrowserDelegate
         BrowserDelegate = BrowserView.BrowserDelegate
-        import objc as _objc
-        _objc.classAddMethod(
+        objc.classAddMethod(
             BrowserDelegate,
             sel_name.encode(),
             _media_permission_handler,

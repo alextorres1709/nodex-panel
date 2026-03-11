@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Time Tracking{% endblock %}
+{% block page_title %}Time Tracking{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Time Tracking</h1>
+        <p class="page-subtitle">Registro de horas y temporizador</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('createModal')">+ Registro manual</button>
+</div>
+
+<!-- Stats -->
+<div class="kpi-grid" style="margin-bottom:24px">
+    <div class="kpi-card accent-green">
+        <div class="kpi-label">Hoy</div>
+        <div class="kpi-value">{{ today_minutes // 60 }}h {{ today_minutes % 60 }}m</div>
+    </div>
+    <div class="kpi-card accent-cyan">
+        <div class="kpi-label">Esta semana</div>
+        <div class="kpi-value">{{ week_minutes // 60 }}h {{ week_minutes % 60 }}m</div>
+    </div>
+    <div class="kpi-card accent-purple">
+        <div class="kpi-label">Este mes</div>
+        <div class="kpi-value">{{ month_minutes // 60 }}h {{ month_minutes % 60 }}m</div>
+    </div>
+</div>
+
+<!-- Timer -->
+<div class="timer-card">
+    <div class="timer-display" id="timerDisplay">00:00:00</div>
+    <div class="timer-controls">
+        <button class="btn btn-primary" id="timerStartBtn" onclick="startTimer()">Iniciar</button>
+        <button class="btn btn-danger" id="timerStopBtn" onclick="stopTimer()" style="display:none">Detener</button>
+    </div>
+    <div class="form-row" style="max-width:400px;margin:0 auto">
+        <div class="form-group">
+            <label>Tarea</label>
+            <select id="timerTask">
+                <option value="">—</option>
+                {% for t in tasks %}<option value="{{ t.id }}">{{ t.title }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Proyecto</label>
+            <select id="timerProject">
+                <option value="">—</option>
+                {% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Filter -->
+<form class="filter-bar" method="GET">
+    <input type="date" name="date" value="{{ filter_date }}">
+    <select name="project_id">
+        <option value="">Todos los proyectos</option>
+        {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if filter_project==p.id|string }}>{{ p.name }}
+        </option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
+    {% if filter_date or filter_project %}
+    <a href="{{ url_for('timetracking.index') }}" class="btn btn-sm btn-secondary">Limpiar</a>
+    {% endif %}
+</form>
+
+<!-- Entries -->
+<div class="table-card">
+    <div class="table-card-header">
+        <h3>Registros</h3>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Descripción</th>
+                <th>Proyecto</th>
+                <th>Tarea</th>
+                <th>Tiempo</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in entries %}
+            <tr>
+                <td>{{ e.date.strftime('%d/%m/%Y') }}</td>
+                <td><strong>{{ e.description or '-' }}</strong></td>
+                <td>{{ e.project.name if e.project else '-' }}</td>
+                <td>{{ e.task.title if e.task else '-' }}</td>
+                <td><strong>{{ e.minutes // 60 }}h {{ e.minutes % 60 }}m</strong></td>
+                <td>
+                    <form method="POST" action="{{ url_for('timetracking.delete', eid=e.id) }}" style="display:inline"
+                        onsubmit="return confirm('Eliminar?')">
+                        <button type="submit" class="btn btn-sm btn-danger">X</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if not entries %}
+    <div class="empty-state">
+        <p>No hay registros de tiempo</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Registro manual</h3><button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('timetracking.create') }}">
+            <div class="modal-body">
+                <div class="form-group"><label>Descripción</label><input type="text" name="description"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Minutos</label><input type="number" name="minutes" min="1" required
+                            placeholder="60"></div>
+                    <div class="form-group"><label>Fecha</label><input type="date" name="date" value="{{ today_date }}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Tarea</label><select name="task_id">
+                            <option value="">—</option>{% for t in tasks %}<option value="{{ t.id }}">{{ t.title }}
+                            </option>{% endfor %}
+                        </select></div>
+                    <div class="form-group"><label>Proyecto</label><select name="project_id">
+                            <option value="">—</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}
+                            </option>{% endfor %}
+                        </select></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var timerInterval = null;
+
+    function pad(n) { return n < 10 ? '0' + n : n; }
+
+    function getTimerSeconds() {
+        var start = localStorage.getItem('nodex_timer_start');
+        if (!start) return 0;
+        return Math.floor((Date.now() - parseInt(start)) / 1000);
+    }
+
+    function updateTimerDisplay() {
+        var secs = getTimerSeconds();
+        var h = Math.floor(secs / 3600);
+        var m = Math.floor((secs % 3600) / 60);
+        var s = secs % 60;
+        document.getElementById('timerDisplay').textContent = pad(h) + ':' + pad(m) + ':' + pad(s);
+    }
+
+    function startTimer() {
+        if (localStorage.getItem('nodex_timer_start')) return;
+        // Save start timestamp + selections
+        localStorage.setItem('nodex_timer_start', Date.now().toString());
+        localStorage.setItem('nodex_timer_task', document.getElementById('timerTask').value || '');
+        localStorage.setItem('nodex_timer_project', document.getElementById('timerProject').value || '');
+
+        document.getElementById('timerStartBtn').style.display = 'none';
+        document.getElementById('timerStopBtn').style.display = '';
+        timerInterval = setInterval(updateTimerDisplay, 1000);
+        updateTimerDisplay();
+        // Notify global mini-timer
+        if (typeof window.showGlobalTimer === 'function') window.showGlobalTimer();
+    }
+
+    function stopTimer() {
+        clearInterval(timerInterval);
+        timerInterval = null;
+
+        var secs = getTimerSeconds();
+        var minutes = Math.ceil(secs / 60);
+
+        var taskId = localStorage.getItem('nodex_timer_task') || null;
+        var projectId = localStorage.getItem('nodex_timer_project') || null;
+
+        // Clear persistence
+        localStorage.removeItem('nodex_timer_start');
+        localStorage.removeItem('nodex_timer_task');
+        localStorage.removeItem('nodex_timer_project');
+
+        document.getElementById('timerStartBtn').style.display = '';
+        document.getElementById('timerStopBtn').style.display = 'none';
+
+        if (minutes < 1) { updateTimerDisplay(); return; }
+
+        fetch('/api/timetracking/stop', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minutes: minutes, task_id: taskId, project_id: projectId, description: 'Timer' })
+        }).then(function () {
+            document.getElementById('timerDisplay').textContent = '00:00:00';
+            if (typeof window.hideGlobalTimer === 'function') window.hideGlobalTimer();
+            window.location.reload();
+        });
+    }
+
+    // On page load: resume timer if active
+    (function () {
+        var start = localStorage.getItem('nodex_timer_start');
+        if (start) {
+            document.getElementById('timerStartBtn').style.display = 'none';
+            document.getElementById('timerStopBtn').style.display = '';
+            // Restore selections
+            var savedTask = localStorage.getItem('nodex_timer_task');
+            var savedProject = localStorage.getItem('nodex_timer_project');
+            if (savedTask) document.getElementById('timerTask').value = savedTask;
+            if (savedProject) document.getElementById('timerProject').value = savedProject;
+            updateTimerDisplay();
+            timerInterval = setInterval(updateTimerDisplay, 1000);
+        }
+    })();
+</script>
+{% endblock %}

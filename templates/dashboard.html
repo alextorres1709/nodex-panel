@@ -7,12 +7,43 @@
     <h1>Dashboard</h1>
 </div>
 
+<!-- Quick Actions -->
+<div class="quick-actions">
+    <a href="{{ url_for('tasks.index') }}?new=1" class="btn btn-primary btn-sm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nueva Tarea
+    </a>
+    <a href="{{ url_for('projects.index') }}?new=1" class="btn btn-secondary btn-sm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+        Nuevo Proyecto
+    </a>
+    <a href="{{ url_for('payments.index') }}?new=1" class="btn btn-secondary btn-sm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Registrar Gasto
+    </a>
+    <a href="{{ url_for('clients.index') }}?new=1" class="btn btn-secondary btn-sm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Nuevo Cliente
+    </a>
+</div>
+
+<!-- KPI Cards -->
 <div class="kpi-grid">
+    <div class="kpi-card accent-green">
+        <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="1" x2="12" y2="23"/>
+                <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+            </svg>
+        </div>
+        <div class="kpi-label">Ingresos mes</div>
+        <div class="kpi-value">{{ "%.0f"|format(monthly_income) }}&euro;</div>
+    </div>
     <div class="kpi-card accent-amber">
         <div class="kpi-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                <line x1="1" y1="10" x2="23" y2="10"/>
             </svg>
         </div>
         <div class="kpi-label">Gasto mensual</div>
@@ -21,82 +52,52 @@
     <div class="kpi-card accent-cyan">
         <div class="kpi-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
             </svg>
         </div>
         <div class="kpi-label">Proyectos activos</div>
         <div class="kpi-value">{{ active_projects }}</div>
     </div>
-    <div class="kpi-card accent-purple">
+    <div class="kpi-card {{ 'accent-red' if overdue_tasks > 0 else 'accent-blue' }}">
         <div class="kpi-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 11l3 3L22 4" />
-                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                <path d="M9 11l3 3L22 4"/>
+                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
             </svg>
         </div>
         <div class="kpi-label">Tareas pendientes</div>
         <div class="kpi-value">{{ pending_tasks }}</div>
-    </div>
-    <div class="kpi-card accent-green">
-        <div class="kpi-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9.66 17h4.68" />
-                <path
-                    d="M12 2a7 7 0 00-2.16 13.66A2 2 0 0111 17.66V19a1 1 0 001 1 1 1 0 001-1v-1.34a2 2 0 011.16-1.82A7 7 0 0012 2z" />
-            </svg>
-        </div>
-        <div class="kpi-label">Ideas nuevas</div>
-        <div class="kpi-value">{{ new_ideas }}</div>
+        {% if overdue_tasks > 0 %}
+        <div class="kpi-subtitle" style="color:var(--danger)">{{ overdue_tasks }} atrasada{{ 's' if overdue_tasks > 1 }}</div>
+        {% elif total_tasks > 0 %}
+        <div class="kpi-subtitle">{{ completed_tasks }}/{{ total_tasks }} completadas</div>
+        {% endif %}
     </div>
 </div>
 
-<div class="charts-grid">
-    <div class="chart-card">
-        <div class="chart-card-header">
-            <h3>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="1" x2="12" y2="23" />
-                    <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
-                </svg>
-                Gastos por categoria
-            </h3>
-        </div>
-        <div style="height: 280px;">
-            <canvas id="costChart"></canvas>
-        </div>
-    </div>
-    <div class="chart-card">
-        <div class="chart-card-header">
-            <h3>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
-                </svg>
-                Proyectos por estado
-            </h3>
-        </div>
-        <div style="height: 280px;">
-            <canvas id="projChart"></canvas>
-        </div>
-    </div>
-</div>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
-    <!-- Tareas urgentes -->
+<!-- Main content: two columns -->
+<div class="two-col-grid">
+    <!-- Mis tareas -->
     <div class="table-card">
         <div class="table-card-header">
-            <h3>Tareas urgentes</h3>
+            <h3>Mis tareas</h3>
             <a href="{{ url_for('tasks.index') }}" class="btn btn-sm btn-secondary">Ver todas</a>
         </div>
-        {% if urgent_tasks %}
-        {% for t in urgent_tasks %}
-        <a href="{{ url_for('tasks.index') }}" style="text-decoration: none; color: inherit; display: block;">
+        {% if my_tasks %}
+        {% for t in my_tasks %}
+        <a href="{{ url_for('tasks.index') }}" style="text-decoration:none;color:inherit;display:block">
             <div class="task-item">
                 <div class="task-info">
-                    <div class="task-title">{{ t.title }}</div>
+                    <div class="task-title">
+                        {{ t.title }}
+                        {% if t.due_date and t.due_date < today %}
+                        <span style="color:var(--danger);font-size:11px;font-weight:600;margin-left:6px">ATRASADA</span>
+                        {% endif %}
+                    </div>
                     <div class="task-meta">
                         <span class="badge badge-{{ t.priority }}">{{ t.priority }}</span>
                         {% if t.due_date %}<span>{{ t.due_date.strftime('%d/%m') }}</span>{% endif %}
-                        {% if t.assignee %}<span>{{ t.assignee.name }}</span>{% endif %}
+                        {% if t.project %}<span style="color:var(--text-tertiary)">{{ t.project.name }}</span>{% endif %}
                     </div>
                 </div>
             </div>
@@ -104,16 +105,98 @@
         {% endfor %}
         {% else %}
         <div class="empty-state">
-            <p>No hay tareas pendientes</p>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 11l3 3L22 4"/>
+                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+            </svg>
+            <p>Sin tareas pendientes</p>
         </div>
         {% endif %}
     </div>
 
-    <!-- Actividad reciente -->
+    <!-- Proyectos activos -->
+    <div class="table-card">
+        <div class="table-card-header">
+            <h3>Proyectos activos</h3>
+            <a href="{{ url_for('projects.index') }}" class="btn btn-sm btn-secondary">Ver todos</a>
+        </div>
+        {% if active_project_list %}
+        {% for p in active_project_list %}
+        <a href="{{ url_for('projects.index') }}" style="text-decoration:none;color:inherit;display:block">
+            <div class="project-item">
+                <div class="project-item-info">
+                    <div class="project-item-name">{{ p.name }}</div>
+                    <div class="project-item-client">{{ p.client_name or 'Sin cliente' }}</div>
+                </div>
+                <div class="project-item-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:{{ p.progress or 0 }}%"></div>
+                    </div>
+                    <span class="project-item-pct">{{ p.progress or 0 }}%</span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+            </svg>
+            <p>Sin proyectos activos</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="two-col-grid" style="margin-top:20px">
+    <!-- Proximos pagos -->
+    <div class="table-card">
+        <div class="table-card-header">
+            <h3>Proximos pagos</h3>
+            <a href="{{ url_for('payments.index') }}" class="btn btn-sm btn-secondary">Ver todos</a>
+        </div>
+        {% if upcoming_payments %}
+        {% for p in upcoming_payments %}
+        <div class="payment-item">
+            <div>
+                <div class="payment-item-name">{{ p.name }}</div>
+                <div class="payment-item-date">{{ p.next_date.strftime('%d/%m/%Y') if p.next_date else 'Sin fecha' }} — {{ p.frequency }}</div>
+            </div>
+            <div class="payment-item-amount">{{ "%.0f"|format(p.amount) }}&euro;</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                <line x1="1" y1="10" x2="23" y2="10"/>
+            </svg>
+            <p>Sin pagos proximos</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Gastos por categoria -->
+    {% if cost_labels %}
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <h3>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                    <line x1="1" y1="10" x2="23" y2="10"/>
+                </svg>
+                Gastos por categoria
+            </h3>
+        </div>
+        <div style="height:240px">
+            <canvas id="costChart"></canvas>
+        </div>
+    </div>
+    {% else %}
+    <!-- Actividad reciente when no chart data -->
     <div class="table-card">
         <div class="table-card-header">
             <h3>Actividad reciente</h3>
-            <a href="{{ url_for('activity.index') }}" class="btn btn-sm btn-secondary">Ver todo</a>
         </div>
         {% if recent_activity %}
         {% for log in recent_activity %}
@@ -122,29 +205,64 @@
             <div class="activity-text">
                 <span class="user">{{ log.user.name if log.user else 'Sistema' }}</span>
                 {{ log.action }} {{ log.target_type }}
-                {% if log.details %} — {{ log.details }}{% endif %}
+                {% if log.details %} — {{ log.details[:40] }}{% endif %}
                 <span class="time">{{ log.created_at.strftime('%d/%m %H:%M') }}</span>
             </div>
         </div>
         {% endfor %}
         {% else %}
         <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
             <p>Sin actividad reciente</p>
         </div>
         {% endif %}
     </div>
+    {% endif %}
 </div>
+
+{% if cost_labels and recent_activity %}
+<!-- Actividad reciente (shown below chart when chart exists) -->
+<div style="margin-top:20px">
+    <div class="table-card">
+        <div class="table-card-header">
+            <h3>Actividad reciente</h3>
+            <a href="{{ url_for('activity.index') }}" class="btn btn-sm btn-secondary">Ver todo</a>
+        </div>
+        {% for log in recent_activity %}
+        <div class="activity-item">
+            <div class="activity-dot"></div>
+            <div class="activity-text">
+                <span class="user">{{ log.user.name if log.user else 'Sistema' }}</span>
+                {{ log.action }} {{ log.target_type }}
+                {% if log.details %} — {{ log.details[:40] }}{% endif %}
+                <span class="time">{{ log.created_at.strftime('%d/%m %H:%M') }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if new_ideas > 0 %}
+<div style="margin-top:20px">
+    <a href="{{ url_for('ideas.index') }}" style="text-decoration:none;display:block">
+        <div class="flash-message flash-success" style="margin:0">
+            {{ new_ideas }} idea{{ 's' if new_ideas > 1 }} nueva{{ 's' if new_ideas > 1 }} por evaluar
+        </div>
+    </a>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
+{% if cost_labels %}
 <script>
-    const costLabels = {{ cost_labels| tojson }};
-    const costValues = {{ cost_values| tojson }};
-    const projLabels = {{ proj_labels| tojson }};
-    const projValues = {{ proj_values| tojson }};
-
+    var costLabels = {{ cost_labels|tojson }};
+    var costValues = {{ cost_values|tojson }};
     registerChart(function () { createChart('costChart', 'doughnut', costLabels, costValues, 'EUR/mes'); });
-    registerChart(function () { createChart('projChart', 'doughnut', projLabels, projValues, 'Proyectos'); });
     rebuildCharts();
 </script>
+{% endif %}
 {% endblock %}

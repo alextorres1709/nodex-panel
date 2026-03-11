@@ -19,6 +19,9 @@ GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 APP_BUNDLE_PATH = "/Applications/NodexAI Panel.app"
 
+# Server-side update state (visible to all users via context processor)
+update_available = None  # {"version": "x.x.x", "url": "..."} when update exists
+
 
 def _get_app_path():
     """Get the path to the running .app bundle."""
@@ -66,6 +69,11 @@ def check_and_update(window):
             return
 
         log.info(f"New version available: {remote_version}")
+
+        # Store update info for server-side banner (visible to all users)
+        global update_available
+        release_url = release.get("html_url", f"https://github.com/{GITHUB_REPO}/releases/latest")
+        update_available = {"version": remote_version, "url": release_url}
 
         # 2. Find the .dmg download URL from assets
         download_url = None

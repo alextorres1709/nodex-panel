@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Calendario{% endblock %}
+{% block page_title %}Calendario{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Calendario</h1>
+</div>
+
+<div class="calendar-nav">
+    <a href="{{ url_for('calendar.index', year=prev_year, month=prev_month) }}" class="btn btn-sm btn-secondary">&larr; Anterior</a>
+    <h2>{{ month_name }} {{ year }}</h2>
+    <a href="{{ url_for('calendar.index', year=next_year, month=next_month) }}" class="btn btn-sm btn-secondary">Siguiente &rarr;</a>
+</div>
+
+<div class="calendar-grid">
+    <!-- Header -->
+    {% for day_name in ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'] %}
+    <div class="calendar-header-cell">{{ day_name }}</div>
+    {% endfor %}
+
+    <!-- Cells -->
+    {% for cell in cells %}
+    <div class="calendar-cell {{ 'other-month' if not cell.current_month }} {{ 'today' if cell.today }}"
+         onclick="openQuickTask('{{ cell.date.isoformat() }}', '{{ cell.day }}')"
+         style="cursor:pointer">
+        <div class="calendar-day-num">{{ cell.day }}</div>
+        {% for event in cell.events[:3] %}
+        <a href="{{ event.link }}" class="calendar-event {{ event.type }}" title="{{ event.text }}" onclick="event.stopPropagation()">
+            {{ event.text[:20] }}{% if event.text|length > 20 %}...{% endif %}
+        </a>
+        {% endfor %}
+        {% if cell.events|length > 3 %}
+        <div style="font-size:10px;color:var(--text-tertiary);padding-left:6px">+{{ cell.events|length - 3 }} mas</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Legend -->
+<div style="display:flex;gap:16px;margin-top:16px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)">
+        <div style="width:12px;height:12px;border-radius:3px;background:rgba(59,130,246,0.3)"></div> Tareas
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)">
+        <div style="width:12px;height:12px;border-radius:3px;background:rgba(239,68,68,0.3)"></div> Pagos
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)">
+        <div style="width:12px;height:12px;border-radius:3px;background:rgba(5,150,105,0.3)"></div> Facturas
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)">
+        <div style="width:12px;height:12px;border-radius:3px;background:rgba(245,158,11,0.3)"></div> Deadlines
+    </div>
+</div>
+
+<!-- Quick Task Modal -->
+<div class="modal-overlay" id="quickTaskModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Nueva tarea — <span id="qtDate"></span></h3>
+            <button class="modal-close" onclick="closeQuickTask()">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('calendar.quick_task') }}">
+            <div class="modal-body">
+                <input type="hidden" name="due_date" id="qtDueDate">
+                <div class="form-group">
+                    <label>Titulo</label>
+                    <input type="text" name="title" required placeholder="Nombre de la tarea" autofocus>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Prioridad</label>
+                        <select name="priority">
+                            <option value="baja">Baja</option>
+                            <option value="media" selected>Media</option>
+                            <option value="alta">Alta</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Proyecto</label>
+                        <select name="project_id">
+                            <option value="">Sin proyecto</option>
+                            {% for p in active_projects %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" onclick="closeQuickTask()">Cancelar</button>
+                <button type="submit" class="btn btn-sm btn-primary">Crear tarea</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openQuickTask(dateStr, day) {
+    document.getElementById('qtDueDate').value = dateStr;
+    document.getElementById('qtDate').textContent = day + '/' + dateStr.split('-')[1];
+    document.getElementById('quickTaskModal').classList.add('active');
+    var input = document.querySelector('#quickTaskModal input[name="title"]');
+    if (input) setTimeout(function() { input.focus(); }, 100);
+}
+
+function closeQuickTask() {
+    document.getElementById('quickTaskModal').classList.remove('active');
+}
+
+// Close on overlay click
+document.getElementById('quickTaskModal').addEventListener('click', function(e) {
+    if (e.target === this) closeQuickTask();
+});
+
+// Close on Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeQuickTask();
+});
+</script>
+{% endblock %}

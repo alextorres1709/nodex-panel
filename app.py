@@ -6,6 +6,31 @@ from config import Config, BASE_DIR, REMOTE_DATABASE_URL
 from models import db, User, Payment, Project, Tool, Task, Idea, Credential, CompanyInfo
 
 logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
+log = logging.getLogger("app")
+
+
+def _auto_migrate(app):
+    """Add missing columns to existing SQLite tables (safe, idempotent)."""
+    import sqlite3
+    db_path = app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+
+    migrations = [
+        ("users", "api_token", "VARCHAR(64)"),
+        ("tasks", "estimated_minutes", "INTEGER DEFAULT 0"),
+        ("tasks", "kanban_order", "INTEGER DEFAULT 0"),
+    ]
+
+    for table, column, col_type in migrations:
+        c.execute(f"PRAGMA table_info({table})")
+        existing = [row[1] for row in c.fetchall()]
+        if column not in existing:
+            c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+            log.info(f"Migration: added {table}.{column}")
+
+    conn.commit()
+    conn.close()
 
 
 def create_app():
@@ -20,6 +45,9 @@ def create_app():
     with app.app_context():
         # Create local SQLite tables (instant, ~5ms)
         db.create_all()
+
+        # Auto-migrate: add missing columns to existing tables
+        _auto_migrate(app)
 
         # Start background sync from Railway PostgreSQL
         from services.sync import SyncManager, sync_manager
@@ -54,11 +82,23 @@ def create_app():
     from routes.api import api_bp
     from routes.notifications import notifications_bp
     from routes.clients import clients_bp
+    # Enterprise v2.0
+    from routes.invoices import invoices_bp
+    from routes.balance import balance_bp
+    from routes.timetracking import timetracking_bp
+    from routes.calendar import calendar_bp
+    from routes.documents import documents_bp
+    from routes.reports import reports_bp
+    from routes.automations import automations_bp
+    from routes.ai_assistant import ai_bp
 
     for bp in [auth_bp, dashboard_bp, payments_bp, incomes_bp, projects_bp,
                tools_bp, tasks_bp, ideas_bp, info_bp, activity_bp, users_bp,
                settings_bp, credentials_bp, cowork_bp, api_bp, notifications_bp,
-               clients_bp]:
+               clients_bp,
+               # Enterprise v2.0
+               invoices_bp, balance_bp, timetracking_bp, calendar_bp,
+               documents_bp, reports_bp, automations_bp, ai_bp]:
         app.register_blueprint(bp)
 
     @app.before_request
@@ -66,13 +106,18 @@ def create_app():
         _load_current_user()
 
     @app.context_processor
-    def inject_user():
+    def inject_globals():
         user = g.get("user")
         notif_count = 0
         if user:
             from services.notifications import get_unread_count
             notif_count = get_unread_count(user.id)
-        return {"current_user": user, "notif_count": notif_count}
+        from services.updater import update_available
+        return {
+            "current_user": user,
+            "notif_count": notif_count,
+            "update_available": update_available,
+        }
 
     return app
 

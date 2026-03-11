@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -16,6 +17,7 @@ class User(db.Model):
     name = db.Column(db.String(200), default="")
     role = db.Column(db.String(20), default=ROLE_EDITOR)
     active = db.Column(db.Boolean, default=True, index=True)
+    api_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def set_password(self, pw):
@@ -24,9 +26,18 @@ class User(db.Model):
     def check_password(self, pw):
         return check_password_hash(self.password_hash, pw)
 
+    def generate_api_token(self):
+        self.api_token = secrets.token_hex(32)
+        return self.api_token
+
     @property
     def is_admin(self):
         return self.role == ROLE_ADMIN
+
+    def has_permission(self, module, action="read"):
+        perms = ROLE_PERMISSIONS.get(self.role, {})
+        module_perms = perms.get(module, [])
+        return action in module_perms
 
 
 class Payment(db.Model):
@@ -80,6 +91,8 @@ class Task(db.Model):
     status = db.Column(db.String(20), default="pendiente")  # pendiente, en_progreso, completada
     due_date = db.Column(db.Date, nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+    estimated_minutes = db.Column(db.Integer, default=0)  # tiempo estimado
+    kanban_order = db.Column(db.Integer, default=0)  # orden en columna kanban
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     assignee = db.relationship("User", foreign_keys=[assigned_to])
@@ -261,4 +274,71 @@ class Invoice(db.Model):
 
     client = db.relationship("Client", foreign_keys=[client_id])
     project = db.relationship("Project", foreign_keys=[project_id])
+
+
+class Subtask(db.Model):
+    __tablename__ = "subtasks"
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id"), nullable=False)
+    title = db.Column(db.String(300), nullable=False)
+    done = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    task = db.relationship("Task", backref=db.backref("subtasks", lazy="dynamic", cascade="all, delete-orphan"))
+
+
+class Document(db.Model):
+    __tablename__ = "documents"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(300), nullable=False)
+    filename = db.Column(db.String(500), default="")
+    file_path = db.Column(db.String(500), default="")
+    file_size = db.Column(db.Integer, default=0)  # bytes
+    mime_type = db.Column(db.String(100), default="")
+    category = db.Column(db.String(50), default="otro")  # contrato, factura, propuesta, informe, plantilla, otro
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+    client_id = db.Column(db.Integer, db.ForeignKey("clients.id"), nullable=True)
+    uploaded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    notes = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    project = db.relationship("Project", foreign_keys=[project_id])
+    client = db.relationship("Client", foreign_keys=[client_id])
+    uploader = db.relationship("User", foreign_keys=[uploaded_by])
+
+
+class Automation(db.Model):
+    __tablename__ = "automations"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    trigger_type = db.Column(db.String(50), default="event")  # event, schedule, manual
+    trigger_config = db.Column(db.Text, default="{}")  # JSON config
+    action_type = db.Column(db.String(50), default="notify")  # notify, create_task, update_status, email
+    action_config = db.Column(db.Text, default="{}")  # JSON config
+    active = db.Column(db.Boolean, default=True)
+    last_run = db.Column(db.DateTime, nullable=True)
+    run_count = db.Column(db.Integer, default=0)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    creator = db.relationship("User", foreign_keys=[created_by])
+
+
+# ═══════════════════════════════════════
+# PERMISSIONS (v2.0)
+# ═══════════════════════════════════════
+
+MODULES = [
+    "dashboard", "pagos", "ingresos", "clientes", "proyectos",
+    "tareas", "herramientas", "ideas", "cowork", "credenciales",
+    "facturas", "timetracking", "calendario", "documentos",
+    "reportes", "automatizaciones", "usuarios", "configuracion",
+]
+
+# Roles: admin has all, editor has most, viewer is read-only
+ROLE_PERMISSIONS = {
+    "admin": {m: ["read", "write", "delete", "admin"] for m in MODULES},
+    "editor": {m: ["read", "write"] for m in MODULES},
+    "viewer": {m: ["read"] for m in MODULES},
+}
 

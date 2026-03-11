@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Factura {{ invoice.number }}{% endblock %}
+{% block page_title %}Factura {{ invoice.number }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ invoice.number }}</h1>
+        <p class="page-subtitle"><span class="badge badge-{{ invoice.status }}">{{ invoice.status }}</span></p>
+    </div>
+    <div style="display:flex;gap:8px">
+        <a href="{{ url_for('invoices.download_pdf', iid=invoice.id) }}" class="btn btn-primary" target="_blank">Imprimir PDF</a>
+        <a href="{{ url_for('invoices.index') }}" class="btn btn-secondary">Volver</a>
+    </div>
+</div>
+
+<div class="invoice-preview">
+    <div class="invoice-preview-header">
+        <div>
+            <h2 style="font-size:22px;font-weight:800;margin-bottom:8px">{{ company.name if company else 'NodexAI' }}</h2>
+            {% if company %}
+            <p style="font-size:13px;color:#666">{{ company.email }}<br>{{ company.phone }}</p>
+            {% endif %}
+        </div>
+        <div style="text-align:right">
+            <div style="font-size:13px;color:#666">Factura: <strong>{{ invoice.number }}</strong></div>
+            <div style="font-size:13px;color:#666">Fecha: {{ invoice.issue_date.strftime('%d/%m/%Y') if invoice.issue_date else '-' }}</div>
+            {% if invoice.due_date %}<div style="font-size:13px;color:#666">Vence: {{ invoice.due_date.strftime('%d/%m/%Y') }}</div>{% endif %}
+        </div>
+    </div>
+
+    {% if invoice.client %}
+    <div style="margin-bottom:24px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Facturar a</div>
+        <div style="font-size:16px;font-weight:700">{{ invoice.client.name }}</div>
+        {% if invoice.client.company %}<div style="font-size:13px;color:#666">{{ invoice.client.company }}</div>{% endif %}
+        {% if invoice.client.nif %}<div style="font-size:13px;color:#666">NIF: {{ invoice.client.nif }}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    <table>
+        <thead><tr><th>Descripción</th><th>Qty</th><th>Precio</th><th>Total</th></tr></thead>
+        <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.description }}</td>
+            <td>{{ item.qty }}</td>
+            <td>{{ "%.2f"|format(item.unit_price) }}&euro;</td>
+            <td>{{ "%.2f"|format(item.qty * item.unit_price) }}&euro;</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="invoice-totals">
+        <div class="total-row"><span>Subtotal</span><span>{{ "%.2f"|format(invoice.subtotal) }}&euro;</span></div>
+        <div class="total-row"><span>IVA ({{ invoice.tax_rate }}%)</span><span>{{ "%.2f"|format(invoice.tax_amount) }}&euro;</span></div>
+        <div class="total-row grand"><span>Total</span><span>{{ "%.2f"|format(invoice.total) }}&euro;</span></div>
+    </div>
+
+    {% if invoice.notes %}
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #eee">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:6px">Notas</div>
+        <p style="font-size:13px;color:#555">{{ invoice.notes }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

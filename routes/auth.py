@@ -1,6 +1,6 @@
 from functools import wraps
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, g
-from models import db, User
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, g, jsonify
+from models import db, User, ROLE_PERMISSIONS
 from services.activity import log_activity
 
 auth_bp = Blueprint("auth", __name__)
@@ -36,6 +36,42 @@ def admin_required(f):
             flash("No tienes permisos de administrador", "error")
             return redirect(url_for("dashboard.index"))
         return f(*args, **kwargs)
+    return decorated
+
+
+def permission_required(module, action="read"):
+    """Decorator that checks granular module-level permissions."""
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if not g.get("user"):
+                return redirect(url_for("auth.login"))
+            if not g.user.has_permission(module, action):
+                flash(f"No tienes permisos para {action} en {module}", "error")
+                return redirect(url_for("dashboard.index"))
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
+
+
+def api_token_required(f):
+    """Decorator for REST API endpoints — authenticates via Bearer token or session."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # Try Bearer token first
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            user = User.query.filter_by(api_token=token, active=True).first()
+            if user:
+                g.api_user = user
+                return f(*args, **kwargs)
+            return jsonify({"error": "Invalid or expired token"}), 401
+        # Fall back to session auth
+        if g.get("user"):
+            g.api_user = g.user
+            return f(*args, **kwargs)
+        return jsonify({"error": "Authentication required. Use Bearer token or session cookie."}), 401
     return decorated
 
 

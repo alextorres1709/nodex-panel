@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Asistente IA{% endblock %}
+{% block page_title %}Asistente IA{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Asistente IA</h1>
+        <p class="page-subtitle">Resúmenes e insights financieros automáticos</p>
+    </div>
+    <button class="btn btn-primary" onclick="refreshInsights()">Actualizar</button>
+</div>
+
+<!-- Financial Summary -->
+<div class="kpi-grid" style="margin-bottom:28px">
+    <div class="kpi-card accent-green">
+        <div class="kpi-label">Ingresos mes</div>
+        <div class="kpi-value">{{ "%.0f"|format(summary.income) }}&euro;</div>
+    </div>
+    <div class="kpi-card accent-amber">
+        <div class="kpi-label">Gastos mes</div>
+        <div class="kpi-value">{{ "%.0f"|format(summary.expense) }}&euro;</div>
+    </div>
+    <div class="kpi-card {{ 'accent-green' if summary.net >= 0 else 'accent-amber' }}">
+        <div class="kpi-label">Balance</div>
+        <div class="kpi-value" style="color:{{ 'var(--success)' if summary.net >= 0 else 'var(--danger)' }}">{{ "%+.0f"|format(summary.net) }}&euro;</div>
+    </div>
+    <div class="kpi-card accent-purple">
+        <div class="kpi-label">Tareas pendientes</div>
+        <div class="kpi-value">{{ summary.pending_tasks }}</div>
+        {% if summary.overdue_tasks %}<div class="kpi-subtitle" style="color:var(--danger)">{{ summary.overdue_tasks }} atrasadas</div>{% endif %}
+    </div>
+</div>
+
+<!-- AI Insights -->
+<div class="report-card">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <div style="width:42px;height:42px;border-radius:12px;background:rgba(124,58,237,0.08);display:flex;align-items:center;justify-content:center">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2">
+                <path d="M12 2a7 7 0 00-2.16 13.66A2 2 0 0111 17.66V19a1 1 0 001 1 1 1 0 001-1v-1.34a2 2 0 011.16-1.82A7 7 0 0012 2z"/>
+                <path d="M9.66 17h4.68"/>
+            </svg>
+        </div>
+        <div>
+            <div style="font-size:16px;font-weight:700;color:var(--text-primary)">Análisis inteligente</div>
+            <div style="font-size:12px;color:var(--text-tertiary)">Basado en tus datos actuales</div>
+        </div>
+    </div>
+
+    <div id="insightsList">
+        {% for insight in summary.insights %}
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-color)">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--brand-primary);margin-top:6px;flex-shrink:0;box-shadow:0 0 6px rgba(124,58,237,0.3)"></div>
+            <div style="font-size:14px;color:var(--text-secondary);line-height:1.6">{{ insight }}</div>
+        </div>
+        {% endfor %}
+        {% if not summary.insights %}
+        <div style="text-align:center;padding:20px;color:var(--text-tertiary)">Todo parece estar en orden</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Quick Actions based on insights -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:24px">
+    <a href="/tareas" class="kpi-card" style="text-decoration:none;cursor:pointer">
+        <div class="kpi-label">Ver tareas</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text-primary)">{{ summary.pending_tasks }} pendientes</div>
+    </a>
+    <a href="/facturas" class="kpi-card" style="text-decoration:none;cursor:pointer">
+        <div class="kpi-label">Facturas</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Gestionar cobros</div>
+    </a>
+    <a href="/clientes" class="kpi-card" style="text-decoration:none;cursor:pointer">
+        <div class="kpi-label">Clientes</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text-primary)">{{ summary.total_clients }} total</div>
+    </a>
+    <a href="/balance" class="kpi-card" style="text-decoration:none;cursor:pointer">
+        <div class="kpi-label">Balance P&L</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Ver detalle</div>
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function refreshInsights() {
+    fetch('/api/ai/summary').then(function(r) { return r.json() }).then(function(data) {
+        var list = document.getElementById('insightsList');
+        if (data.insights && data.insights.length) {
+            list.innerHTML = data.insights.map(function(i) {
+                return '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-color)">'
+                    + '<div style="width:8px;height:8px;border-radius:50%;background:var(--brand-primary);margin-top:6px;flex-shrink:0"></div>'
+                    + '<div style="font-size:14px;color:var(--text-secondary);line-height:1.6">' + i + '</div></div>';
+            }).join('');
+        } else {
+            list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-tertiary)">Todo en orden</div>';
+        }
+    });
+}
+</script>
+{% endblock %}

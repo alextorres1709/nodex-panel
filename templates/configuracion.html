@@ -7,15 +7,24 @@
     <h1>Configuracion</h1>
 </div>
 
-<div class="settings-card">
-    <h3 style="margin-bottom:16px;font-size:16px">Panel NodexAI</h3>
+<!-- System Info -->
+<div class="settings-card" style="margin-bottom:24px">
+    <h3 style="margin-bottom:16px;font-size:16px">Sistema</h3>
     <div class="info-row">
         <div class="info-label">Version</div>
-        <div class="info-value">1.0.0</div>
+        <div class="info-value">{{ app_version }}</div>
     </div>
     <div class="info-row">
         <div class="info-label">Base de datos</div>
         <div class="info-value">SQLite (local)</div>
+    </div>
+    <div class="info-row">
+        <div class="info-label">Ruta DB</div>
+        <div class="info-value" style="font-size:12px;word-break:break-all">{{ db_path }}</div>
+    </div>
+    <div class="info-row">
+        <div class="info-label">Python</div>
+        <div class="info-value">{{ python_version }}</div>
     </div>
     <div class="info-row">
         <div class="info-label">Tema</div>
@@ -23,9 +32,45 @@
             <button class="btn btn-sm btn-secondary" onclick="toggleTheme()">Cambiar tema</button>
         </div>
     </div>
+</div>
+
+<!-- User Profile -->
+<div class="settings-card" style="margin-bottom:24px">
+    <h3 style="margin-bottom:16px;font-size:16px">Perfil</h3>
     <div class="info-row">
-        <div class="info-label">Usuario</div>
-        <div class="info-value">{{ current_user.name }} ({{ current_user.role }})</div>
+        <div class="info-label">Nombre</div>
+        <div class="info-value">{{ current_user.name }}</div>
+    </div>
+    <div class="info-row">
+        <div class="info-label">Email</div>
+        <div class="info-value">{{ current_user.email }}</div>
+    </div>
+    <div class="info-row">
+        <div class="info-label">Rol</div>
+        <div class="info-value"><span class="badge badge-{{ current_user.role }}">{{ current_user.role }}</span></div>
+    </div>
+</div>
+
+<!-- API Token -->
+<div class="settings-card">
+    <h3 style="margin-bottom:16px;font-size:16px">API Token</h3>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">
+        Usa este token para autenticarte en la API REST. Cabecera: <code style="background:var(--bg-secondary);padding:2px 6px;border-radius:4px;font-size:12px">Authorization: Bearer &lt;token&gt;</code>
+    </p>
+    <div class="info-row">
+        <div class="info-label">Token</div>
+        <div class="info-value">
+            {% if current_user.api_token %}
+            <code style="background:var(--bg-secondary);padding:4px 8px;border-radius:4px;font-size:12px;word-break:break-all">{{ current_user.api_token }}</code>
+            {% else %}
+            <span style="color:var(--text-tertiary);font-size:13px">No generado</span>
+            {% endif %}
+        </div>
+    </div>
+    <div style="margin-top:16px">
+        <form method="POST" action="{{ url_for('settings.regenerate_token') }}" style="display:inline">
+            <button type="submit" class="btn btn-sm btn-primary">{{ 'Regenerar token' if current_user.api_token else 'Generar token' }}</button>
+        </form>
     </div>
 </div>
 {% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Documentos{% endblock %}
+{% block page_title %}Documentos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Documentos</h1>
+        <p class="page-subtitle">Almacén de archivos por proyecto</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('uploadModal')">+ Subir archivo</button>
+</div>
+
+<form class="filter-bar" method="GET">
+    <select name="category">
+        <option value="">Todas las categorías</option>
+        {% for c in ['contrato','factura','propuesta','informe','plantilla','otro'] %}
+        <option value="{{ c }}" {{ 'selected' if sel_category == c }}>{{ c|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <select name="project_id">
+        <option value="">Todos los proyectos</option>
+        {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if sel_project == p.id|string }}>{{ p.name }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
+    {% if sel_category or sel_project %}
+    <a href="{{ url_for('documents.index') }}" class="btn btn-sm btn-secondary">Limpiar</a>
+    {% endif %}
+</form>
+
+<div class="docs-grid">
+    {% for doc in docs %}
+    {% set icon_class = 'pdf' if 'pdf' in doc.mime_type else ('img' if 'image' in doc.mime_type else ('doc' if 'word' in doc.mime_type or 'document' in doc.mime_type else 'other')) %}
+    {% set icons = {'pdf': '📄', 'img': '🖼️', 'doc': '📝', 'other': '📎'} %}
+    <div class="doc-card">
+        <div class="doc-icon {{ icon_class }}">{{ icons[icon_class] }}</div>
+        <div class="doc-name">{{ doc.name }}</div>
+        <div class="doc-meta">
+            <span class="badge badge-{{ doc.category }}">{{ doc.category }}</span>
+            {% if doc.project %} · {{ doc.project.name }}{% endif %}
+            · {{ "%.1f"|format(doc.file_size / 1024) }} KB
+        </div>
+        <div class="doc-meta" style="margin-top:4px">{{ doc.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+        {% if doc.notes %}<div class="doc-meta" style="margin-top:4px">{{ doc.notes }}</div>{% endif %}
+        <div style="display:flex;gap:6px;margin-top:12px">
+            <a href="{{ url_for('documents.download', did=doc.id) }}" class="btn btn-sm btn-primary">Descargar</a>
+            <form method="POST" action="{{ url_for('documents.delete', did=doc.id) }}" style="display:inline" onsubmit="return confirm('Eliminar archivo?')">
+                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not docs %}
+<div class="empty-state" style="margin-top:20px"><p>No hay documentos</p></div>
+{% endif %}
+
+<!-- Upload Modal -->
+<div class="modal-overlay" id="uploadModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Subir documento</h3><button class="modal-close" onclick="closeModal('uploadModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('documents.upload') }}" enctype="multipart/form-data">
+            <div class="modal-body">
+                <div class="form-group"><label>Archivo</label><input type="file" name="file" required style="padding:8px"></div>
+                <div class="form-group"><label>Nombre</label><input type="text" name="name" placeholder="Nombre descriptivo"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Categoría</label>
+                        <select name="category">
+                            <option value="otro">Otro</option>
+                            <option value="contrato">Contrato</option>
+                            <option value="factura">Factura</option>
+                            <option value="propuesta">Propuesta</option>
+                            <option value="informe">Informe</option>
+                            <option value="plantilla">Plantilla</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Proyecto</label>
+                        <select name="project_id"><option value="">—</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Cliente</label>
+                    <select name="client_id"><option value="">—</option>{% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select>
+                </div>
+                <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('uploadModal')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Subir</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
