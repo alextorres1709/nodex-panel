@@ -277,8 +277,10 @@
 
         {% if update_available %}
         <div class="update-banner" id="updateBanner">
-            Nueva version v{{ update_available.version }} disponible
-            <a href="{{ update_available.url }}" target="_blank">Descargar</a>
+            Nueva versión v{{ update_available.version }} disponible
+            <button
+                onclick="this.textContent='Instalando...';this.disabled=true;fetch('/api/update/install').then(r=>r.json()).then(d=>{if(d.ok){this.textContent='✓ Instalada — Reinicia la app';}else{this.textContent='Error';}})"
+                style="background:white;color:#7c3aed;border:none;padding:4px 14px;border-radius:6px;font-weight:700;cursor:pointer;font-size:12px;margin-left:8px">Instalar</button>
             <button class="update-close"
                 onclick="document.getElementById('updateBanner').style.display='none'">&times;</button>
         </div>

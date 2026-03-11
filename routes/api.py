@@ -27,6 +27,71 @@ def version():
     return jsonify({"version": APP_VERSION, "download_url": DOWNLOAD_URL})
 
 
+@api_bp.route("/api/update/install")
+def api_update_install():
+    """Download latest release DMG and install it over the current app bundle."""
+    import threading
+    def _do_install():
+        try:
+            from services.updater import update_available, GITHUB_API, _get_app_path
+            import urllib.request, tempfile, shutil, subprocess, os as _os
+            # Fetch latest release info
+            req = urllib.request.Request(GITHUB_API)
+            req.add_header("User-Agent", "NodexAI-Panel")
+            req.add_header("Accept", "application/vnd.github+json")
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                release = json.loads(resp.read().decode())
+            # Find DMG asset
+            download_url = None
+            for asset in release.get("assets", []):
+                if asset["name"].endswith(".dmg"):
+                    download_url = asset["browser_download_url"]
+                    break
+            if not download_url:
+                return
+            # Download
+            tmp_dir = tempfile.mkdtemp(prefix="nodex_update_")
+            dmg_path = _os.path.join(tmp_dir, "update.dmg")
+            urllib.request.urlretrieve(download_url, dmg_path)
+            if _os.path.getsize(dmg_path) < 1_000_000:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+                return
+            # Mount
+            mount_point = _os.path.join(tmp_dir, "mount")
+            _os.makedirs(mount_point, exist_ok=True)
+            result = subprocess.run(
+                ["hdiutil", "attach", dmg_path, "-mountpoint", mount_point, "-nobrowse", "-quiet"],
+                capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+                return
+            # Find .app
+            app_name = None
+            for item in _os.listdir(mount_point):
+                if item.endswith(".app"):
+                    app_name = item
+                    break
+            if not app_name:
+                subprocess.run(["hdiutil", "detach", mount_point, "-quiet"], capture_output=True)
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+                return
+            # Install via rsync
+            source_app = _os.path.join(mount_point, app_name)
+            target_app = _get_app_path()
+            subprocess.run(
+                ["rsync", "-a", "--delete", source_app + "/", target_app + "/"],
+                capture_output=True, text=True
+            )
+            # Cleanup
+            subprocess.run(["hdiutil", "detach", mount_point, "-quiet"], capture_output=True)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        except Exception:
+            pass
+    threading.Thread(target=_do_install, daemon=True).start()
+    return jsonify({"ok": True})
+
+
 # ═══════════════════════════════════════
 # AUTH
 # ═══════════════════════════════════════
