@@ -106,7 +106,7 @@
 
         <div class="cowork-messages" id="messagesContainer">
             {% for m in messages %}
-            <div class="cowork-msg {{ 'cowork-msg-own' if m.sender_id == current_user.id }}">
+            <div class="cowork-msg {{ 'cowork-msg-own' if m.sender_id == current_user.id }}" data-id="{{ m.id }}">
                 <div class="cowork-msg-avatar">{{ m.sender.name[:2]|upper if m.sender else '?' }}</div>
                 <div class="cowork-msg-body">
                     <div class="cowork-msg-meta">

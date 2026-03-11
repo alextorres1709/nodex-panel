@@ -307,6 +307,22 @@ class Document(db.Model):
     uploader = db.relationship("User", foreign_keys=[uploaded_by])
 
 
+class Resource(db.Model):
+    __tablename__ = "resources"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(300), nullable=False)
+    filename = db.Column(db.String(500), default="")
+    file_path = db.Column(db.String(500), default="")
+    file_size = db.Column(db.Integer, default=0)
+    mime_type = db.Column(db.String(100), default="")
+    category = db.Column(db.String(50), default="otro")  # logo, presentacion, brand, plantilla, otro
+    uploaded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    notes = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    uploader = db.relationship("User", foreign_keys=[uploaded_by])
+
+
 class Automation(db.Model):
     __tablename__ = "automations"
     id = db.Column(db.Integer, primary_key=True)

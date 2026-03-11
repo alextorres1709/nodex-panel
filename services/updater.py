@@ -38,7 +38,7 @@ def check_and_update(window):
     """Background thread: check GitHub for updates, download, install, prompt restart."""
     try:
         import time
-        time.sleep(8)
+        time.sleep(12)  # Wait longer for pywebview to fully load the page
 
         from config import APP_VERSION
 
