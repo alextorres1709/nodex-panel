@@ -92,6 +92,15 @@ function sendMessage(e) {
         .then(msg => {
             if (msg.error) {
                 input.value = content;
+            } else {
+                // Optimistic append — show immediately
+                appendMessage({
+                    id: msg.id,
+                    sender: msg.sender,
+                    sender_id: currentUserId,
+                    content: msg.content,
+                    created_at: msg.created_at || '',
+                });
             }
         })
         .catch(() => { input.value = content; });

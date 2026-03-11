@@ -82,7 +82,7 @@ def send():
         "sender": g.user.name,
         "content": msg.content,
         "channel": msg.channel,
-        "created_at": msg.created_at.isoformat(),
+        "created_at": msg.created_at.strftime("%d/%m %H:%M"),
     })
 
 
@@ -95,9 +95,11 @@ def stream():
     def generate():
         nonlocal last_id
         while True:
-            # Refresh session to see new messages committed by other requests
-            db.session.commit()
-            
+            # Force SQLAlchemy to drop cached objects and close the read
+            # transaction so the next query sees rows committed by other requests
+            db.session.rollback()
+            db.session.expire_all()
+
             msgs = (
                 Message.query
                 .options(joinedload(Message.sender))
@@ -112,7 +114,7 @@ def stream():
                     "sender": m.sender.name if m.sender else "?",
                     "sender_id": m.sender_id,
                     "content": m.content,
-                    "created_at": m.created_at.strftime("%H:%M"),
+                    "created_at": m.created_at.strftime("%d/%m %H:%M"),
                 })
                 yield f"data: {data}\n\n"
             yield ": heartbeat\n\n"

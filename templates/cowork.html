@@ -111,7 +111,7 @@
                 <div class="cowork-msg-body">
                     <div class="cowork-msg-meta">
                         <span class="cowork-msg-name">{{ m.sender.name if m.sender else '?' }}</span>
-                        <span class="cowork-msg-time">{{ m.created_at.strftime('%H:%M') }}</span>
+                        <span class="cowork-msg-time">{{ m.created_at.strftime('%d/%m %H:%M') }}</span>
                     </div>
                     <div class="cowork-msg-text">{{ m.content }}</div>
                 </div>
