@@ -66,6 +66,10 @@ def send():
     db.session.add(msg)
     db.session.commit()
 
+    from services.sync import push_change
+    push_change("messages", msg.id)
+
+
     # Notify other users about the new message
     from services.notifications import notify_all_except
     preview = msg.content[:80] + ("..." if len(msg.content) > 80 else "")
