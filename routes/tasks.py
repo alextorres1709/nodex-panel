@@ -70,6 +70,10 @@ def create():
 
         log_activity("create", "task", details=f"Nueva tarea: {t.title}")
         db.session.commit()
+        from services.sync import push_change
+        push_change("tasks", t.id)
+        for st in Subtask.query.filter_by(task_id=t.id).all():
+            push_change("subtasks", st.id)
         flash("Tarea creada", "success")
     except Exception as e:
         db.session.rollback()
@@ -99,6 +103,8 @@ def edit(tid):
         t.estimated_minutes = int(em) if em else 0
         log_activity("update", "task", t.id, f"Editada: {t.title}")
         db.session.commit()
+        from services.sync import push_change
+        push_change("tasks", t.id)
         flash("Tarea actualizada", "success")
     except Exception as e:
         db.session.rollback()
@@ -114,6 +120,8 @@ def toggle(tid):
         t.status = "completada" if t.status != "completada" else "pendiente"
         log_activity("update", "task", t.id, f"{'Completada' if t.status == 'completada' else 'Reabierta'}: {t.title}")
         db.session.commit()
+        from services.sync import push_change
+        push_change("tasks", t.id)
     return redirect(url_for("tasks.index"))
 
 
@@ -125,6 +133,8 @@ def delete(tid):
         log_activity("delete", "task", t.id, f"Eliminada: {t.title}")
         db.session.delete(t)
         db.session.commit()
+        from services.sync import push_change
+        push_change("tasks", t.id)
         flash("Tarea eliminada", "success")
     return redirect(url_for("tasks.index"))
 
@@ -146,6 +156,8 @@ def api_move(tid):
     t.kanban_order = new_order
     log_activity("update", "task", t.id, f"Movida a {t.status}: {t.title}")
     db.session.commit()
+    from services.sync import push_change
+    push_change("tasks", t.id)
     return jsonify({"ok": True, "status": t.status, "order": t.kanban_order})
 
 
@@ -164,6 +176,8 @@ def api_add_subtask(tid):
     st = Subtask(task_id=tid, title=title)
     db.session.add(st)
     db.session.commit()
+    from services.sync import push_change
+    push_change("subtasks", st.id)
     return jsonify({"ok": True, "id": st.id, "title": st.title, "done": st.done})
 
 
@@ -175,6 +189,8 @@ def api_toggle_subtask(sid):
         return jsonify({"error": "not found"}), 404
     st.done = not st.done
     db.session.commit()
+    from services.sync import push_change
+    push_change("subtasks", st.id)
     return jsonify({"ok": True, "done": st.done})
 
 
@@ -186,4 +202,6 @@ def api_delete_subtask(sid):
         return jsonify({"error": "not found"}), 404
     db.session.delete(st)
     db.session.commit()
+    from services.sync import push_change
+    push_change("subtasks", sid)
     return jsonify({"ok": True})

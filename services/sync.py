@@ -20,6 +20,7 @@ SYNC_TABLES = [
     "payments",
     "incomes",
     "tasks",
+    "subtasks",
     "ideas",
     "credentials",
     "activity_log",
