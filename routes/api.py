@@ -27,6 +27,15 @@ def version():
     return jsonify({"version": APP_VERSION, "download_url": DOWNLOAD_URL})
 
 
+@api_bp.route("/api/update/check")
+def api_update_check():
+    """Return the currently available update if any."""
+    from services.updater import update_available
+    if update_available:
+        return jsonify({"available": True, "version": update_available["version"]})
+    return jsonify({"available": False})
+
+
 @api_bp.route("/api/update/install")
 def api_update_install():
     """Download latest release DMG and install it over the current app bundle."""
@@ -76,18 +85,28 @@ def api_update_install():
                 subprocess.run(["hdiutil", "detach", mount_point, "-quiet"], capture_output=True)
                 shutil.rmtree(tmp_dir, ignore_errors=True)
                 return
-            # Install via rsync
+            # Install via detached script (to allow the app to be overwritten)
             source_app = _os.path.join(mount_point, app_name)
             target_app = _get_app_path()
-            subprocess.run(
-                ["rsync", "-a", "--delete", source_app + "/", target_app + "/"],
-                capture_output=True, text=True
-            )
-            # Cleanup
-            subprocess.run(["hdiutil", "detach", mount_point, "-quiet"], capture_output=True)
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-        except Exception:
-            pass
+            
+            script = f'''#!/bin/bash
+            sleep 2
+            killall "NodexAI Panel" 2>/dev/null
+            rm -rf "{target_app}"
+            cp -a "{source_app}" "{target_app}"
+            hdiutil detach "{mount_point}" -quiet
+            rm -rf "{tmp_dir}"
+            open "{target_app}"
+            '''
+            script_path = _os.path.join(tmp_dir, "install.sh")
+            with open(script_path, "w") as f:
+                f.write(script)
+            _os.chmod(script_path, 0o755)
+            
+            subprocess.Popen([script_path], start_new_session=True)
+            return
+        except Exception as e:
+            print(f"Update install error: {e}")
     threading.Thread(target=_do_install, daemon=True).start()
     return jsonify({"ok": True})
 

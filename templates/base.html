@@ -275,16 +275,31 @@
             </div>
         </header>
 
-        {% if update_available %}
-        <div class="update-banner" id="updateBanner">
-            Nueva versión v{{ update_available.version }} disponible
+        <div class="update-banner" id="updateBanner"
+            style="display: {% if update_available %}flex{% else %}none{% endif %}">
+            <span id="updateBannerText">Nueva versión v{{ update_available.version if update_available else '' }}
+                disponible</span>
             <button
                 onclick="this.textContent='Instalando...';this.disabled=true;fetch('/api/update/install').then(r=>r.json()).then(d=>{if(d.ok){this.textContent='✓ Instalada — Reinicia la app';}else{this.textContent='Error';}})"
                 style="background:white;color:#7c3aed;border:none;padding:4px 14px;border-radius:6px;font-weight:700;cursor:pointer;font-size:12px;margin-left:8px">Instalar</button>
             <button class="update-close"
-                onclick="document.getElementById('updateBanner').style.display='none'">&times;</button>
+                onclick="document.getElementById('updateBanner').style.display='none'; document.querySelector('.main-content').style.paddingTop='var(--header-height)'">&times;</button>
         </div>
-        {% endif %}
+
+        <script>
+            // Automatically poll for updates in the background every 15 seconds
+            setInterval(() => {
+                if (document.getElementById('updateBanner').style.display === 'none') {
+                    fetch('/api/update/check').then(r => r.json()).then(data => {
+                        if (data.available) {
+                            document.getElementById('updateBannerText').textContent = 'Nueva versión v' + data.version + ' disponible';
+                            document.getElementById('updateBanner').style.display = 'flex';
+                            document.querySelector('.main-content').style.paddingTop = 'calc(var(--header-height) + 72px)';
+                        }
+                    }).catch(() => { });
+                }
+            }, 15000);
+        </script>
 
         <main class="main-content" {% if update_available %}style="padding-top:calc(var(--header-height) + 72px)" {%
             endif %}>
