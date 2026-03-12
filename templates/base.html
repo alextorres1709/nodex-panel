@@ -251,7 +251,7 @@
             <div class="header-actions">
                 <!-- Sync Button -->
                 <button class="btn btn-secondary btn-sm"
-                    onclick="this.disabled=true; this.innerHTML='Sincronizando...'; fetch('{{ url_for(\'api.api_sync_now\') }}', {method:'POST'}).then(()=>window.location.reload())"
+                    onclick="this.disabled=true; this.innerHTML='Sincronizando...'; fetch('{{ url_for('api.api_sync_now') }}', {method:'POST'}).then(()=>window.location.reload())"
                     style="display:flex; align-items:center; gap:4px; margin-right:8px"
                     title="Sincronizar datos de la nube ahora">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
