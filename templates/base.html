@@ -249,6 +249,17 @@
         <header class="header">
             <div class="header-title">{% block page_title %}Panel{% endblock %}</div>
             <div class="header-actions">
+                <!-- Sync Button -->
+                <button class="btn btn-secondary btn-sm"
+                    onclick="this.disabled=true; this.innerHTML='Sincronizando...'; fetch('{{ url_for(\'api.api_sync_now\') }}', {method:'POST'}).then(()=>window.location.reload())"
+                    style="display:flex; align-items:center; gap:4px; margin-right:8px"
+                    title="Sincronizar datos de la nube ahora">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="width:14px;height:14px;">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.26l5.58 3.69" />
+                    </svg>
+                    Sincronizar
+                </button>
                 <!-- Notification bell -->
                 <div class="notif-wrapper" id="notifWrapper">
                     <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()">

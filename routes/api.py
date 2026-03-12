@@ -148,6 +148,7 @@ def api_regenerate_token():
 
 
 @api_bp.route("/api/sync/now", methods=["POST"])
+@api_token_required
 def api_sync_now():
     """Force an immediate pull from the remote database."""
     from services.sync import pull_now

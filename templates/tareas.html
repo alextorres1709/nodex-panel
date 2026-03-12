@@ -9,14 +9,6 @@
         <p class="page-subtitle">Gestión de tareas del equipo</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-secondary btn-sm"
-            onclick="this.disabled=true; this.innerHTML='Sincronizando...'; fetch('{{ url_for(\'api.api_sync_now\') }}', {method:'POST', headers:{'Authorization': 'Bearer ' + localStorage.getItem('api_token')}}).then(()=>window.location.reload())"
-            style="display:flex; align-items:center; gap:4px;" title="Sincronizar tareas de la nube ahora">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
-                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.26l5.58 3.69" />
-            </svg>
-            Sincronizar
-        </button>
         <a href="{{ url_for('tasks.index', view='kanban') }}"
             class="btn btn-sm {{ 'btn-primary' if view=='kanban' else 'btn-secondary' }}">Kanban</a>
         <a href="{{ url_for('tasks.index', view='list') }}"
