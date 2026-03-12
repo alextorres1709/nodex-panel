@@ -49,6 +49,7 @@ class SyncManager:
         self._stop = threading.Event()
         self._thread = None
         self._first_sync_done = threading.Event()
+        self._lock = threading.Lock()
 
     def start(self):
         """Start the background sync thread."""
@@ -78,11 +79,12 @@ class SyncManager:
 
     def _pull_from_remote(self):
         """Pull all data from remote PostgreSQL and upsert into local SQLite."""
-        remote_meta = sa.MetaData()
-        remote_meta.reflect(bind=self.remote_engine)
-
-        local_meta = sa.MetaData()
-        local_meta.reflect(bind=self.local_engine)
+        with self._lock:
+            remote_meta = sa.MetaData()
+            remote_meta.reflect(bind=self.remote_engine)
+    
+            local_meta = sa.MetaData()
+            local_meta.reflect(bind=self.local_engine)
 
         for table_name in SYNC_TABLES:
             if table_name not in remote_meta.tables:
@@ -179,3 +181,9 @@ def push_change(table_name, row_id):
             args=(table_name, row_id),
             daemon=True,
         ).start()
+
+
+def pull_now():
+    """Force an immediate pull from remote SQLite to local."""
+    if sync_manager:
+        sync_manager._pull_from_remote()

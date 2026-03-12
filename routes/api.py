@@ -147,6 +147,17 @@ def api_regenerate_token():
     return jsonify({"token": token})
 
 
+@api_bp.route("/api/sync/now", methods=["POST"])
+def api_sync_now():
+    """Force an immediate pull from the remote database."""
+    from services.sync import pull_now
+    try:
+        pull_now()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ═══════════════════════════════════════
 # DASHBOARD
 # ═══════════════════════════════════════

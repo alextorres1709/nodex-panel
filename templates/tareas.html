@@ -9,8 +9,18 @@
         <p class="page-subtitle">Gestión de tareas del equipo</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-        <a href="{{ url_for('tasks.index', view='kanban') }}" class="btn btn-sm {{ 'btn-primary' if view=='kanban' else 'btn-secondary' }}">Kanban</a>
-        <a href="{{ url_for('tasks.index', view='list') }}" class="btn btn-sm {{ 'btn-primary' if view=='list' else 'btn-secondary' }}">Lista</a>
+        <button class="btn btn-secondary btn-sm"
+            onclick="this.disabled=true; this.innerHTML='Sincronizando...'; fetch('{{ url_for(\'api.api_sync_now\') }}', {method:'POST', headers:{'Authorization': 'Bearer ' + localStorage.getItem('api_token')}}).then(()=>window.location.reload())"
+            style="display:flex; align-items:center; gap:4px;" title="Sincronizar tareas de la nube ahora">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.26l5.58 3.69" />
+            </svg>
+            Sincronizar
+        </button>
+        <a href="{{ url_for('tasks.index', view='kanban') }}"
+            class="btn btn-sm {{ 'btn-primary' if view=='kanban' else 'btn-secondary' }}">Kanban</a>
+        <a href="{{ url_for('tasks.index', view='list') }}"
+            class="btn btn-sm {{ 'btn-primary' if view=='list' else 'btn-secondary' }}">Lista</a>
         <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva tarea</button>
     </div>
 </div>
@@ -20,19 +30,19 @@
     <select name="status">
         <option value="">Todos los estados</option>
         {% for s in ['pendiente','en_progreso','completada'] %}
-        <option value="{{ s }}" {{ 'selected' if sel_status == s }}>{{ s|replace('_',' ')|capitalize }}</option>
+        <option value="{{ s }}" {{ 'selected' if sel_status==s }}>{{ s|replace('_',' ')|capitalize }}</option>
         {% endfor %}
     </select>
     <select name="priority">
         <option value="">Todas las prioridades</option>
         {% for p in ['alta','media','baja'] %}
-        <option value="{{ p }}" {{ 'selected' if sel_priority == p }}>{{ p|capitalize }}</option>
+        <option value="{{ p }}" {{ 'selected' if sel_priority==p }}>{{ p|capitalize }}</option>
         {% endfor %}
     </select>
     <select name="assigned_to">
         <option value="">Todos</option>
         {% for u in users %}
-        <option value="{{ u.id }}" {{ 'selected' if sel_assigned == u.id|string }}>{{ u.name }}</option>
+        <option value="{{ u.id }}" {{ 'selected' if sel_assigned==u.id|string }}>{{ u.name }}</option>
         {% endfor %}
     </select>
     <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
@@ -44,7 +54,8 @@
 {% if view == 'kanban' %}
 <!-- ═══ KANBAN BOARD ═══ -->
 <div class="kanban-board">
-    {% for col_status, col_label, col_color in [('pendiente','Pendiente','amber'),('en_progreso','En Progreso','blue'),('completada','Completada','green')] %}
+    {% for col_status, col_label, col_color in [('pendiente','Pendiente','amber'),('en_progreso','En
+    Progreso','blue'),('completada','Completada','green')] %}
     <div class="kanban-column" data-status="{{ col_status }}">
         <div class="kanban-column-header kanban-header-{{ col_color }}">
             <span>{{ col_label }}</span>
@@ -55,31 +66,38 @@
             <div class="kanban-card" draggable="true" data-task-id="{{ t.id }}">
                 <div class="kanban-card-header">
                     <span class="badge badge-{{ t.priority }}">{{ t.priority }}</span>
-                    {% if t.estimated_minutes %}<span class="kanban-estimate">{{ t.estimated_minutes }}min</span>{% endif %}
+                    {% if t.estimated_minutes %}<span class="kanban-estimate">{{ t.estimated_minutes }}min</span>{%
+                    endif %}
                 </div>
                 <div class="kanban-card-title">{{ t.title }}</div>
-                {% if t.description %}<div class="kanban-card-desc">{{ t.description[:80] }}{% if t.description|length > 80 %}...{% endif %}</div>{% endif %}
+                {% if t.description %}<div class="kanban-card-desc">{{ t.description[:80] }}{% if t.description|length >
+                    80 %}...{% endif %}</div>{% endif %}
                 <!-- Subtasks -->
                 {% set subs = t.subtasks.all() %}
                 {% if subs %}
                 <div class="kanban-subtasks">
                     {% set done_count = subs|selectattr('done')|list|length %}
                     <div class="kanban-subtask-bar">
-                        <div class="kanban-subtask-fill" style="width:{{ (done_count / subs|length * 100) if subs|length else 0 }}%"></div>
+                        <div class="kanban-subtask-fill"
+                            style="width:{{ (done_count / subs|length * 100) if subs|length else 0 }}%"></div>
                     </div>
                     <span class="kanban-subtask-count">{{ done_count }}/{{ subs|length }}</span>
                 </div>
                 {% endif %}
                 <div class="kanban-card-footer">
                     <div class="kanban-card-meta">
-                        {% if t.assignee %}<span class="kanban-avatar" title="{{ t.assignee.name }}">{{ t.assignee.name[:2]|upper }}</span>{% endif %}
+                        {% if t.assignee %}<span class="kanban-avatar" title="{{ t.assignee.name }}">{{
+                            t.assignee.name[:2]|upper }}</span>{% endif %}
                         {% if t.project %}<span class="kanban-project">{{ t.project.name }}</span>{% endif %}
                     </div>
-                    {% if t.due_date %}<span class="kanban-due {{ 'overdue' if t.due_date < today }}">{{ t.due_date.strftime('%d/%m') }}</span>{% endif %}
+                    {% if t.due_date %}<span class="kanban-due {{ 'overdue' if t.due_date < today }}">{{
+                        t.due_date.strftime('%d/%m') }}</span>{% endif %}
                 </div>
                 <div class="kanban-card-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, '{{ t.assigned_to or '' }}', '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}')">Editar</button>
-                    <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline" onsubmit="return confirm('Eliminar?')">
+                    <button class="btn btn-sm btn-secondary"
+                        onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, '{{ t.assigned_to or '' }}', '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}')">Editar</button>
+                    <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline"
+                        onsubmit="return confirm('Eliminar?')">
                         <button type="submit" class="btn btn-sm btn-danger">X</button>
                     </form>
                 </div>
@@ -112,15 +130,19 @@
             </div>
         </div>
         <div class="task-actions">
-            <button class="btn btn-sm btn-secondary" onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, '{{ t.assigned_to or '' }}', '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}')">Editar</button>
-            <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline" onsubmit="return confirm('Eliminar?')">
+            <button class="btn btn-sm btn-secondary"
+                onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, '{{ t.assigned_to or '' }}', '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}')">Editar</button>
+            <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline"
+                onsubmit="return confirm('Eliminar?')">
                 <button type="submit" class="btn btn-sm btn-danger">X</button>
             </form>
         </div>
     </div>
     {% endfor %}
     {% if not tasks %}
-    <div class="empty-state"><p>No hay tareas</p></div>
+    <div class="empty-state">
+        <p>No hay tareas</p>
+    </div>
     {% endif %}
 </div>
 {% endif %}
@@ -128,27 +150,44 @@
 <!-- Create Modal -->
 <div class="modal-overlay" id="createModal">
     <div class="modal">
-        <div class="modal-header"><h3>Nueva tarea</h3><button class="modal-close" onclick="closeModal('createModal')">&times;</button></div>
+        <div class="modal-header">
+            <h3>Nueva tarea</h3><button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+        </div>
         <form method="POST" action="{{ url_for('tasks.create') }}">
             <div class="modal-body">
                 <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
-                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea>
+                </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Prioridad</label><select name="priority"><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select></div>
-                    <div class="form-group"><label>Asignar a</label><select name="assigned_to"><option value="">Sin asignar</option>{% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select></div>
+                    <div class="form-group"><label>Prioridad</label><select name="priority">
+                            <option value="alta">Alta</option>
+                            <option value="media" selected>Media</option>
+                            <option value="baja">Baja</option>
+                        </select></div>
+                    <div class="form-group"><label>Asignar a</label><select name="assigned_to">
+                            <option value="">Sin asignar</option>{% for u in users %}<option value="{{ u.id }}">{{
+                                u.name }}</option>{% endfor %}
+                        </select></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>Fecha limite</label><input type="date" name="due_date"></div>
-                    <div class="form-group"><label>Tiempo estimado (min)</label><input type="number" name="estimated_minutes" min="0" placeholder="60"></div>
+                    <div class="form-group"><label>Tiempo estimado (min)</label><input type="number"
+                            name="estimated_minutes" min="0" placeholder="60"></div>
                 </div>
-                <div class="form-group"><label>Proyecto</label><select name="project_id"><option value="">Ninguno</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+                <div class="form-group"><label>Proyecto</label><select name="project_id">
+                        <option value="">Ninguno</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}
+                        </option>{% endfor %}
+                    </select></div>
                 <div class="form-group">
                     <label>Subtareas</label>
                     <div id="subtaskList"></div>
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="addSubtaskField()" style="margin-top:6px">+ Subtarea</button>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="addSubtaskField()"
+                        style="margin-top:6px">+ Subtarea</button>
                 </div>
             </div>
-            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary"
+                    onclick="closeModal('createModal')">Cancelar</button><button type="submit"
+                    class="btn btn-primary">Crear</button></div>
         </form>
     </div>
 </div>
@@ -156,25 +195,45 @@
 <!-- Edit Modal -->
 <div class="modal-overlay" id="editModal">
     <div class="modal">
-        <div class="modal-header"><h3>Editar tarea</h3><button class="modal-close" onclick="closeModal('editModal')">&times;</button></div>
+        <div class="modal-header">
+            <h3>Editar tarea</h3><button class="modal-close" onclick="closeModal('editModal')">&times;</button>
+        </div>
         <form method="POST" id="editForm" action="">
             <div class="modal-body">
                 <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
-                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea></div>
-                <div class="form-row">
-                    <div class="form-group"><label>Prioridad</label><select name="priority"><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select></div>
-                    <div class="form-group"><label>Estado</label><select name="status"><option value="pendiente">Pendiente</option><option value="en_progreso">En progreso</option><option value="completada">Completada</option></select></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Asignar a</label><select name="assigned_to"><option value="">Sin asignar</option>{% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select></div>
+                    <div class="form-group"><label>Prioridad</label><select name="priority">
+                            <option value="alta">Alta</option>
+                            <option value="media">Media</option>
+                            <option value="baja">Baja</option>
+                        </select></div>
+                    <div class="form-group"><label>Estado</label><select name="status">
+                            <option value="pendiente">Pendiente</option>
+                            <option value="en_progreso">En progreso</option>
+                            <option value="completada">Completada</option>
+                        </select></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Asignar a</label><select name="assigned_to">
+                            <option value="">Sin asignar</option>{% for u in users %}<option value="{{ u.id }}">{{
+                                u.name }}</option>{% endfor %}
+                        </select></div>
                     <div class="form-group"><label>Fecha limite</label><input type="date" name="due_date"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Proyecto</label><select name="project_id"><option value="">Ninguno</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
-                    <div class="form-group"><label>Tiempo estimado (min)</label><input type="number" name="estimated_minutes" min="0"></div>
+                    <div class="form-group"><label>Proyecto</label><select name="project_id">
+                            <option value="">Ninguno</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name
+                                }}</option>{% endfor %}
+                        </select></div>
+                    <div class="form-group"><label>Tiempo estimado (min)</label><input type="number"
+                            name="estimated_minutes" min="0"></div>
                 </div>
             </div>
-            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary"
+                    onclick="closeModal('editModal')">Cancelar</button><button type="submit"
+                    class="btn btn-primary">Guardar</button></div>
         </form>
     </div>
 </div>
@@ -182,82 +241,82 @@
 
 {% block scripts %}
 <script>
-var today = new Date().toISOString().split('T')[0];
+    var today = new Date().toISOString().split('T')[0];
 
-function editTask(id, title, description, assigned_to, priority, status, due_date, project_id, estimated_minutes) {
-    document.getElementById('editForm').action = '/tareas/edit/' + id;
-    var f = document.getElementById('editForm');
-    f.querySelector('[name=title]').value = title;
-    f.querySelector('[name=description]').value = description;
-    f.querySelector('[name=assigned_to]').value = assigned_to;
-    f.querySelector('[name=priority]').value = priority;
-    f.querySelector('[name=status]').value = status;
-    f.querySelector('[name=due_date]').value = due_date;
-    f.querySelector('[name=project_id]').value = project_id;
-    f.querySelector('[name=estimated_minutes]').value = estimated_minutes;
-    openModal('editModal');
-}
-
-function addSubtaskField() {
-    var list = document.getElementById('subtaskList');
-    var div = document.createElement('div');
-    div.style.cssText = 'display:flex;gap:6px;margin-bottom:4px';
-    div.innerHTML = '<input type="text" name="subtask_title" placeholder="Subtarea..." style="flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px">'
-        + '<button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">X</button>';
-    list.appendChild(div);
-}
-
-// ═══ KANBAN DRAG & DROP ═══
-var dragCard = null;
-
-document.addEventListener('dragstart', function(e) {
-    if (e.target.classList.contains('kanban-card')) {
-        dragCard = e.target;
-        e.target.style.opacity = '0.4';
-        e.dataTransfer.effectAllowed = 'move';
+    function editTask(id, title, description, assigned_to, priority, status, due_date, project_id, estimated_minutes) {
+        document.getElementById('editForm').action = '/tareas/edit/' + id;
+        var f = document.getElementById('editForm');
+        f.querySelector('[name=title]').value = title;
+        f.querySelector('[name=description]').value = description;
+        f.querySelector('[name=assigned_to]').value = assigned_to;
+        f.querySelector('[name=priority]').value = priority;
+        f.querySelector('[name=status]').value = status;
+        f.querySelector('[name=due_date]').value = due_date;
+        f.querySelector('[name=project_id]').value = project_id;
+        f.querySelector('[name=estimated_minutes]').value = estimated_minutes;
+        openModal('editModal');
     }
-});
 
-document.addEventListener('dragend', function(e) {
-    if (e.target.classList.contains('kanban-card')) {
-        e.target.style.opacity = '1';
-        dragCard = null;
-        document.querySelectorAll('.kanban-cards').forEach(function(col) {
+    function addSubtaskField() {
+        var list = document.getElementById('subtaskList');
+        var div = document.createElement('div');
+        div.style.cssText = 'display:flex;gap:6px;margin-bottom:4px';
+        div.innerHTML = '<input type="text" name="subtask_title" placeholder="Subtarea..." style="flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px">'
+            + '<button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">X</button>';
+        list.appendChild(div);
+    }
+
+    // ═══ KANBAN DRAG & DROP ═══
+    var dragCard = null;
+
+    document.addEventListener('dragstart', function (e) {
+        if (e.target.classList.contains('kanban-card')) {
+            dragCard = e.target;
+            e.target.style.opacity = '0.4';
+            e.dataTransfer.effectAllowed = 'move';
+        }
+    });
+
+    document.addEventListener('dragend', function (e) {
+        if (e.target.classList.contains('kanban-card')) {
+            e.target.style.opacity = '1';
+            dragCard = null;
+            document.querySelectorAll('.kanban-cards').forEach(function (col) {
+                col.classList.remove('kanban-drag-over');
+            });
+        }
+    });
+
+    document.querySelectorAll('.kanban-cards').forEach(function (col) {
+        col.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            col.classList.add('kanban-drag-over');
+        });
+        col.addEventListener('dragleave', function (e) {
             col.classList.remove('kanban-drag-over');
         });
-    }
-});
+        col.addEventListener('drop', function (e) {
+            e.preventDefault();
+            col.classList.remove('kanban-drag-over');
+            if (!dragCard) return;
+            var newStatus = col.getAttribute('data-status');
+            var taskId = dragCard.getAttribute('data-task-id');
+            col.appendChild(dragCard);
 
-document.querySelectorAll('.kanban-cards').forEach(function(col) {
-    col.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        col.classList.add('kanban-drag-over');
-    });
-    col.addEventListener('dragleave', function(e) {
-        col.classList.remove('kanban-drag-over');
-    });
-    col.addEventListener('drop', function(e) {
-        e.preventDefault();
-        col.classList.remove('kanban-drag-over');
-        if (!dragCard) return;
-        var newStatus = col.getAttribute('data-status');
-        var taskId = dragCard.getAttribute('data-task-id');
-        col.appendChild(dragCard);
+            // Update counters
+            document.querySelectorAll('.kanban-column').forEach(function (c) {
+                var cards = c.querySelector('.kanban-cards').children.length;
+                c.querySelector('.kanban-count').textContent = cards;
+            });
 
-        // Update counters
-        document.querySelectorAll('.kanban-column').forEach(function(c) {
-            var cards = c.querySelector('.kanban-cards').children.length;
-            c.querySelector('.kanban-count').textContent = cards;
-        });
-
-        // API call
-        fetch('/api/tasks/' + taskId + '/move', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({status: newStatus, order: 0})
+            // API call
+            fetch('/api/tasks/' + taskId + '/move', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus, order: 0 })
+            });
         });
     });
-});
 </script>
 {% endblock %}
