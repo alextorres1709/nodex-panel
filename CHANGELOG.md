@@ -1,0 +1,94 @@
+# Changelog
+
+## v3.0.0
+- Todos los emojis reemplazados por iconos SVG en todo el panel
+- Eliminados atajos de teclado (solo queda ⌘K y ESC)
+- Eliminado grafico de Ingresos vs Gastos del dashboard
+- Añadida explicacion al heatmap de actividad de 12 semanas
+- Eliminadas plantillas de tareas (Web, Landing, Bot)
+- Corregido estado vacio del kanban cuando no hay tareas
+- Nueva vista de equipo en Time Tracking (horas semana/mes por usuario)
+- Columna de usuario añadida a la tabla de registros de tiempo
+- Opcion "General" en selector de proyecto del Time Tracking
+
+## v2.3.0
+- Release intermedia
+
+## v2.2.0
+- Release intermedia
+
+## v2.0.8
+- Fix: limpieza de cache de build para solucionar bug de empaquetado Jinja
+
+## v2.0.7
+- Hotfix: error de sintaxis en template base.html en boton de sync
+
+## v2.0.6
+- Fix: error 500 de autenticacion en API
+- Boton de sync movido al header global
+
+## v2.0.5
+- Boton de sincronizacion manual para tareas
+- Threading lock para pull_now
+
+## v2.0.4
+- Fix: sincronizacion de tareas (push_change para tareas y subtareas)
+
+## v2.0.3
+- Fix: logica del updater con cp e install script
+- Polling JS para banner de actualizacion
+
+## v2.0.2
+- Fix: bug de sincronizacion de mensajes
+- Cowork movido arriba en el menu lateral
+
+## v2.0.1
+- Boton de auto-instalacion de updates
+- Sincronizacion de versiones
+- Fix SSE y formato de fechas
+
+## v1.1.6
+- Fix: mensajes de cowork
+- Seccion de Recursos añadida
+- Mejoras en el updater
+
+## v1.1.5
+- Fix: persistencia del timer entre paginas via localStorage
+- Indicador flotante global del timer
+
+## v1.4.0
+- Release intermedia
+
+## v1.3.4
+- Release intermedia
+
+## v1.3.3
+- Release intermedia
+
+## v1.3.2
+- Release intermedia
+
+## v1.3.1
+- Release intermedia
+
+## v1.3.0
+- SQLite local + sincronizacion en background con Railway PostgreSQL
+- Navegacion 50-100x mas rapida
+
+## v1.2.0
+- Cache en memoria con TTL
+- Tuning de connection pool
+- Lookups de usuario cacheados
+
+## v1.1.0
+- Navegacion SPA con prefetch de todas las paginas
+- Queries paralelas con ThreadPoolExecutor
+- Fix de latencia en archivos estaticos
+
+## v1.0.0
+- Panel inicial: dashboard, tareas, clientes, documentos, time tracking
+- Chat SSE + videollamadas (cowork)
+- Seccion de ingresos
+- Auto-update
+- Tema dual (claro/oscuro)
+- Vault de credenciales encriptado

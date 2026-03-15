@@ -30,51 +30,52 @@
     {% endif %}
 </form>
 
-<div class="table-card">
-    <table>
-        <thead>
-            <tr>
-                <th>Proyecto</th>
-                <th>Cliente</th>
-                <th>Tipo</th>
-                <th>Estado</th>
-                <th>Progreso</th>
-                <th>Presupuesto</th>
-                <th>Deadline</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for p in projects %}
-            <tr>
-                <td>{{ p.name }}</td>
-                <td>{{ p.client_name or '—' }}</td>
-                <td>{{ p.type|capitalize }}</td>
-                <td><span class="badge badge-{{ p.status }}">{{ p.status }}</span></td>
-                <td>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <div class="progress-bar" style="width:80px"><div class="progress-fill" style="width:{{ p.progress }}%"></div></div>
-                        <span style="font-size:12px;color:var(--text-secondary)">{{ p.progress }}%</span>
-                    </div>
-                </td>
-                <td>{{ "%.0f"|format(p.budget) }}&euro;</td>
-                <td>{{ p.deadline.strftime('%d/%m/%Y') if p.deadline else '—' }}</td>
-                <td>
-                    <div style="display:flex;gap:4px">
-                        <button class="btn btn-sm btn-secondary" onclick="editProject({{ p.id }}, '{{ p.name|e }}', '{{ p.client_name|e }}', '{{ p.status }}', '{{ p.type }}', {{ p.budget }}, {{ p.progress }}, '{{ p.deadline or '' }}', '{{ p.description|e }}', '{{ p.notes|e }}')">Editar</button>
-                        <form method="POST" action="{{ url_for('projects.delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('Eliminar?')">
-                            <button type="submit" class="btn btn-sm btn-danger">X</button>
-                        </form>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-            {% if not projects %}
-            <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-tertiary)">No hay proyectos</td></tr>
-            {% endif %}
-        </tbody>
-    </table>
+<div class="project-grid">
+    {% for p in projects %}
+    <div class="project-card">
+        <div class="project-card-header">
+            <h3 class="project-card-name">{{ p.name }}</h3>
+            <span class="badge badge-{{ p.status }}">{{ p.status }}</span>
+        </div>
+        <div class="project-card-body">
+            <div class="project-meta-row">
+                <span class="project-meta-label">Cliente</span>
+                <span>{{ p.client_name or '—' }}</span>
+            </div>
+            <div class="project-meta-row">
+                <span class="project-meta-label">Tipo</span>
+                <span>{{ p.type|capitalize }}</span>
+            </div>
+            <div class="project-meta-row">
+                <span class="project-meta-label">Presupuesto</span>
+                <span style="font-weight:600">{{ "%.0f"|format(p.budget) }}&euro;</span>
+            </div>
+            <div class="project-meta-row">
+                <span class="project-meta-label">Deadline</span>
+                <span>{{ p.deadline.strftime('%d/%m/%Y') if p.deadline else '—' }}</span>
+            </div>
+            <div style="margin-top:14px">
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                    <span style="font-size:12px;color:var(--text-tertiary)">Progreso</span>
+                    <span style="font-size:12px;font-weight:600">{{ p.progress }}%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width:{{ p.progress }}%"></div></div>
+            </div>
+        </div>
+        <div class="project-card-footer">
+            <button class="btn btn-sm btn-secondary" onclick="editProject({{ p.id }}, '{{ p.name|e }}', '{{ p.client_name|e }}', '{{ p.status }}', '{{ p.type }}', {{ p.budget }}, {{ p.progress }}, '{{ p.deadline or '' }}', '{{ p.description|e }}', '{{ p.notes|e }}')">Editar</button>
+            <form method="POST" action="{{ url_for('projects.delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('Eliminar?')">
+                <button type="submit" class="btn btn-sm btn-danger">X</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
 </div>
+{% if not projects %}
+<div class="empty-state" style="padding:48px;text-align:center">
+    <p style="color:var(--text-tertiary)">No hay proyectos</p>
+</div>
+{% endif %}
 
 <!-- Create Modal -->
 <div class="modal-overlay" id="createModal">
