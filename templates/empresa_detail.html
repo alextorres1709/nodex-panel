@@ -7,7 +7,8 @@
     <div>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
             <h1>{{ company.name }}</h1>
-            <span class="badge badge-{{ company.status }}">{{ company.status|replace('_',' ') }}</span>
+            {% set status_labels = {'por_escribir':'Por escribir','contactada':'Contactada','en_espera':'En espera','han_contestado':'Han contestado','no_responden':'No responden','en_negociacion':'En negociacion','cerrada':'Cerrada'} %}
+            <span class="badge badge-{{ company.status }}">{{ status_labels.get(company.status, company.status|replace('_',' ')) }}</span>
         </div>
         <p class="page-subtitle">{{ company.industry or 'Sin industria' }}{% if company.website %} &middot; <a href="{{ company.website }}" target="_blank" style="color:var(--accent)">{{ company.website|truncate(40) }}</a>{% endif %}</p>
     </div>
@@ -27,7 +28,7 @@
     </div>
     <div class="kpi-card accent-purple">
         <div class="kpi-label">Estado</div>
-        <div class="kpi-value" style="font-size:18px">{{ company.status|replace('_',' ')|capitalize }}</div>
+        <div class="kpi-value" style="font-size:18px">{{ status_labels.get(company.status, company.status|replace('_',' ')) }}</div>
     </div>
 </div>
 

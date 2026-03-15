@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Empresas{% endblock %}
-{% block page_title %}Empresas{% endblock %}
+{% block title %}Empresas a contactar{% endblock %}
+{% block page_title %}Empresas a contactar{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1>Empresas</h1>
-        <p class="page-subtitle">Pipeline de empresas y prospectos</p>
+        <h1>Empresas a contactar</h1>
+        <p class="page-subtitle">Seguimiento de prospectos y contacto comercial</p>
     </div>
     <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva empresa</button>
 </div>
@@ -14,8 +14,9 @@
 <form class="filter-bar" method="GET">
     <select name="status">
         <option value="">Todos los estados</option>
-        {% for s in ['escrito','responden','no_responden','en_negociacion','cerrado','perdido'] %}
-        <option value="{{ s }}" {{ 'selected' if sel_status == s }}>{{ s|replace('_',' ')|capitalize }}</option>
+        {% set status_labels = {'por_escribir':'Por escribir','contactada':'Contactada','en_espera':'En espera','han_contestado':'Han contestado','no_responden':'No responden','en_negociacion':'En negociacion','cerrada':'Cerrada'} %}
+        {% for s, label in status_labels.items() %}
+        <option value="{{ s }}" {{ 'selected' if sel_status == s }}>{{ label }}</option>
         {% endfor %}
     </select>
     <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
@@ -25,12 +26,14 @@
 </form>
 
 <!-- Status counts -->
+{% set status_list = ['por_escribir','contactada','en_espera','han_contestado','no_responden','en_negociacion','cerrada'] %}
+{% set status_labels = {'por_escribir':'Por escribir','contactada':'Contactada','en_espera':'En espera','han_contestado':'Han contestado','no_responden':'No responden','en_negociacion':'En negociacion','cerrada':'Cerrada'} %}
+{% set status_colors = {'por_escribir':'accent-gray','contactada':'accent-blue','en_espera':'accent-cyan','han_contestado':'accent-purple','no_responden':'accent-red','en_negociacion':'accent-yellow','cerrada':'accent-green'} %}
 <div class="kpi-grid" style="margin-bottom:24px">
-    {% set status_colors = {'escrito':'accent-blue','responden':'accent-cyan','no_responden':'accent-red','en_negociacion':'accent-purple','cerrado':'accent-green','perdido':'accent-gray'} %}
-    {% for s in ['escrito','responden','no_responden','en_negociacion','cerrado','perdido'] %}
+    {% for s in status_list %}
     {% set count = companies|selectattr('status','equalto',s)|list|length %}
     <div class="kpi-card {{ status_colors[s] }}" style="cursor:pointer" onclick="window.location='?status={{ s }}'">
-        <div class="kpi-label">{{ s|replace('_',' ')|capitalize }}</div>
+        <div class="kpi-label">{{ status_labels[s] }}</div>
         <div class="kpi-value">{{ count }}</div>
     </div>
     {% endfor %}
@@ -41,7 +44,7 @@
     <div class="project-card">
         <div class="project-card-header">
             <h3 class="project-card-name"><a href="{{ url_for('companies.view', cid=c.id) }}" style="color:inherit;text-decoration:none">{{ c.name }}</a></h3>
-            <span class="badge badge-{{ c.status }}">{{ c.status|replace('_',' ') }}</span>
+            <span class="badge badge-{{ c.status }}">{{ status_labels.get(c.status, c.status|replace('_',' ')) }}</span>
         </div>
         <div class="project-card-body">
             <div class="project-meta-row">
@@ -90,12 +93,13 @@
                 </div>
                 <div class="form-group"><label>Estado</label>
                     <select name="status">
-                        <option value="escrito">Escrito</option>
-                        <option value="responden">Responden</option>
+                        <option value="por_escribir" selected>Por escribir</option>
+                        <option value="contactada">Contactada</option>
+                        <option value="en_espera">En espera</option>
+                        <option value="han_contestado">Han contestado</option>
                         <option value="no_responden">No responden</option>
                         <option value="en_negociacion">En negociacion</option>
-                        <option value="cerrado">Cerrado</option>
-                        <option value="perdido">Perdido</option>
+                        <option value="cerrada">Cerrada</option>
                     </select>
                 </div>
                 <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
@@ -118,12 +122,13 @@
                 </div>
                 <div class="form-group"><label>Estado</label>
                     <select name="status">
-                        <option value="escrito">Escrito</option>
-                        <option value="responden">Responden</option>
+                        <option value="por_escribir">Por escribir</option>
+                        <option value="contactada">Contactada</option>
+                        <option value="en_espera">En espera</option>
+                        <option value="han_contestado">Han contestado</option>
                         <option value="no_responden">No responden</option>
                         <option value="en_negociacion">En negociacion</option>
-                        <option value="cerrado">Cerrado</option>
-                        <option value="perdido">Perdido</option>
+                        <option value="cerrada">Cerrada</option>
                     </select>
                 </div>
                 <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
