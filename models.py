@@ -69,6 +69,31 @@ class Project(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class Company(db.Model):
+    __tablename__ = "companies"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    industry = db.Column(db.String(100), default="")
+    website = db.Column(db.String(300), default="")
+    status = db.Column(db.String(30), default="escrito")  # escrito, responden, no_responden, en_negociacion, cerrado, perdido
+    notes = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class CompanyContact(db.Model):
+    __tablename__ = "company_contacts"
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    role = db.Column(db.String(100), default="")
+    phone = db.Column(db.String(50), default="")
+    email = db.Column(db.String(200), default="")
+    notes = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    company = db.relationship("Company", foreign_keys=[company_id])
+
+
 class ProjectContact(db.Model):
     __tablename__ = "project_contacts"
     id = db.Column(db.Integer, primary_key=True)
@@ -105,12 +130,14 @@ class Task(db.Model):
     status = db.Column(db.String(20), default="pendiente")  # pendiente, en_progreso, completada
     due_date = db.Column(db.Date, nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=True)
     estimated_minutes = db.Column(db.Integer, default=0)  # tiempo estimado
     kanban_order = db.Column(db.Integer, default=0)  # orden en columna kanban
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     assignee = db.relationship("User", foreign_keys=[assigned_to])
     project = db.relationship("Project", foreign_keys=[project_id])
+    company = db.relationship("Company", foreign_keys=[company_id])
 
 
 class Idea(db.Model):

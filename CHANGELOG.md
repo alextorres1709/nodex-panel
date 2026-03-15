@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.2.0
+- Nueva seccion Empresas: pipeline de prospectos (escrito, responden, no responden, en negociacion, cerrado, perdido)
+- Detalle de empresa con contactos y tareas sincronizadas
+- Tareas creadas desde empresas aparecen tambien en /tareas
+- Contactos por empresa (nombre, rol, telefono, email)
+- KPIs de estado por empresa en vista de lista
+- Sidebar: Empresas añadido antes de Proyectos
+
 ## v3.1.0
 - Nueva pagina de detalle de proyecto con tareas, time tracking, documentos, facturas e ingresos
 - Proyectos: nombre clickable para acceder al detalle

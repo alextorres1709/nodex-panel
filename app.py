@@ -70,6 +70,7 @@ def create_app():
     from routes.dashboard import dashboard_bp
     from routes.payments import payments_bp
     from routes.projects import projects_bp
+    from routes.companies import companies_bp
     from routes.tools import tools_bp
     from routes.tasks import tasks_bp
     from routes.ideas import ideas_bp
@@ -94,7 +95,7 @@ def create_app():
     from routes.ai_assistant import ai_bp
     from routes.resources import resources_bp
 
-    for bp in [auth_bp, dashboard_bp, payments_bp, incomes_bp, projects_bp,
+    for bp in [auth_bp, dashboard_bp, payments_bp, incomes_bp, companies_bp, projects_bp,
                tools_bp, tasks_bp, ideas_bp, info_bp, activity_bp, users_bp,
                settings_bp, credentials_bp, cowork_bp, api_bp, notifications_bp,
                clients_bp,

@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}{{ company.name }}{% endblock %}
+{% block page_title %}{{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+            <h1>{{ company.name }}</h1>
+            <span class="badge badge-{{ company.status }}">{{ company.status|replace('_',' ') }}</span>
+        </div>
+        <p class="page-subtitle">{{ company.industry or 'Sin industria' }}{% if company.website %} &middot; <a href="{{ company.website }}" target="_blank" style="color:var(--accent)">{{ company.website|truncate(40) }}</a>{% endif %}</p>
+    </div>
+    <a href="{{ url_for('companies.index') }}" class="btn btn-secondary">Volver</a>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom:32px">
+    <div class="kpi-card accent-blue">
+        <div class="kpi-label">Contactos</div>
+        <div class="kpi-value">{{ contacts|length }}</div>
+    </div>
+    <div class="kpi-card accent-cyan">
+        <div class="kpi-label">Tareas</div>
+        <div class="kpi-value">{{ tasks|length }}</div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">{{ task_counts.pendiente }} pendientes &middot; {{ task_counts.en_progreso }} en progreso</div>
+    </div>
+    <div class="kpi-card accent-purple">
+        <div class="kpi-label">Estado</div>
+        <div class="kpi-value" style="font-size:18px">{{ company.status|replace('_',' ')|capitalize }}</div>
+    </div>
+</div>
+
+{% if company.notes %}
+<div class="table-card" style="margin-bottom:24px;padding:20px">
+    <p style="color:var(--text-secondary);font-size:13px;line-height:1.6">{{ company.notes }}</p>
+</div>
+{% endif %}
+
+<!-- ═══ CONTACTOS ═══ -->
+<div class="table-card" style="margin-bottom:24px">
+    <div class="table-card-header">
+        <h3>Contactos</h3>
+        <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--text-tertiary)">{{ contacts|length }} contactos</span>
+            <button class="btn btn-sm btn-primary" onclick="openModal('createContactModal')">+ Contacto</button>
+        </div>
+    </div>
+    {% if contacts %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Nombre</th><th>Rol</th><th>Telefono</th><th>Email</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for ct in contacts %}
+            <tr>
+                <td><strong>{{ ct.name }}</strong></td>
+                <td>{{ ct.role or '—' }}</td>
+                <td>{% if ct.phone %}<a href="tel:{{ ct.phone }}" style="color:var(--accent)">{{ ct.phone }}</a>{% else %}—{% endif %}</td>
+                <td>{% if ct.email %}<a href="mailto:{{ ct.email }}" style="color:var(--accent)">{{ ct.email }}</a>{% else %}—{% endif %}</td>
+                <td style="text-align:right">
+                    <button class="btn btn-sm btn-secondary" onclick="editContact({{ ct.id }}, '{{ ct.name|e }}', '{{ ct.role|e }}', '{{ ct.phone|e }}', '{{ ct.email|e }}', '{{ ct.notes|e }}')">Editar</button>
+                    <form method="POST" action="{{ url_for('companies.delete_contact', cid=company.id, ctid=ct.id) }}" style="display:inline" onsubmit="return confirm('Eliminar contacto?')">
+                        <button type="submit" class="btn btn-sm btn-danger">X</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:32px;text-align:center">
+        <p style="color:var(--text-tertiary);font-size:13px">No hay contactos en esta empresa</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══ TAREAS ═══ -->
+<div class="table-card" style="margin-bottom:24px">
+    <div class="table-card-header">
+        <h3>Tareas</h3>
+        <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--text-tertiary)">{{ tasks|length }} total</span>
+            <button class="btn btn-sm btn-primary" onclick="openModal('createTaskModal')">+ Tarea</button>
+        </div>
+    </div>
+    {% if tasks %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Tarea</th><th>Estado</th><th>Prioridad</th><th>Asignado</th><th>Fecha limite</th></tr>
+        </thead>
+        <tbody>
+            {% for t in tasks %}
+            <tr>
+                <td><strong>{{ t.title }}</strong></td>
+                <td><span class="badge badge-{{ t.status }}">{{ t.status|replace('_',' ') }}</span></td>
+                <td>
+                    <span class="badge" style="background:{% if t.priority == 'alta' %}rgba(239,68,68,0.1);color:#ef4444{% elif t.priority == 'media' %}rgba(245,158,11,0.1);color:#f59e0b{% else %}rgba(107,114,128,0.1);color:#6b7280{% endif %}">{{ t.priority }}</span>
+                </td>
+                <td>{{ t.assignee.name if t.assignee else '—' }}</td>
+                <td>{{ t.due_date.strftime('%d/%m/%Y') if t.due_date else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:32px;text-align:center">
+        <p style="color:var(--text-tertiary);font-size:13px">No hay tareas para esta empresa</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- MODALS -->
+<!-- ═══════════════════════════════════════════ -->
+
+<!-- Create Contact Modal -->
+<div class="modal-overlay" id="createContactModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Nuevo contacto</h3><button class="modal-close" onclick="closeModal('createContactModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('companies.create_contact', cid=company.id) }}">
+            <div class="modal-body">
+                <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Rol / Cargo</label><input type="text" name="role" placeholder="CEO, CTO..."></div>
+                    <div class="form-group"><label>Telefono</label><input type="tel" name="phone"></div>
+                </div>
+                <div class="form-group"><label>Email</label><input type="email" name="email"></div>
+                <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createContactModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Contact Modal -->
+<div class="modal-overlay" id="editContactModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Editar contacto</h3><button class="modal-close" onclick="closeModal('editContactModal')">&times;</button></div>
+        <form method="POST" id="editContactForm" action="">
+            <div class="modal-body">
+                <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Rol / Cargo</label><input type="text" name="role"></div>
+                    <div class="form-group"><label>Telefono</label><input type="tel" name="phone"></div>
+                </div>
+                <div class="form-group"><label>Email</label><input type="email" name="email"></div>
+                <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editContactModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Create Task Modal -->
+<div class="modal-overlay" id="createTaskModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Nueva tarea</h3><button class="modal-close" onclick="closeModal('createTaskModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('companies.create_task', cid=company.id) }}">
+            <div class="modal-body">
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Prioridad</label>
+                        <select name="priority">
+                            <option value="alta">Alta</option>
+                            <option value="media" selected>Media</option>
+                            <option value="baja">Baja</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Asignar a</label>
+                        <select name="assigned_to">
+                            <option value="">Sin asignar</option>
+                            {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Fecha limite</label><input type="date" name="due_date"></div>
+                    <div class="form-group"><label>Tiempo estimado (min)</label><input type="number" name="estimated_minutes" min="0" placeholder="60"></div>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createTaskModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editContact(id, name, role, phone, email, notes) {
+    document.getElementById('editContactForm').action = '/empresas/{{ company.id }}/contacts/edit/' + id;
+    populateEditModal({name, role, phone, email, notes}, 'editContactForm');
+    openModal('editContactModal');
+}
+</script>
+{% endblock %}
