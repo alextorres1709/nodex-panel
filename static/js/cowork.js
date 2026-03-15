@@ -4,10 +4,22 @@ let currentUserName = '';
 let eventSource = null;
 let currentVoiceRoom = null;
 
+let sseRetryDelay = 2000;
+const SSE_MAX_RETRY = 30000;
+const seenMessageIds = new Set();
+
 function initCowork(channel, userId, userName) {
     currentChannel = channel;
     currentUserId = userId;
     currentUserName = userName || '';
+
+    // Pre-populate seen IDs from server-rendered messages
+    var existingMsgs = document.querySelectorAll('.cowork-msg[data-id]');
+    existingMsgs.forEach(function(el) {
+        var id = parseInt(el.dataset.id);
+        if (id) seenMessageIds.add(id);
+    });
+
     scrollToBottom();
     connectSSE();
 
@@ -39,24 +51,43 @@ function connectSSE() {
     }
 
     eventSource = new EventSource('/cowork/stream?channel=' + currentChannel + '&last_id=' + lastId);
+
+    eventSource.onopen = function() {
+        // Reset backoff on successful connection
+        sseRetryDelay = 2000;
+    };
+
     eventSource.onmessage = function (e) {
         const msg = JSON.parse(e.data);
         appendMessage(msg);
     };
+
+    // Listen for server-sent reconnect event (connection timeout)
+    eventSource.addEventListener('reconnect', function() {
+        eventSource.close();
+        setTimeout(connectSSE, 1000);
+    });
+
     eventSource.onerror = function () {
         eventSource.close();
-        setTimeout(connectSSE, 5000);
+        setTimeout(connectSSE, sseRetryDelay);
+        // Exponential backoff with cap
+        sseRetryDelay = Math.min(sseRetryDelay * 1.5, SSE_MAX_RETRY);
     };
 }
 
 function appendMessage(msg) {
+    // Fast deduplication using Set
+    if (seenMessageIds.has(msg.id)) return;
+    seenMessageIds.add(msg.id);
+
     const container = document.getElementById('messagesContainer');
 
     // Remove empty state if present
     const empty = container.querySelector('.cowork-empty');
     if (empty) empty.remove();
 
-    // Check if message already exists
+    // DOM fallback check (for messages loaded from server-rendered HTML)
     if (container.querySelector('[data-id="' + msg.id + '"]')) return;
 
     const isOwn = msg.sender_id === currentUserId;

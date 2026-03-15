@@ -98,31 +98,74 @@ def stream():
 
     def generate():
         nonlocal last_id
-        while True:
-            # Force SQLAlchemy to drop cached objects and close the read
-            # transaction so the next query sees rows committed by other requests
-            db.session.rollback()
-            db.session.expire_all()
+        import sqlalchemy as sa
+        start_time = time.time()
+        max_duration = 300  # 5 minutes — then client auto-reconnects
 
-            msgs = (
-                Message.query
-                .options(joinedload(Message.sender))
-                .filter(Message.channel == channel, Message.id > last_id)
-                .order_by(Message.id.asc())
-                .all()
-            )
-            for m in msgs:
-                last_id = m.id
-                data = json.dumps({
-                    "id": m.id,
-                    "sender": m.sender.name if m.sender else "?",
-                    "sender_id": m.sender_id,
-                    "content": m.content,
-                    "created_at": m.created_at.strftime("%d/%m %H:%M"),
-                })
-                yield f"data: {data}\n\n"
+        # Get remote engine for direct message queries (bypasses sync delay)
+        from services.sync import sync_manager
+        remote_engine = sync_manager.remote_engine if sync_manager else None
+
+        while True:
+            # Close connection after max_duration to free the worker thread
+            if time.time() - start_time > max_duration:
+                yield "event: reconnect\ndata: {}\n\n"
+                return
+
+            try:
+                if remote_engine:
+                    # Query remote PostgreSQL directly — messages appear in ~3s
+                    with remote_engine.connect() as conn:
+                        result = conn.execute(sa.text(
+                            "SELECT m.id, u.name AS sender_name, m.sender_id, "
+                            "m.content, m.created_at "
+                            "FROM messages m "
+                            "LEFT JOIN users u ON m.sender_id = u.id "
+                            "WHERE m.channel = :channel AND m.id > :last_id "
+                            "ORDER BY m.id ASC"
+                        ), {"channel": channel, "last_id": last_id})
+                        for row in result:
+                            last_id = row.id
+                            created = ""
+                            if row.created_at:
+                                created = row.created_at.strftime("%d/%m %H:%M")
+                            data = json.dumps({
+                                "id": row.id,
+                                "sender": row.sender_name or "?",
+                                "sender_id": row.sender_id,
+                                "content": row.content,
+                                "created_at": created,
+                            })
+                            yield f"data: {data}\n\n"
+                else:
+                    # Fallback to local SQLite
+                    db.session.rollback()
+                    db.session.expire_all()
+                    msgs = (
+                        Message.query
+                        .options(joinedload(Message.sender))
+                        .filter(Message.channel == channel, Message.id > last_id)
+                        .order_by(Message.id.asc())
+                        .all()
+                    )
+                    for m in msgs:
+                        last_id = m.id
+                        data = json.dumps({
+                            "id": m.id,
+                            "sender": m.sender.name if m.sender else "?",
+                            "sender_id": m.sender_id,
+                            "content": m.content,
+                            "created_at": m.created_at.strftime("%d/%m %H:%M"),
+                        })
+                        yield f"data: {data}\n\n"
+            except Exception:
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+
             yield ": heartbeat\n\n"
-            time.sleep(2)
+            time.sleep(3)
 
     return Response(generate(), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

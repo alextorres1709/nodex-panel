@@ -2,7 +2,7 @@ import os
 import logging
 from datetime import datetime, timezone, date, timedelta
 from flask import Flask, g
-from config import Config, BASE_DIR, REMOTE_DATABASE_URL
+from config import Config, BASE_DIR, REMOTE_DATABASE_URL, APP_VERSION
 from models import db, User, Payment, Project, Tool, Task, Idea, Credential, CompanyInfo
 
 logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
@@ -40,6 +40,7 @@ def create_app():
         static_folder=os.path.join(BASE_DIR, "static"),
     )
     app.config.from_object(Config)
+    app.config["APP_VERSION"] = APP_VERSION
     db.init_app(app)
 
     with app.app_context():

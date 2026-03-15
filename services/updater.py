@@ -6,10 +6,7 @@ Uses the public GitHub API — no Railway dependency needed.
 import os
 import sys
 import json
-import shutil
 import logging
-import subprocess
-import tempfile
 import urllib.request
 
 log = logging.getLogger("updater")
@@ -19,8 +16,16 @@ GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 APP_BUNDLE_PATH = "/Applications/NodexAI Panel.app"
 
-# Server-side update state (visible to all users via context processor)
-update_available = None  # {"version": "x.x.x", "url": "..."} when update exists
+# Latest GitHub release info — always stored so clients can compare their own version
+# {"version": "x.x.x", "url": "..."} or None if not yet checked
+latest_release = None
+
+# Legacy alias kept for any code that still imports update_available
+update_available = None
+
+# Installation progress tracking
+install_status = {"state": "idle", "error": None}
+# states: "idle", "downloading", "mounting", "installing", "done", "error"
 
 
 def _get_app_path():
@@ -35,15 +40,17 @@ def _get_app_path():
 
 
 def check_and_update(window):
-    """Background thread: check GitHub for updates, download, install, prompt restart."""
+    """Background thread: fetch latest GitHub release and store it.
+    Each client sends its own version to /api/update/check for comparison.
+    """
     try:
         import time
-        time.sleep(12)  # Wait longer for pywebview to fully load the page
+        time.sleep(5)  # Wait for pywebview to load
 
         from config import APP_VERSION
 
         # 1. Check latest release on GitHub
-        log.info(f"Checking for updates (current: {APP_VERSION})...")
+        log.info(f"Checking GitHub for latest release (server is {APP_VERSION})...")
         req = urllib.request.Request(GITHUB_API)
         req.add_header("User-Agent", "NodexAI-Panel")
         req.add_header("Accept", "application/vnd.github+json")
@@ -54,27 +61,25 @@ def check_and_update(window):
             log.info(f"Update check failed (offline?): {e}")
             return
 
-        # Extract version from tag (e.g. "v1.3.3" -> "1.3.3")
+        # Extract version from tag (e.g. "v2.1.0" -> "2.1.0")
         tag = release.get("tag_name", "")
         remote_version = tag.lstrip("v")
 
         if not remote_version:
             return
 
-        if remote_version == APP_VERSION:
-            log.info("Already up to date")
-            return
-
-        if not _is_newer(remote_version, APP_VERSION):
-            return
-
-        log.info(f"New version available: {remote_version}")
-
-        # Store update info for server-side banner (visible to all users)
-        global update_available
         release_url = release.get("html_url", f"https://github.com/{GITHUB_REPO}/releases/latest")
-        update_available = {"version": remote_version, "url": release_url}
-        log.info(f"Update available: {remote_version} — banner will show in UI")
+
+        # Always store the latest GitHub release so ANY client can compare
+        # its own installed version against it (not the server's version).
+        global latest_release, update_available
+        latest_release = {"version": remote_version, "url": release_url}
+        log.info(f"Latest GitHub release stored: {remote_version}")
+
+        # Legacy: also set update_available if newer than the SERVER version
+        if _is_newer(remote_version, APP_VERSION):
+            update_available = latest_release
+            log.info(f"Server is also behind — update_available set.")
 
     except Exception as e:
         log.warning(f"Update error: {e}")
@@ -88,34 +93,6 @@ def _is_newer(remote, local):
         return r > l
     except (ValueError, AttributeError):
         return remote != local
-
-
-def _show_banner(window, message, show_restart=False):
-    """Show a banner at the top of the app via JS injection."""
-    restart_btn = ""
-    if show_restart:
-        restart_btn = (
-            '<button onclick="fetch(\'/__restart__\')" '
-            'style="background:white;color:#7c3aed;border:none;padding:4px 14px;'
-            'border-radius:6px;font-weight:700;cursor:pointer;font-size:12px;'
-            'margin-left:8px">Reiniciar</button>'
-        )
-
-    js = f"""
-    (function() {{
-        var old = document.getElementById('update-banner');
-        if (old) old.remove();
-        var b = document.createElement('div');
-        b.id = 'update-banner';
-        b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#7c3aed;color:white;padding:10px 20px;display:flex;align-items:center;justify-content:center;gap:12px;font-family:-apple-system,sans-serif;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.3);';
-        b.innerHTML = '{message}{restart_btn}<button onclick="this.parentNode.remove()" style="background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:16px;margin-left:8px">&times;</button>';
-        document.body.prepend(b);
-    }})();
-    """
-    try:
-        window.evaluate_js(js)
-    except Exception:
-        pass
 
 
 def _restart_app():

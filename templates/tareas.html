@@ -310,5 +310,37 @@
             });
         });
     });
+
+    // ═══ REAL-TIME SYNC: auto-refresh tasks when data changes ═══
+    (function() {
+        var knownTaskIds = new Set();
+        // Collect current task IDs from DOM
+        document.querySelectorAll('.kanban-card[data-task-id]').forEach(function(el) {
+            knownTaskIds.add(parseInt(el.dataset.taskId));
+        });
+        document.querySelectorAll('.task-item').forEach(function(el, i) {
+            // list view tasks don't have data-task-id on the item, use index
+            knownTaskIds.add(i);
+        });
+
+        document.addEventListener('nodex-sync', function() {
+            // Fetch fresh task data and check if anything changed
+            fetch('/api/tasks').then(function(r) { return r.json(); }).then(function(data) {
+                if (!data.tasks) return;
+                var newIds = new Set(data.tasks.map(function(t) { return t.id; }));
+                // Check if task list changed (added, removed, or count differs)
+                var changed = newIds.size !== knownTaskIds.size;
+                if (!changed) {
+                    newIds.forEach(function(id) {
+                        if (!knownTaskIds.has(id)) changed = true;
+                    });
+                }
+                if (changed) {
+                    // Reload page to reflect changes (preserves current view/filters)
+                    window.location.reload();
+                }
+            }).catch(function() {});
+        });
+    })();
 </script>
 {% endblock %}

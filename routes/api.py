@@ -29,86 +29,145 @@ def version():
 
 @api_bp.route("/api/update/check")
 def api_update_check():
-    """Return the currently available update if any."""
-    from services.updater import update_available
-    if update_available:
-        return jsonify({"available": True, "version": update_available["version"]})
+    """Check if an update is available for the requesting client.
+
+    Accepts ?v=X.X.X with the client's own installed version.
+    Compares against the latest GitHub release (stored in latest_release),
+    NOT the server's APP_VERSION — so clients on older installs will always
+    see the update even when the server code is already at a newer version.
+    """
+    from services.updater import latest_release, _is_newer
+
+    if not latest_release:
+        return jsonify({"available": False})
+
+    client_version = request.args.get("v", "").strip().lstrip("v")
+
+    if client_version:
+        if _is_newer(latest_release["version"], client_version):
+            return jsonify({"available": True, "version": latest_release["version"]})
+        return jsonify({"available": False})
+
+    # Fallback (no version param sent): compare against server's own version
+    if _is_newer(latest_release["version"], APP_VERSION):
+        return jsonify({"available": True, "version": latest_release["version"]})
     return jsonify({"available": False})
 
 
-@api_bp.route("/api/update/install")
+@api_bp.route("/api/update/install", methods=["POST"])
 def api_update_install():
-    """Download latest release DMG and install it over the current app bundle."""
+    """Start the update installation process."""
     import threading
-    def _do_install():
-        try:
-            from services.updater import update_available, GITHUB_API, _get_app_path
-            import urllib.request, tempfile, shutil, subprocess, os as _os
-            # Fetch latest release info
-            req = urllib.request.Request(GITHUB_API)
-            req.add_header("User-Agent", "NodexAI-Panel")
-            req.add_header("Accept", "application/vnd.github+json")
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                release = json.loads(resp.read().decode())
-            # Find DMG asset
-            download_url = None
-            for asset in release.get("assets", []):
-                if asset["name"].endswith(".dmg"):
-                    download_url = asset["browser_download_url"]
-                    break
-            if not download_url:
-                return
-            # Download
-            tmp_dir = tempfile.mkdtemp(prefix="nodex_update_")
-            dmg_path = _os.path.join(tmp_dir, "update.dmg")
-            urllib.request.urlretrieve(download_url, dmg_path)
-            if _os.path.getsize(dmg_path) < 1_000_000:
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-                return
-            # Mount
-            mount_point = _os.path.join(tmp_dir, "mount")
-            _os.makedirs(mount_point, exist_ok=True)
-            result = subprocess.run(
-                ["hdiutil", "attach", dmg_path, "-mountpoint", mount_point, "-nobrowse", "-quiet"],
-                capture_output=True, text=True
-            )
-            if result.returncode != 0:
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-                return
-            # Find .app
-            app_name = None
-            for item in _os.listdir(mount_point):
-                if item.endswith(".app"):
-                    app_name = item
-                    break
-            if not app_name:
-                subprocess.run(["hdiutil", "detach", mount_point, "-quiet"], capture_output=True)
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-                return
-            # Install via detached script (to allow the app to be overwritten)
-            source_app = _os.path.join(mount_point, app_name)
-            target_app = _get_app_path()
-            
-            script = f'''#!/bin/bash
-            sleep 2
-            killall "NodexAI Panel" 2>/dev/null
-            rm -rf "{target_app}"
-            cp -a "{source_app}" "{target_app}"
-            hdiutil detach "{mount_point}" -quiet
-            rm -rf "{tmp_dir}"
-            open "{target_app}"
-            '''
-            script_path = _os.path.join(tmp_dir, "install.sh")
-            with open(script_path, "w") as f:
-                f.write(script)
-            _os.chmod(script_path, 0o755)
-            
-            subprocess.Popen([script_path], start_new_session=True)
-            return
-        except Exception as e:
-            print(f"Update install error: {e}")
+    from services.updater import install_status
+
+    if install_status["state"] in ("downloading", "mounting", "installing"):
+        return jsonify({"error": "Instalacion en curso", "status": install_status["state"]}), 409
+
     threading.Thread(target=_do_install, daemon=True).start()
-    return jsonify({"ok": True})
+    return jsonify({"started": True})
+
+
+@api_bp.route("/api/update/install/status")
+def api_update_install_status():
+    """Return the current installation status."""
+    from services.updater import install_status
+    return jsonify(install_status)
+
+
+@api_bp.route("/api/sync/version")
+def api_sync_version():
+    """Return the current sync version counter (for real-time UI refresh)."""
+    from services.sync import sync_manager
+    version = sync_manager.sync_version if sync_manager else 0
+    return jsonify({"version": version})
+
+
+def _do_install():
+    """Download latest DMG and install — updates install_status at each step."""
+    from services.updater import install_status, GITHUB_API, _get_app_path
+    import urllib.request, tempfile, shutil, subprocess, os as _os
+
+    try:
+        install_status["state"] = "downloading"
+        install_status["error"] = None
+
+        # Fetch latest release info
+        req = urllib.request.Request(GITHUB_API)
+        req.add_header("User-Agent", "NodexAI-Panel")
+        req.add_header("Accept", "application/vnd.github+json")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            release = json.loads(resp.read().decode())
+
+        # Find DMG asset
+        download_url = None
+        for asset in release.get("assets", []):
+            if asset["name"].endswith(".dmg"):
+                download_url = asset["browser_download_url"]
+                break
+        if not download_url:
+            install_status.update({"state": "error", "error": "No se encontro DMG en la release"})
+            return
+
+        # Download
+        tmp_dir = tempfile.mkdtemp(prefix="nodex_update_")
+        dmg_path = _os.path.join(tmp_dir, "update.dmg")
+        urllib.request.urlretrieve(download_url, dmg_path)
+        if _os.path.getsize(dmg_path) < 1_000_000:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            install_status.update({"state": "error", "error": "DMG descargado es demasiado pequeno (corrupto?)"})
+            return
+
+        install_status["state"] = "mounting"
+
+        # Mount
+        mount_point = _os.path.join(tmp_dir, "mount")
+        _os.makedirs(mount_point, exist_ok=True)
+        result = subprocess.run(
+            ["hdiutil", "attach", dmg_path, "-mountpoint", mount_point, "-nobrowse", "-quiet"],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            install_status.update({"state": "error", "error": f"Error al montar DMG: {result.stderr}"})
+            return
+
+        # Find .app
+        app_name = None
+        for item in _os.listdir(mount_point):
+            if item.endswith(".app"):
+                app_name = item
+                break
+        if not app_name:
+            subprocess.run(["hdiutil", "detach", mount_point, "-quiet"], capture_output=True)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            install_status.update({"state": "error", "error": "No se encontro .app dentro del DMG"})
+            return
+
+        install_status["state"] = "installing"
+
+        # Install via detached script (to allow the app to be overwritten)
+        source_app = _os.path.join(mount_point, app_name)
+        target_app = _get_app_path()
+
+        script = f'''#!/bin/bash
+        sleep 2
+        killall "NodexAI Panel" 2>/dev/null
+        rm -rf "{target_app}"
+        cp -a "{source_app}" "{target_app}"
+        hdiutil detach "{mount_point}" -quiet
+        rm -rf "{tmp_dir}"
+        open "{target_app}"
+        '''
+        script_path = _os.path.join(tmp_dir, "install.sh")
+        with open(script_path, "w") as f:
+            f.write(script)
+        _os.chmod(script_path, 0o755)
+
+        subprocess.Popen([script_path], start_new_session=True)
+        install_status.update({"state": "done", "error": None})
+
+    except Exception as e:
+        install_status.update({"state": "error", "error": str(e)})
 
 
 # ═══════════════════════════════════════

@@ -265,4 +265,32 @@
     rebuildCharts();
 </script>
 {% endif %}
+<script>
+// ═══ REAL-TIME SYNC: auto-refresh dashboard KPIs when data changes ═══
+(function() {
+    var lastData = null;
+
+    document.addEventListener('nodex-sync', function() {
+        fetch('/api/dashboard').then(function(r) { return r.json(); }).then(function(data) {
+            if (!lastData) {
+                lastData = data;
+                return;
+            }
+            // Check if any KPI changed
+            var changed = (
+                data.monthly_income !== lastData.monthly_income ||
+                data.monthly_cost !== lastData.monthly_cost ||
+                data.active_projects !== lastData.active_projects ||
+                data.pending_tasks !== lastData.pending_tasks ||
+                data.total_clients !== lastData.total_clients
+            );
+            lastData = data;
+            if (changed) {
+                // Reload page to reflect all changes (charts, task lists, etc.)
+                window.location.reload();
+            }
+        }).catch(function() {});
+    });
+})();
+</script>
 {% endblock %}

@@ -249,17 +249,6 @@
         <header class="header">
             <div class="header-title">{% block page_title %}Panel{% endblock %}</div>
             <div class="header-actions">
-                <!-- Sync Button -->
-                <button class="btn btn-secondary btn-sm"
-                    onclick="this.disabled=true; this.innerHTML='Sincronizando...'; fetch('{{ url_for('api.api_sync_now') }}', {method:'POST'}).then(()=>window.location.reload())"
-                    style="display:flex; align-items:center; gap:4px; margin-right:8px"
-                    title="Sincronizar datos de la nube ahora">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        style="width:14px;height:14px;">
-                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.26l5.58 3.69" />
-                    </svg>
-                    Sincronizar
-                </button>
                 <!-- Notification bell -->
                 <div class="notif-wrapper" id="notifWrapper">
                     <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()">
@@ -286,34 +275,122 @@
             </div>
         </header>
 
-        <div class="update-banner" id="updateBanner"
-            style="display: {% if update_available %}flex{% else %}none{% endif %}">
-            <span id="updateBannerText">Nueva versión v{{ update_available.version if update_available else '' }}
-                disponible</span>
-            <button
-                onclick="this.textContent='Instalando...';this.disabled=true;fetch('/api/update/install').then(r=>r.json()).then(d=>{if(d.ok){this.textContent='✓ Instalada — Reinicia la app';}else{this.textContent='Error';}})"
-                style="background:white;color:#7c3aed;border:none;padding:4px 14px;border-radius:6px;font-weight:700;cursor:pointer;font-size:12px;margin-left:8px">Instalar</button>
-            <button class="update-close"
-                onclick="document.getElementById('updateBanner').style.display='none'; document.querySelector('.main-content').style.paddingTop='var(--header-height)'">&times;</button>
+        <!-- Update Modal -->
+        <div class="modal-overlay" id="updateModal">
+            <div class="modal" style="max-width: 440px;">
+                <div class="modal-header">
+                    <h3>Actualizacion disponible</h3>
+                    <button class="modal-close" onclick="dismissUpdateModal()">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 20px 24px;">
+                    <p style="margin:0 0 12px; color: var(--text-secondary);">
+                        Una nueva version esta disponible para NodexAI Panel.
+                    </p>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+                        <div>
+                            <div style="font-size:12px; color:var(--text-tertiary);">Version actual</div>
+                            <div style="font-size:15px; font-weight:700;">v{{ config.APP_VERSION }}</div>
+                        </div>
+                        <div style="display:flex;align-items:center;color:var(--text-tertiary);">&#8594;</div>
+                        <div>
+                            <div style="font-size:12px; color:var(--text-tertiary);">Nueva version</div>
+                            <div id="updateNewVersion" style="font-size:15px; font-weight:700; color:var(--brand-primary);">--</div>
+                        </div>
+                    </div>
+                    <div id="updateStatusText" style="font-size:13px; color:var(--text-tertiary); min-height:20px;"></div>
+                </div>
+                <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid var(--border-color); display:flex; gap:8px; justify-content:flex-end;">
+                    <button class="btn btn-secondary" onclick="dismissUpdateModal()">Mas tarde</button>
+                    <a href="/changelog" class="btn btn-secondary">Ver cambios</a>
+                    <button class="btn btn-primary" id="updateInstallBtn" onclick="startUpdateInstall()">Descargar e instalar</button>
+                </div>
+            </div>
         </div>
 
         <script>
-            // Automatically poll for updates in the background every 15 seconds
-            setInterval(() => {
-                if (document.getElementById('updateBanner').style.display === 'none') {
-                    fetch('/api/update/check').then(r => r.json()).then(data => {
+        (function() {
+            var dismissed = sessionStorage.getItem('nodex_update_dismissed');
+
+            // CLIENT_VERSION is the version compiled into THIS installed app.
+            // Sending it as ?v= lets the server compare it against the latest
+            // GitHub release regardless of what version the server code is at.
+            var CLIENT_VERSION = '{{ config.APP_VERSION }}';
+
+            function checkForUpdate() {
+                if (sessionStorage.getItem('nodex_update_dismissed')) return;
+                fetch('/api/update/check?v=' + encodeURIComponent(CLIENT_VERSION))
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
                         if (data.available) {
-                            document.getElementById('updateBannerText').textContent = 'Nueva versión v' + data.version + ' disponible';
-                            document.getElementById('updateBanner').style.display = 'flex';
-                            document.querySelector('.main-content').style.paddingTop = 'calc(var(--header-height) + 72px)';
+                            document.getElementById('updateNewVersion').textContent = 'v' + data.version;
+                            openModal('updateModal');
                         }
-                    }).catch(() => { });
-                }
-            }, 15000);
+                    }).catch(function() {});
+            }
+
+            // Initial check after 15s (gives background thread time to check GitHub)
+            setTimeout(checkForUpdate, 15000);
+            // Then every 60s (less aggressive)
+            setInterval(checkForUpdate, 60000);
+        })();
+
+        function startUpdateInstall() {
+            var btn = document.getElementById('updateInstallBtn');
+            var status = document.getElementById('updateStatusText');
+            btn.disabled = true;
+            btn.textContent = 'Instalando...';
+            status.textContent = 'Descargando actualizacion...';
+
+            fetch('/api/update/install', { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    if (d.error) {
+                        status.textContent = 'Error: ' + d.error;
+                        btn.disabled = false;
+                        btn.textContent = 'Reintentar';
+                        return;
+                    }
+                    _pollInstallStatus();
+                })
+                .catch(function() {
+                    status.textContent = 'Error de conexion';
+                    btn.disabled = false;
+                    btn.textContent = 'Reintentar';
+                });
+        }
+
+        function _pollInstallStatus() {
+            var status = document.getElementById('updateStatusText');
+            var btn = document.getElementById('updateInstallBtn');
+            var msgs = {
+                downloading: 'Descargando actualizacion...',
+                mounting: 'Preparando instalacion...',
+                installing: 'Instalando... La app se reiniciara automaticamente.',
+                done: 'Instalada. Reiniciando app...',
+            };
+            var interval = setInterval(function() {
+                fetch('/api/update/install/status').then(function(r) { return r.json(); }).then(function(d) {
+                    status.textContent = msgs[d.state] || d.state;
+                    if (d.state === 'error') {
+                        status.textContent = 'Error: ' + (d.error || 'desconocido');
+                        btn.disabled = false;
+                        btn.textContent = 'Reintentar';
+                        clearInterval(interval);
+                    } else if (d.state === 'done') {
+                        btn.textContent = 'Reiniciando...';
+                        clearInterval(interval);
+                    }
+                }).catch(function() {});
+            }, 2000);
+        }
+
+        function dismissUpdateModal() {
+            sessionStorage.setItem('nodex_update_dismissed', '1');
+            closeModal('updateModal');
+        }
         </script>
 
-        <main class="main-content" {% if update_available %}style="padding-top:calc(var(--header-height) + 72px)" {%
-            endif %}>
+        <main class="main-content">
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% for category, msg in messages %}
             <div class="flash-message flash-{{ category }}">{{ msg }}</div>
@@ -592,7 +669,7 @@
             });
         }
 
-        // Poll for new notifications every 15s
+        // Poll for new notifications every 10s
         setInterval(function () {
             fetch('/api/notifications/unread-count').then(function (r) { return r.json() }).then(function (data) {
                 var badge = document.getElementById('notifBadge');
@@ -604,7 +681,7 @@
                     badge.textContent = '';
                 }
             }).catch(function () { });
-        }, 15000);
+        }, 10000);
 
         // Close panel on outside click
         document.addEventListener('click', function (e) {
@@ -626,6 +703,34 @@
                     }
                 });
         }
+    </script>
+
+    <!-- ═══ GLOBAL SYNC POLLING (real-time data refresh) ═══ -->
+    <script>
+    (function() {
+        var lastSyncVersion = -1;
+
+        function checkSyncVersion() {
+            fetch('/api/sync/version').then(function(r) { return r.json(); }).then(function(data) {
+                var v = data.version;
+                if (lastSyncVersion === -1) {
+                    // First check — just store the version, don't trigger refresh
+                    lastSyncVersion = v;
+                    return;
+                }
+                if (v !== lastSyncVersion) {
+                    lastSyncVersion = v;
+                    // Dispatch event so each page can react to new data
+                    document.dispatchEvent(new CustomEvent('nodex-sync', { detail: { version: v } }));
+                }
+            }).catch(function() {});
+        }
+
+        // Poll every 10s (aligned with sync interval)
+        setInterval(checkSyncVersion, 10000);
+        // Initial check after 3s
+        setTimeout(checkSyncVersion, 3000);
+    })();
     </script>
 
     {% block scripts %}{% endblock %}

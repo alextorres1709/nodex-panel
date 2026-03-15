@@ -12,8 +12,42 @@
 
 <div class="info-card" style="margin-bottom: 24px; max-width: 800px;">
     <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h2 style="margin:0; color: var(--brand-primary);">v2.0.8</h2>
+        <h2 style="margin:0; color: var(--brand-primary);">v{{ config.APP_VERSION }}</h2>
         <span class="badge badge-activo" style="font-size: 13px;">Versión Actual</span>
+    </div>
+    <ul style="color: var(--text-secondary); line-height: 1.6; padding-left: 20px;">
+        <li><strong style="color: var(--text-primary);">MEJORA AUTO-UPDATE:</strong> El sistema de actualización ahora
+            detecta correctamente versiones antiguas aunque el servidor ya esté actualizado — el popup aparece siempre
+            que haya una versión más nueva en GitHub.</li>
+        <li><strong style="color: var(--text-primary);">ESTABILIDAD:</strong> Mejoras internas de rendimiento y
+            fiabilidad en la sincronización de datos entre usuarios.</li>
+    </ul>
+    <div style="margin-top: 16px; font-size: 12px; color: var(--text-tertiary);">Publicado: 15/03/2026</div>
+</div>
+
+<div class="info-card" style="margin-bottom: 24px; max-width: 800px;">
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin:0; color: var(--brand-primary);">v2.1.0</h2>
+    </div>
+    <ul style="color: var(--text-secondary); line-height: 1.6; padding-left: 20px;">
+        <li><strong style="color: var(--text-primary);">CHAT EN TIEMPO REAL:</strong> Los mensajes del Cowork ahora se
+            leen directamente de la base de datos remota — los mensajes de tu socio aparecen en ~3 segundos sin depender
+            del ciclo de sincronización.</li>
+        <li><strong style="color: var(--text-primary);">SINCRONIZACIÓN EN TIEMPO REAL:</strong> Las tareas, dashboard y
+            estadísticas se actualizan automáticamente cada 10 segundos sin recargar la página.</li>
+        <li><strong style="color: var(--text-primary);">NUEVO SISTEMA DE AUTO-ACTUALIZACIÓN:</strong> Modal popup con
+            feedback de progreso real (descargando, montando, instalando).</li>
+        <li><strong style="color: var(--text-primary);">SYNC TRANSACCIONAL:</strong> Si falla a mitad de operación, los
+            datos locales se preservan intactos. Push secuencial con cola para evitar conflictos.</li>
+        <li><strong style="color: var(--text-primary);">ELIMINADO BOTÓN SINCRONIZAR:</strong> Ya no es necesario — la
+            sincronización automática cada 10s lo hace por ti.</li>
+    </ul>
+    <div style="margin-top: 16px; font-size: 12px; color: var(--text-tertiary);">Publicado: 15/03/2026</div>
+</div>
+
+<div class="info-card" style="margin-bottom: 24px; max-width: 800px;">
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin:0; color: var(--brand-primary);">v2.0.8</h2>
     </div>
     <ul style="color: var(--text-secondary); line-height: 1.6; padding-left: 20px;">
         <li><strong style="color: var(--text-primary);">HOTFIX CRÍTICO 2:</strong> Re-compilado el instalador desde cero
