@@ -14,24 +14,6 @@
         <a href="{{ url_for('tasks.index', view='list') }}"
             class="btn btn-sm {{ 'btn-primary' if view=='list' else 'btn-secondary' }}">Lista</a>
         <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva tarea</button>
-        <!-- Template dropdown -->
-        <div style="position:relative;display:inline-block">
-            <button class="btn btn-secondary" id="tplBtn" onclick="document.getElementById('tplMenu').classList.toggle('active')">📋 Plantilla</button>
-            <div id="tplMenu" class="dropdown-menu" style="position:absolute;right:0;top:100%;margin-top:4px;min-width:200px;z-index:100">
-                <form method="POST" action="{{ url_for('tasks.from_template') }}">
-                    <input type="hidden" name="template" value="web">
-                    <button type="submit" class="dropdown-item" style="width:100%;text-align:left;padding:8px 12px;border:none;background:none;cursor:pointer;color:var(--text-primary);font-size:13px">🌐 Proyecto Web (10 tareas)</button>
-                </form>
-                <form method="POST" action="{{ url_for('tasks.from_template') }}">
-                    <input type="hidden" name="template" value="landing">
-                    <button type="submit" class="dropdown-item" style="width:100%;text-align:left;padding:8px 12px;border:none;background:none;cursor:pointer;color:var(--text-primary);font-size:13px">🎯 Landing Page (6 tareas)</button>
-                </form>
-                <form method="POST" action="{{ url_for('tasks.from_template') }}">
-                    <input type="hidden" name="template" value="bot">
-                    <button type="submit" class="dropdown-item" style="width:100%;text-align:left;padding:8px 12px;border:none;background:none;cursor:pointer;color:var(--text-primary);font-size:13px">🤖 Bot WhatsApp (7 tareas)</button>
-                </form>
-            </div>
-        </div>
 </div>
 
 <form class="filter-bar" method="GET">
@@ -112,6 +94,14 @@
                 </div>
             </div>
             {% endfor %}
+            {% if not kanban[col_status] %}
+            <div class="empty-state" style="padding:40px 16px;text-align:center">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;margin:0 auto 8px;opacity:0.3;display:block">
+                    <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                </svg>
+                <p style="color:var(--text-tertiary);font-size:12px;margin:0">Sin tareas</p>
+            </div>
+            {% endif %}
         </div>
     </div>
     {% endfor %}

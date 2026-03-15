@@ -313,34 +313,12 @@
         <!-- ═══ QUICK NOTES ═══ -->
         <div id="quickNotesPanel" class="quicknotes-panel" style="display:none">
             <div class="quicknotes-header">
-                <span>📝 Notas rapidas</span>
+                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Notas rapidas</span>
                 <button onclick="toggleQuickNotes()" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:16px">✕</button>
             </div>
             <textarea id="quickNotesArea" class="quicknotes-textarea" placeholder="Escribe tus notas aqui..."></textarea>
             <div class="quicknotes-footer">
                 <span id="quickNotesSaved" style="font-size:11px;color:var(--text-tertiary)">Guardado</span>
-            </div>
-        </div>
-
-        <!-- ═══ KEYBOARD SHORTCUTS HELP ═══ -->
-        <div class="modal-overlay" id="shortcutsModal">
-            <div class="modal" style="max-width:440px">
-                <div class="modal-header">
-                    <h3>Atajos de teclado</h3>
-                    <button class="modal-close" onclick="closeModal('shortcutsModal')">&times;</button>
-                </div>
-                <div class="modal-body" style="padding:16px 24px">
-                    <div class="shortcuts-grid">
-                        <div class="shortcut-item"><kbd>⌘K</kbd><span>Buscar (Command Palette)</span></div>
-                        <div class="shortcut-item"><kbd>N</kbd><span>Nueva tarea</span></div>
-                        <div class="shortcut-item"><kbd>P</kbd><span>Pomodoro Timer</span></div>
-                        <div class="shortcut-item"><kbd>Q</kbd><span>Notas rapidas</span></div>
-                        <div class="shortcut-item"><kbd>T</kbd><span>Time Tracking</span></div>
-                        <div class="shortcut-item"><kbd>D</kbd><span>Dashboard</span></div>
-                        <div class="shortcut-item"><kbd>?</kbd><span>Mostrar atajos</span></div>
-                        <div class="shortcut-item"><kbd>ESC</kbd><span>Cerrar modal/panel</span></div>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -452,40 +430,23 @@
                 document.getElementById('quickNotesSaved').textContent = 'Guardando...';
                 _saveTimer = setTimeout(function() {
                     localStorage.setItem('nodex_quicknotes', area.value);
-                    document.getElementById('quickNotesSaved').textContent = 'Guardado ✓';
+                    document.getElementById('quickNotesSaved').textContent = 'Guardado';
                 }, 500);
             });
         })();
 
-        // ── Global Keyboard Shortcuts ──
+        // ── Global Keyboard Shortcuts (only Cmd+K and ESC) ──
         document.addEventListener('keydown', function(e) {
-            // Ignore if typing in input/textarea
-            var tag = (e.target.tagName || '').toLowerCase();
-            if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) {
-                if (e.key === 'Escape') {
-                    closeCmdPalette();
-                    closeModal('shortcutsModal');
-                }
-                return;
-            }
-            // ⌘K / Ctrl+K
+            // ⌘K / Ctrl+K — Command Palette
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                 e.preventDefault();
                 openCmdPalette();
                 return;
             }
-            switch(e.key) {
-                case '?': openModal('shortcutsModal'); break;
-                case 'Escape':
-                    closeCmdPalette();
-                    closeModal('shortcutsModal');
-                    document.getElementById('quickNotesPanel').style.display = 'none';
-                    break;
-                case 'n': case 'N': window.location.href = '/tasks?new=1'; break;
-                case 'd': case 'D': window.location.href = '/dashboard'; break;
-                case 't': case 'T': window.location.href = '/timetracking'; break;
-                case 'p': case 'P': showPomodoro(); break;
-                case 'q': case 'Q': toggleQuickNotes(); break;
+            // ESC — close modals/panels
+            if (e.key === 'Escape') {
+                closeCmdPalette();
+                document.getElementById('quickNotesPanel').style.display = 'none';
             }
         });
         </script>
@@ -860,8 +821,8 @@
                 var html = '';
                 data.notifications.forEach(function (n) {
                     var cls = n.read ? 'notif-item read' : 'notif-item';
-                    var icons = { message: '💬', task: '📋', payment: '💰', system: '⚙️', info: 'ℹ️' };
-                    var icon = icons[n.type] || '🔔';
+                    var icons = { message: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>', task: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>', payment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>', system: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>', info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' };
+                    var icon = icons[n.type] || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>';
                     html += '<a href="' + (n.link || '#') + '" class="' + cls + '" onclick="markNotifRead(' + n.id + ')">'
                         + '<span class="notif-icon">' + icon + '</span>'
                         + '<div class="notif-content"><div class="notif-title">' + n.title + '</div>'

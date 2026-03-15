@@ -27,6 +27,23 @@
     </div>
 </div>
 
+<!-- Team stats -->
+<div class="table-card" style="margin-bottom:24px">
+    <div class="table-card-header"><h3>Equipo — Esta semana</h3></div>
+    <table class="data-table">
+        <thead><tr><th>Usuario</th><th>Semana</th><th>Mes</th></tr></thead>
+        <tbody>
+            {% for ts in team_stats %}
+            <tr>
+                <td><strong>{{ ts.name }}</strong></td>
+                <td>{{ ts.week // 60 }}h {{ ts.week % 60 }}m</td>
+                <td>{{ ts.month // 60 }}h {{ ts.month % 60 }}m</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
 <!-- Timer -->
 <div class="timer-card">
     <div class="timer-display" id="timerDisplay">00:00:00</div>
@@ -45,7 +62,7 @@
         <div class="form-group">
             <label>Proyecto</label>
             <select id="timerProject">
-                <option value="">—</option>
+                <option value="">General</option>
                 {% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
             </select>
         </div>
@@ -75,6 +92,7 @@
         <thead>
             <tr>
                 <th>Fecha</th>
+                <th>Usuario</th>
                 <th>Descripción</th>
                 <th>Proyecto</th>
                 <th>Tarea</th>
@@ -86,8 +104,9 @@
             {% for e in entries %}
             <tr>
                 <td>{{ e.date.strftime('%d/%m/%Y') }}</td>
+                <td>{{ e.user.name if e.user else '-' }}</td>
                 <td><strong>{{ e.description or '-' }}</strong></td>
-                <td>{{ e.project.name if e.project else '-' }}</td>
+                <td>{{ e.project.name if e.project else 'General' }}</td>
                 <td>{{ e.task.title if e.task else '-' }}</td>
                 <td><strong>{{ e.minutes // 60 }}h {{ e.minutes % 60 }}m</strong></td>
                 <td>
@@ -128,7 +147,7 @@
                             </option>{% endfor %}
                         </select></div>
                     <div class="form-group"><label>Proyecto</label><select name="project_id">
-                            <option value="">—</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}
+                            <option value="">General</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}
                             </option>{% endfor %}
                         </select></div>
                 </div>

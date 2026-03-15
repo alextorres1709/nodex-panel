@@ -78,7 +78,7 @@
 <!-- Personal Stats + Revenue Goal -->
 <div class="two-col-grid" style="margin-bottom:20px">
     <div class="info-card" style="padding:16px 20px">
-        <h3 style="margin:0 0 12px;font-size:13px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em">📊 Esta semana</h3>
+        <h3 style="margin:0 0 12px;font-size:13px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Esta semana</h3>
         <div class="stats-personal">
             <div class="stat-mini">
                 <div class="stat-mini-value">{{ week_hours }}h</div>
@@ -96,7 +96,7 @@
     </div>
     <div class="info-card" style="padding:16px 20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h3 style="margin:0;font-size:13px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em">🎯 Objetivo mensual</h3>
+            <h3 style="margin:0;font-size:13px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Objetivo mensual</h3>
             <span style="font-size:13px;font-weight:700;color:var(--text-primary)">{{ "%.0f"|format(monthly_income) }}&euro; / {{ "%.0f"|format(revenue_goal) }}&euro;</span>
         </div>
         <div class="goal-bar-wrap">
@@ -106,21 +106,11 @@
     </div>
 </div>
 
-<!-- Charts: Income vs Expenses + Activity Heatmap -->
-<div class="two-col-grid" style="margin-bottom:20px">
-    <div class="chart-card">
-        <div class="chart-card-header">
-            <h3>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                Ingresos vs Gastos
-            </h3>
-        </div>
-        <div style="height:220px">
-            <canvas id="incExpChart"></canvas>
-        </div>
-    </div>
+<!-- Activity Heatmap -->
+<div style="margin-bottom:20px">
     <div class="info-card" style="padding:16px 20px">
-        <h3 style="margin:0 0 12px;font-size:13px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em">🔥 Actividad (12 semanas)</h3>
+        <h3 style="margin:0 0 4px;font-size:13px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Actividad (12 semanas)</h3>
+        <p style="margin:0 0 12px;font-size:11px;color:var(--text-tertiary)">Registro diario de acciones en el panel: tareas, pagos, proyectos y otros cambios</p>
         <div class="heatmap-grid">
             {% for cell in heatmap_data %}
             <div class="heatmap-cell" data-level="{{ cell.level }}" title="{{ cell.date }}: {{ cell.count }} acciones"></div>
@@ -328,37 +318,6 @@
     rebuildCharts();
 </script>
 {% endif %}
-<script>
-    // Income vs Expenses bar chart
-    var _incLabels = {{ month_labels|tojson }};
-    var _incData = {{ income_6m|tojson }};
-    var _expData = {{ expense_6m|tojson }};
-    registerChart(function() {
-        var ctx = document.getElementById('incExpChart');
-        if (!ctx) return;
-        if (window._incExpChart) window._incExpChart.destroy();
-        var theme = getChartTheme();
-        window._incExpChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: _incLabels,
-                datasets: [
-                    { label: 'Ingresos', data: _incData, backgroundColor: theme.colors[0], borderRadius: 4 },
-                    { label: 'Gastos', data: _expData, backgroundColor: 'rgba(239,68,68,0.6)', borderRadius: 4 }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: true, position: 'bottom', labels: { color: theme.text, padding: 12, usePointStyle: true } } },
-                scales: {
-                    x: { ticks: { color: theme.text }, grid: { color: theme.grid } },
-                    y: { ticks: { color: theme.text }, grid: { color: theme.grid }, beginAtZero: true }
-                }
-            }
-        });
-    });
-    rebuildCharts();
-</script>
 <script>
 // ═══ REAL-TIME SYNC: auto-refresh dashboard KPIs when data changes ═══
 (function() {

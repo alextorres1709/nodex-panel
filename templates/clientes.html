@@ -37,20 +37,20 @@
     <a href="{{ url_for('clients.index', stage='cerrado') }}"
         class="kpi-card accent-green {{ 'ring' if current_stage == 'cerrado' }}"
         style="text-decoration:none;cursor:pointer">
-        <div class="kpi-label">Cerrado ✓</div>
+        <div class="kpi-label">Cerrado</div>
         <div class="kpi-value">{{ stages.cerrado }}</div>
     </a>
 </div>
 
 <!-- View toggle -->
 <div style="display:flex;gap:8px;margin-bottom:16px">
-    <button class="btn btn-sm btn-secondary" id="viewTable" onclick="setView('table')" style="opacity:0.5">📋 Tabla</button>
-    <button class="btn btn-sm btn-primary" id="viewPipeline" onclick="setView('pipeline')">🔀 Pipeline</button>
+    <button class="btn btn-sm btn-secondary" id="viewTable" onclick="setView('table')" style="opacity:0.5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:3px"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Tabla</button>
+    <button class="btn btn-sm btn-primary" id="viewPipeline" onclick="setView('pipeline')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:3px"><rect x="4" y="3" width="4" height="18" rx="1"/><rect x="10" y="6" width="4" height="12" rx="1"/><rect x="16" y="3" width="4" height="18" rx="1"/></svg>Pipeline</button>
 </div>
 
 <!-- Pipeline Kanban View -->
 <div id="pipelineView" class="kanban-board" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
-    {% set pipeline_stages = [('lead','Lead','kanban-header-amber'),('propuesta','Propuesta','kanban-header-blue'),('negociacion','Negociación','kanban-header-blue'),('cerrado','Cerrado ✓','kanban-header-green')] %}
+    {% set pipeline_stages = [('lead','Lead','kanban-header-amber'),('propuesta','Propuesta','kanban-header-blue'),('negociacion','Negociación','kanban-header-blue'),('cerrado','Cerrado','kanban-header-green')] %}
     {% for stage_id, stage_name, stage_class in pipeline_stages %}
     <div class="kanban-column">
         <div class="kanban-column-header {{ stage_class }}">

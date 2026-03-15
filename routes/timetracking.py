@@ -41,11 +41,24 @@ def index():
 
     tasks = Task.query.filter(Task.status.in_(["pendiente", "en_progreso"])).order_by(Task.title).all()
     projects = Project.query.order_by(Project.name).all()
+    users = User.query.filter_by(active=True).all()
+
+    # Team stats: week and month minutes per user
+    team_stats = []
+    for u in users:
+        u_week = sum(e.minutes for e in TimeEntry.query.filter(
+            TimeEntry.date >= week_start, TimeEntry.user_id == u.id).all())
+        u_month = sum(e.minutes for e in TimeEntry.query.filter(
+            db.extract("month", TimeEntry.date) == date.today().month,
+            db.extract("year", TimeEntry.date) == date.today().year,
+            TimeEntry.user_id == u.id).all())
+        team_stats.append({"name": u.name, "week": u_week, "month": u_month})
 
     return render_template(
         "timetracking.html", entries=entries, tasks=tasks, projects=projects,
         today_minutes=today_minutes, week_minutes=week_minutes, month_minutes=month_minutes,
         filter_date=filter_date, filter_project=filter_project,
+        team_stats=team_stats,
     )
 
 
