@@ -22,6 +22,53 @@ DOWNLOAD_URL = "https://github.com/alextorres1709/nodex-panel/releases/latest/do
 # PUBLIC
 # ═══════════════════════════════════════
 
+@api_bp.route("/api/search")
+def api_search():
+    """Global search across tasks, projects, clients, and pages."""
+    q = (request.args.get("q") or "").strip().lower()
+    if not q or len(q) < 2:
+        return jsonify({"results": []})
+    results = []
+    pages = [
+        {"title": "Dashboard", "url": "/dashboard", "icon": "grid"},
+        {"title": "Tareas", "url": "/tasks", "icon": "check"},
+        {"title": "Proyectos", "url": "/projects", "icon": "folder"},
+        {"title": "Clientes", "url": "/clients", "icon": "users"},
+        {"title": "Pagos", "url": "/payments", "icon": "card"},
+        {"title": "Ingresos", "url": "/incomes", "icon": "dollar"},
+        {"title": "Facturas", "url": "/invoices", "icon": "file"},
+        {"title": "Time Tracking", "url": "/timetracking", "icon": "clock"},
+        {"title": "Calendario", "url": "/calendar", "icon": "calendar"},
+        {"title": "Cowork", "url": "/cowork", "icon": "chat"},
+        {"title": "Ideas", "url": "/ideas", "icon": "idea"},
+        {"title": "Herramientas", "url": "/tools", "icon": "tool"},
+        {"title": "Reportes", "url": "/reports", "icon": "report"},
+        {"title": "Documentos", "url": "/documents", "icon": "file"},
+        {"title": "Credenciales", "url": "/credentials", "icon": "lock"},
+        {"title": "Balance P&L", "url": "/balance", "icon": "chart"},
+        {"title": "Changelog", "url": "/changelog", "icon": "file"},
+    ]
+    for p in pages:
+        if q in p["title"].lower():
+            results.append({"type": "page", "title": p["title"], "url": p["url"], "icon": p["icon"]})
+    try:
+        for t in Task.query.filter(Task.title.ilike(f"%{q}%")).limit(5).all():
+            results.append({"type": "task", "title": t.title, "url": "/tasks", "subtitle": t.status, "icon": "check"})
+    except Exception:
+        pass
+    try:
+        for p in Project.query.filter(Project.name.ilike(f"%{q}%")).limit(5).all():
+            results.append({"type": "project", "title": p.name, "url": "/projects", "subtitle": p.status, "icon": "folder"})
+    except Exception:
+        pass
+    try:
+        for c in Client.query.filter(db.or_(Client.name.ilike(f"%{q}%"), Client.company.ilike(f"%{q}%"))).limit(5).all():
+            results.append({"type": "client", "title": c.name, "subtitle": c.company or c.pipeline_stage, "url": "/clients", "icon": "users"})
+    except Exception:
+        pass
+    return jsonify({"results": results[:20]})
+
+
 @api_bp.route("/api/version")
 def version():
     return jsonify({"version": APP_VERSION, "download_url": DOWNLOAD_URL})

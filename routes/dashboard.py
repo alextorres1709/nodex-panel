@@ -1,5 +1,5 @@
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from sqlalchemy.orm import joinedload
 from flask import Blueprint, render_template, g
 from models import db, Payment, Project, Task, Idea, Income, ActivityLog, Client, Invoice, TimeEntry
@@ -96,6 +96,70 @@ def index():
     cost_labels = [r[0] or "otro" for r in cost_chart]
     cost_values = [float(r[1] or 0) for r in cost_chart]
 
+    # ── 6-month Income vs Expenses chart ──
+    import calendar as cal_mod
+    month_labels = []
+    income_6m = []
+    expense_6m = []
+    for i in range(5, -1, -1):
+        m = now_month - i
+        y = now_year
+        while m <= 0:
+            m += 12
+            y -= 1
+        month_labels.append(cal_mod.month_abbr[m])
+        # Income for month
+        inc = _safe(lambda m=m, y=y: sum(
+            x.amount for x in Income.query.filter(
+                Income.status == "cobrado",
+                db.extract("month", Income.paid_date) == m,
+                db.extract("year", Income.paid_date) == y,
+            ).all()
+        ))
+        inc += _safe(lambda m=m, y=y: float(db.session.query(
+            db.func.coalesce(db.func.sum(Invoice.total), 0)
+        ).filter(
+            Invoice.status == "cobrada",
+            db.extract("month", Invoice.paid_date) == m,
+            db.extract("year", Invoice.paid_date) == y,
+        ).scalar()))
+        income_6m.append(inc)
+        expense_6m.append(monthly_cost)  # flat monthly cost estimate
+
+    # ── Activity heatmap (last 12 weeks = 84 days) ──
+    heatmap_data = []
+    for i in range(83, -1, -1):
+        d = today - timedelta(days=i)
+        count = _safe(lambda d=d: ActivityLog.query.filter(
+            db.func.date(ActivityLog.created_at) == d
+        ).count())
+        level = 0 if count == 0 else 1 if count <= 2 else 2 if count <= 5 else 3 if count <= 10 else 4
+        heatmap_data.append({"date": d.strftime("%d/%m"), "level": level, "count": count})
+
+    # ── Personal stats (this week) ──
+    week_start = today - timedelta(days=today.weekday())
+    week_hours = _safe(lambda: sum(
+        e.minutes for e in TimeEntry.query.filter(
+            TimeEntry.user_id == user.id,
+            TimeEntry.date >= week_start,
+        ).all()
+    ) / 60)
+    week_tasks = _safe(lambda: Task.query.filter(
+        Task.assigned_to == user.id,
+        Task.status == "completada",
+        Task.created_at >= datetime.combine(week_start, datetime.min.time()),
+    ).count())
+    week_revenue = _safe(lambda: float(db.session.query(
+        db.func.coalesce(db.func.sum(Invoice.total), 0)
+    ).filter(
+        Invoice.status == "cobrada",
+        Invoice.paid_date >= week_start,
+    ).scalar()))
+
+    # ── Revenue goal (monthly, default 5000€) ──
+    revenue_goal = 5000
+    revenue_pct = min(100, int((monthly_income / revenue_goal) * 100)) if revenue_goal > 0 else 0
+
     return render_template(
         "dashboard.html",
         today=today,
@@ -117,4 +181,17 @@ def index():
         # Chart
         cost_labels=cost_labels,
         cost_values=cost_values,
+        # NEW: 6-month chart
+        month_labels=month_labels,
+        income_6m=income_6m,
+        expense_6m=expense_6m,
+        # NEW: Heatmap
+        heatmap_data=heatmap_data,
+        # NEW: Personal stats
+        week_hours=round(week_hours, 1),
+        week_tasks=week_tasks,
+        week_revenue=week_revenue,
+        # NEW: Revenue goal
+        revenue_goal=revenue_goal,
+        revenue_pct=revenue_pct,
     )

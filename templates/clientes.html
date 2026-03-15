@@ -42,6 +42,37 @@
     </a>
 </div>
 
+<!-- View toggle -->
+<div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="btn btn-sm btn-secondary" id="viewTable" onclick="setView('table')" style="opacity:0.5">📋 Tabla</button>
+    <button class="btn btn-sm btn-primary" id="viewPipeline" onclick="setView('pipeline')">🔀 Pipeline</button>
+</div>
+
+<!-- Pipeline Kanban View -->
+<div id="pipelineView" class="kanban-board" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
+    {% set pipeline_stages = [('lead','Lead','kanban-header-amber'),('propuesta','Propuesta','kanban-header-blue'),('negociacion','Negociación','kanban-header-blue'),('cerrado','Cerrado ✓','kanban-header-green')] %}
+    {% for stage_id, stage_name, stage_class in pipeline_stages %}
+    <div class="kanban-column">
+        <div class="kanban-column-header {{ stage_class }}">
+            {{ stage_name }}
+            <span class="kanban-count">{{ stages[stage_id] }}</span>
+        </div>
+        <div class="kanban-cards" data-stage="{{ stage_id }}"
+             ondragover="event.preventDefault();this.classList.add('kanban-drag-over')"
+             ondragleave="this.classList.remove('kanban-drag-over')"
+             ondrop="dropClient(event, '{{ stage_id }}')">
+            {% for c in all_clients if c.pipeline_stage == stage_id %}
+            <div class="kanban-card" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '{{ c.id }}')" data-client-id="{{ c.id }}">
+                <div class="kanban-card-title">{{ c.name }}</div>
+                {% if c.company %}<div class="kanban-card-desc">{{ c.company }}</div>{% endif %}
+                {% if c.email %}<div style="font-size:11px;color:var(--text-tertiary)">{{ c.email }}</div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
 <!-- Client Table -->
 <div class="table-card">
     <div class="table-card-header">
@@ -209,5 +240,46 @@
         document.getElementById('ed_notes').value = notes;
         document.getElementById('editModal').style.display = 'flex';
     }
+
+    // Pipeline view toggle
+    function setView(mode) {
+        var pipeline = document.getElementById('pipelineView');
+        var table = document.querySelector('.table-card');
+        if (mode === 'pipeline') {
+            pipeline.style.display = 'grid';
+            table.style.display = 'none';
+            document.getElementById('viewPipeline').className = 'btn btn-sm btn-primary';
+            document.getElementById('viewPipeline').style.opacity = '1';
+            document.getElementById('viewTable').className = 'btn btn-sm btn-secondary';
+            document.getElementById('viewTable').style.opacity = '0.5';
+        } else {
+            pipeline.style.display = 'none';
+            table.style.display = 'block';
+            document.getElementById('viewTable').className = 'btn btn-sm btn-primary';
+            document.getElementById('viewTable').style.opacity = '1';
+            document.getElementById('viewPipeline').className = 'btn btn-sm btn-secondary';
+            document.getElementById('viewPipeline').style.opacity = '0.5';
+        }
+        localStorage.setItem('nodex_client_view', mode);
+    }
+
+    // Drag‐drop pipeline update
+    function dropClient(event, newStage) {
+        event.preventDefault();
+        event.currentTarget.classList.remove('kanban-drag-over');
+        var clientId = event.dataTransfer.getData('text/plain');
+        // Submit via hidden form POST
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/clientes/' + clientId + '/stage';
+        var input = document.createElement('input');
+        input.name = 'stage'; input.value = newStage; input.type = 'hidden';
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    // Restore saved view
+    if (localStorage.getItem('nodex_client_view') === 'table') { setView('table'); }
 </script>
 {% endblock %}

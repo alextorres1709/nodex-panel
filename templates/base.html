@@ -275,6 +275,221 @@
             </div>
         </header>
 
+        <!-- ═══ COMMAND PALETTE (⌘K) ═══ -->
+        <div class="cmd-palette-overlay" id="cmdPalette" onclick="if(event.target===this)closeCmdPalette()">
+            <div class="cmd-palette">
+                <div class="cmd-palette-input-wrap">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" id="cmdInput" placeholder="Buscar paginas, tareas, clientes..." autocomplete="off" oninput="onCmdSearch(this.value)">
+                    <kbd>ESC</kbd>
+                </div>
+                <div class="cmd-palette-results" id="cmdResults">
+                    <div class="cmd-palette-empty">Escribe para buscar...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ POMODORO TIMER ═══ -->
+        <div id="pomodoroOverlay" class="pomodoro-overlay" style="display:none">
+            <div class="pomodoro-ring">
+                <svg viewBox="0 0 100 100" width="56" height="56">
+                    <circle cx="50" cy="50" r="44" fill="none" stroke="var(--border-color)" stroke-width="4"/>
+                    <circle id="pomodoroArc" cx="50" cy="50" r="44" fill="none" stroke="var(--brand-primary)" stroke-width="4"
+                        stroke-dasharray="276.46" stroke-dashoffset="0" stroke-linecap="round"
+                        transform="rotate(-90 50 50)" style="transition: stroke-dashoffset 1s linear"/>
+                </svg>
+                <span id="pomodoroTime" class="pomodoro-time">25:00</span>
+            </div>
+            <div class="pomodoro-controls">
+                <span id="pomodoroLabel" style="font-size:11px;color:var(--text-tertiary)">Focus</span>
+                <div style="display:flex;gap:4px">
+                    <button onclick="togglePomodoro()" id="pomodoroBtn" class="pomodoro-ctrl-btn" title="Play/Pause">▶</button>
+                    <button onclick="resetPomodoro()" class="pomodoro-ctrl-btn" title="Reset">↺</button>
+                    <button onclick="closePomodoro()" class="pomodoro-ctrl-btn" title="Close">✕</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ QUICK NOTES ═══ -->
+        <div id="quickNotesPanel" class="quicknotes-panel" style="display:none">
+            <div class="quicknotes-header">
+                <span>📝 Notas rapidas</span>
+                <button onclick="toggleQuickNotes()" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:16px">✕</button>
+            </div>
+            <textarea id="quickNotesArea" class="quicknotes-textarea" placeholder="Escribe tus notas aqui..."></textarea>
+            <div class="quicknotes-footer">
+                <span id="quickNotesSaved" style="font-size:11px;color:var(--text-tertiary)">Guardado</span>
+            </div>
+        </div>
+
+        <!-- ═══ KEYBOARD SHORTCUTS HELP ═══ -->
+        <div class="modal-overlay" id="shortcutsModal">
+            <div class="modal" style="max-width:440px">
+                <div class="modal-header">
+                    <h3>Atajos de teclado</h3>
+                    <button class="modal-close" onclick="closeModal('shortcutsModal')">&times;</button>
+                </div>
+                <div class="modal-body" style="padding:16px 24px">
+                    <div class="shortcuts-grid">
+                        <div class="shortcut-item"><kbd>⌘K</kbd><span>Buscar (Command Palette)</span></div>
+                        <div class="shortcut-item"><kbd>N</kbd><span>Nueva tarea</span></div>
+                        <div class="shortcut-item"><kbd>P</kbd><span>Pomodoro Timer</span></div>
+                        <div class="shortcut-item"><kbd>Q</kbd><span>Notas rapidas</span></div>
+                        <div class="shortcut-item"><kbd>T</kbd><span>Time Tracking</span></div>
+                        <div class="shortcut-item"><kbd>D</kbd><span>Dashboard</span></div>
+                        <div class="shortcut-item"><kbd>?</kbd><span>Mostrar atajos</span></div>
+                        <div class="shortcut-item"><kbd>ESC</kbd><span>Cerrar modal/panel</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ GLOBAL FEATURES JS ═══ -->
+        <script>
+        // ── Command Palette ──
+        function openCmdPalette() {
+            document.getElementById('cmdPalette').classList.add('active');
+            var inp = document.getElementById('cmdInput');
+            inp.value = '';
+            inp.focus();
+            document.getElementById('cmdResults').innerHTML = '<div class="cmd-palette-empty">Escribe para buscar...</div>';
+        }
+        function closeCmdPalette() {
+            document.getElementById('cmdPalette').classList.remove('active');
+        }
+        var _cmdDebounce = null;
+        function onCmdSearch(q) {
+            clearTimeout(_cmdDebounce);
+            if (!q || q.length < 2) {
+                document.getElementById('cmdResults').innerHTML = '<div class="cmd-palette-empty">Escribe para buscar...</div>';
+                return;
+            }
+            _cmdDebounce = setTimeout(function() {
+                fetch('/api/search?q=' + encodeURIComponent(q)).then(function(r){return r.json()}).then(function(data) {
+                    var html = '';
+                    if (!data.results || data.results.length === 0) {
+                        html = '<div class="cmd-palette-empty">Sin resultados</div>';
+                    } else {
+                        var typeLabels = {page:'Paginas', task:'Tareas', project:'Proyectos', client:'Clientes'};
+                        var lastType = '';
+                        data.results.forEach(function(r) {
+                            if (r.type !== lastType) {
+                                lastType = r.type;
+                                html += '<div class="cmd-palette-group">' + (typeLabels[r.type] || r.type) + '</div>';
+                            }
+                            html += '<a href="' + r.url + '" class="cmd-palette-item" onclick="closeCmdPalette()">';
+                            html += '<span class="cmd-palette-item-title">' + r.title + '</span>';
+                            if (r.subtitle) html += '<span class="cmd-palette-item-sub">' + r.subtitle + '</span>';
+                            html += '</a>';
+                        });
+                    }
+                    document.getElementById('cmdResults').innerHTML = html;
+                });
+            }, 200);
+        }
+        document.getElementById('cmdInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeCmdPalette();
+        });
+
+        // ── Pomodoro Timer ──
+        var _pomRunning = false, _pomInterval = null;
+        var _pomSeconds = 25 * 60, _pomTotal = 25 * 60, _pomBreak = false;
+        function showPomodoro() { document.getElementById('pomodoroOverlay').style.display = 'flex'; }
+        function closePomodoro() { document.getElementById('pomodoroOverlay').style.display = 'none'; pausePomodoro(); }
+        function togglePomodoro() { _pomRunning ? pausePomodoro() : startPomodoro(); }
+        function startPomodoro() {
+            _pomRunning = true;
+            document.getElementById('pomodoroBtn').textContent = '⏸';
+            _pomInterval = setInterval(function() {
+                _pomSeconds--;
+                updatePomodoroUI();
+                if (_pomSeconds <= 0) {
+                    clearInterval(_pomInterval);
+                    _pomRunning = false;
+                    document.getElementById('pomodoroBtn').textContent = '▶';
+                    try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2FgYF7dW1sbnJ3fYGDg4B9enl4eX1/gYOEgoB+fXt6e3x+gIKDg4KAf357e3t8foCBg4OCgYB+fX18fH6AgYODg4KBf359fHx8fn+Bg4ODgoF/fn18fHx+f4GDg4OCgX9+fX18fH5/gYODg4KBf35+fXx8fn+BgoODgoF/fn59fHx+f4GCg4OCgX9+fn18fH5/gYKDg4KB').play(); } catch(e){}
+                    // Switch mode
+                    _pomBreak = !_pomBreak;
+                    _pomTotal = _pomBreak ? 5 * 60 : 25 * 60;
+                    _pomSeconds = _pomTotal;
+                    document.getElementById('pomodoroLabel').textContent = _pomBreak ? 'Descanso' : 'Focus';
+                    document.getElementById('pomodoroArc').style.stroke = _pomBreak ? '#22c55e' : 'var(--brand-primary)';
+                    updatePomodoroUI();
+                }
+            }, 1000);
+        }
+        function pausePomodoro() { _pomRunning = false; clearInterval(_pomInterval); document.getElementById('pomodoroBtn').textContent = '▶'; }
+        function resetPomodoro() {
+            pausePomodoro(); _pomBreak = false; _pomTotal = 25*60; _pomSeconds = 25*60;
+            document.getElementById('pomodoroLabel').textContent = 'Focus';
+            document.getElementById('pomodoroArc').style.stroke = 'var(--brand-primary)';
+            updatePomodoroUI();
+        }
+        function updatePomodoroUI() {
+            var m = Math.floor(_pomSeconds/60), s = _pomSeconds%60;
+            document.getElementById('pomodoroTime').textContent = (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+            var pct = 1 - (_pomSeconds / _pomTotal);
+            document.getElementById('pomodoroArc').setAttribute('stroke-dashoffset', (276.46 * (1 - pct)).toString());
+        }
+
+        // ── Quick Notes ──
+        function toggleQuickNotes() {
+            var p = document.getElementById('quickNotesPanel');
+            if (p.style.display === 'none') {
+                p.style.display = 'flex';
+                var saved = localStorage.getItem('nodex_quicknotes') || '';
+                document.getElementById('quickNotesArea').value = saved;
+                document.getElementById('quickNotesArea').focus();
+            } else {
+                p.style.display = 'none';
+            }
+        }
+        (function() {
+            var area = document.getElementById('quickNotesArea');
+            var _saveTimer = null;
+            area.addEventListener('input', function() {
+                clearTimeout(_saveTimer);
+                document.getElementById('quickNotesSaved').textContent = 'Guardando...';
+                _saveTimer = setTimeout(function() {
+                    localStorage.setItem('nodex_quicknotes', area.value);
+                    document.getElementById('quickNotesSaved').textContent = 'Guardado ✓';
+                }, 500);
+            });
+        })();
+
+        // ── Global Keyboard Shortcuts ──
+        document.addEventListener('keydown', function(e) {
+            // Ignore if typing in input/textarea
+            var tag = (e.target.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) {
+                if (e.key === 'Escape') {
+                    closeCmdPalette();
+                    closeModal('shortcutsModal');
+                }
+                return;
+            }
+            // ⌘K / Ctrl+K
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                openCmdPalette();
+                return;
+            }
+            switch(e.key) {
+                case '?': openModal('shortcutsModal'); break;
+                case 'Escape':
+                    closeCmdPalette();
+                    closeModal('shortcutsModal');
+                    document.getElementById('quickNotesPanel').style.display = 'none';
+                    break;
+                case 'n': case 'N': window.location.href = '/tasks?new=1'; break;
+                case 'd': case 'D': window.location.href = '/dashboard'; break;
+                case 't': case 'T': window.location.href = '/timetracking'; break;
+                case 'p': case 'P': showPomodoro(); break;
+                case 'q': case 'Q': toggleQuickNotes(); break;
+            }
+        });
+        </script>
+
         <!-- Update Modal -->
         <div class="modal-overlay" id="updateModal">
             <div class="modal" style="max-width: 440px;">

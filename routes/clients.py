@@ -22,8 +22,9 @@ def index():
         "cerrado": Client.query.filter_by(pipeline_stage="cerrado").count(),
         "perdido": Client.query.filter_by(pipeline_stage="perdido").count(),
     }
+    all_clients = Client.query.order_by(Client.created_at.desc()).all()
 
-    return render_template("clientes.html", clients=clients, stages=stages, current_stage=stage)
+    return render_template("clientes.html", clients=clients, all_clients=all_clients, stages=stages, current_stage=stage)
 
 
 @clients_bp.route("/clientes/new", methods=["POST"])
