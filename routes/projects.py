@@ -1,6 +1,7 @@
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash
-from models import db, Project
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+from sqlalchemy.orm import joinedload
+from models import db, Project, Task, TimeEntry, Document, Invoice, Income
 from routes.auth import login_required
 from services.activity import log_activity
 
@@ -19,6 +20,41 @@ def index():
         q = q.filter_by(type=ptype)
     projects = q.order_by(Project.created_at.desc()).all()
     return render_template("proyectos.html", projects=projects, sel_status=status, sel_type=ptype)
+
+
+@projects_bp.route("/proyectos/<int:pid>")
+@login_required
+def view(pid):
+    project = db.session.get(Project, pid)
+    if not project:
+        abort(404)
+
+    tasks = Task.query.filter_by(project_id=pid).order_by(Task.created_at.desc()).all()
+    task_counts = {
+        "pendiente": sum(1 for t in tasks if t.status == "pendiente"),
+        "en_progreso": sum(1 for t in tasks if t.status == "en_progreso"),
+        "completada": sum(1 for t in tasks if t.status == "completada"),
+    }
+
+    time_entries = TimeEntry.query.options(
+        joinedload(TimeEntry.user)
+    ).filter_by(project_id=pid).order_by(TimeEntry.date.desc()).limit(20).all()
+    total_minutes = sum(e.minutes for e in TimeEntry.query.filter_by(project_id=pid).all())
+
+    documents = Document.query.filter_by(project_id=pid).order_by(Document.created_at.desc()).all()
+
+    invoices = Invoice.query.filter_by(project_id=pid).order_by(Invoice.created_at.desc()).all()
+    total_invoiced = sum(i.total for i in invoices)
+
+    incomes = Income.query.filter_by(project_id=pid).order_by(Income.created_at.desc()).all()
+    total_income = sum(i.amount for i in incomes)
+
+    return render_template(
+        "proyecto_detail.html", project=project, tasks=tasks, task_counts=task_counts,
+        time_entries=time_entries, total_minutes=total_minutes,
+        documents=documents, invoices=invoices, total_invoiced=total_invoiced,
+        incomes=incomes, total_income=total_income,
+    )
 
 
 @projects_bp.route("/proyectos/create", methods=["POST"])

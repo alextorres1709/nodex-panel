@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block page_title %}{{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+            <h1>{{ project.name }}</h1>
+            <span class="badge badge-{{ project.status }}">{{ project.status }}</span>
+        </div>
+        <p class="page-subtitle">{{ project.client_name or 'Sin cliente' }} &middot; {{ project.type|capitalize }}{% if project.deadline %} &middot; Deadline: {{ project.deadline.strftime('%d/%m/%Y') }}{% endif %}</p>
+    </div>
+    <a href="{{ url_for('projects.index') }}" class="btn btn-secondary">Volver</a>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom:32px">
+    <div class="kpi-card accent-blue">
+        <div class="kpi-label">Tareas</div>
+        <div class="kpi-value">{{ tasks|length }}</div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">{{ task_counts.pendiente }} pendientes &middot; {{ task_counts.en_progreso }} en progreso</div>
+    </div>
+    <div class="kpi-card accent-cyan">
+        <div class="kpi-label">Horas registradas</div>
+        <div class="kpi-value">{{ total_minutes // 60 }}h {{ total_minutes % 60 }}m</div>
+    </div>
+    <div class="kpi-card accent-purple">
+        <div class="kpi-label">Presupuesto</div>
+        <div class="kpi-value">{{ "%.0f"|format(project.budget) }}&euro;</div>
+    </div>
+    <div class="kpi-card accent-green">
+        <div class="kpi-label">Facturado / Ingresado</div>
+        <div class="kpi-value">{{ "%.0f"|format(total_invoiced) }}&euro; / {{ "%.0f"|format(total_income) }}&euro;</div>
+    </div>
+</div>
+
+{% if project.description %}
+<div class="table-card" style="margin-bottom:24px;padding:20px">
+    <p style="color:var(--text-secondary);font-size:13px;line-height:1.6">{{ project.description }}</p>
+    {% if project.notes %}
+    <p style="color:var(--text-tertiary);font-size:12px;margin-top:8px">{{ project.notes }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Progress -->
+<div style="margin-bottom:32px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:13px;color:var(--text-secondary);font-weight:600">Progreso del proyecto</span>
+        <span style="font-size:13px;font-weight:700">{{ project.progress }}%</span>
+    </div>
+    <div class="progress-bar" style="height:8px"><div class="progress-fill" style="width:{{ project.progress }}%;height:8px"></div></div>
+</div>
+
+<!-- ═══ TAREAS ═══ -->
+<div class="table-card" style="margin-bottom:24px">
+    <div class="table-card-header">
+        <h3>Tareas</h3>
+        <span style="font-size:12px;color:var(--text-tertiary)">{{ tasks|length }} total</span>
+    </div>
+    {% if tasks %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Tarea</th><th>Estado</th><th>Prioridad</th><th>Asignado</th><th>Fecha limite</th></tr>
+        </thead>
+        <tbody>
+            {% for t in tasks %}
+            <tr>
+                <td><strong>{{ t.title }}</strong></td>
+                <td><span class="badge badge-{{ t.status }}">{{ t.status|replace('_',' ') }}</span></td>
+                <td>
+                    <span class="badge" style="background:{% if t.priority == 'alta' %}rgba(239,68,68,0.1);color:#ef4444{% elif t.priority == 'media' %}rgba(245,158,11,0.1);color:#f59e0b{% else %}rgba(107,114,128,0.1);color:#6b7280{% endif %}">{{ t.priority }}</span>
+                </td>
+                <td>{{ t.assignee.name if t.assignee else '—' }}</td>
+                <td>{{ t.due_date.strftime('%d/%m/%Y') if t.due_date else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:32px;text-align:center">
+        <p style="color:var(--text-tertiary);font-size:13px">No hay tareas en este proyecto</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══ TIME TRACKING ═══ -->
+<div class="table-card" style="margin-bottom:24px">
+    <div class="table-card-header">
+        <h3>Time Tracking</h3>
+        <span style="font-size:12px;color:var(--text-tertiary)">{{ total_minutes // 60 }}h {{ total_minutes % 60 }}m total</span>
+    </div>
+    {% if time_entries %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Fecha</th><th>Usuario</th><th>Descripcion</th><th>Tiempo</th></tr>
+        </thead>
+        <tbody>
+            {% for e in time_entries %}
+            <tr>
+                <td>{{ e.date.strftime('%d/%m/%Y') }}</td>
+                <td>{{ e.user.name if e.user else '—' }}</td>
+                <td>{{ e.description or '—' }}</td>
+                <td><strong>{{ e.minutes // 60 }}h {{ e.minutes % 60 }}m</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:32px;text-align:center">
+        <p style="color:var(--text-tertiary);font-size:13px">No hay registros de tiempo</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══ DOCUMENTOS ═══ -->
+<div class="table-card" style="margin-bottom:24px">
+    <div class="table-card-header">
+        <h3>Documentos</h3>
+        <span style="font-size:12px;color:var(--text-tertiary)">{{ documents|length }} archivos</span>
+    </div>
+    {% if documents %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Nombre</th><th>Categoria</th><th>Fecha</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for d in documents %}
+            <tr>
+                <td><strong>{{ d.name }}</strong></td>
+                <td>{{ d.category or '—' }}</td>
+                <td>{{ d.created_at.strftime('%d/%m/%Y') }}</td>
+                <td><a href="{{ url_for('documents.download', did=d.id) }}" class="btn btn-sm btn-secondary">Descargar</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:32px;text-align:center">
+        <p style="color:var(--text-tertiary);font-size:13px">No hay documentos</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══ FACTURAS E INGRESOS ═══ -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+    <!-- Facturas -->
+    <div class="table-card">
+        <div class="table-card-header">
+            <h3>Facturas</h3>
+            <span style="font-size:12px;color:var(--text-tertiary)">{{ "%.0f"|format(total_invoiced) }}&euro;</span>
+        </div>
+        {% if invoices %}
+        <table class="data-table">
+            <thead><tr><th>Numero</th><th>Total</th><th>Estado</th></tr></thead>
+            <tbody>
+                {% for i in invoices %}
+                <tr>
+                    <td><strong>{{ i.number }}</strong></td>
+                    <td>{{ "%.0f"|format(i.total) }}&euro;</td>
+                    <td><span class="badge badge-{{ i.status }}">{{ i.status }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state" style="padding:24px;text-align:center">
+            <p style="color:var(--text-tertiary);font-size:13px">Sin facturas</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Ingresos -->
+    <div class="table-card">
+        <div class="table-card-header">
+            <h3>Ingresos</h3>
+            <span style="font-size:12px;color:var(--text-tertiary)">{{ "%.0f"|format(total_income) }}&euro;</span>
+        </div>
+        {% if incomes %}
+        <table class="data-table">
+            <thead><tr><th>Nombre</th><th>Monto</th><th>Estado</th></tr></thead>
+            <tbody>
+                {% for i in incomes %}
+                <tr>
+                    <td><strong>{{ i.name }}</strong></td>
+                    <td>{{ "%.0f"|format(i.amount) }}&euro;</td>
+                    <td><span class="badge badge-{{ i.status }}">{{ i.status }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state" style="padding:24px;text-align:center">
+            <p style="color:var(--text-tertiary);font-size:13px">Sin ingresos</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
