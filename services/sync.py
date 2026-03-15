@@ -18,6 +18,7 @@ SYNC_TABLES = [
     "company_info",
     "tools",
     "projects",
+    "project_contacts",
     "payments",
     "incomes",
     "tasks",

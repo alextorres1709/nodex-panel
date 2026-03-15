@@ -1,5 +1,15 @@
 # Changelog
 
+## v3.1.0
+- Nueva pagina de detalle de proyecto con tareas, time tracking, documentos, facturas e ingresos
+- Proyectos: nombre clickable para acceder al detalle
+- KPIs en detalle de proyecto: tareas, horas, presupuesto, facturado/ingresado
+- Gestion de contactos por proyecto (nombre, rol, telefono, email)
+- Crear tareas directamente desde el detalle del proyecto
+- Seccion de propuestas (documentos con categoria "propuesta")
+- Seccion de ideas con votos, categorias y estados
+- Modelo ProjectContact para contactos asociados a proyectos
+
 ## v3.0.0
 - Todos los emojis reemplazados por iconos SVG en todo el panel
 - Eliminados atajos de teclado (solo queda Cmd+K y ESC)

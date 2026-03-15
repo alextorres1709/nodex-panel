@@ -53,11 +53,52 @@
     <div class="progress-bar" style="height:8px"><div class="progress-fill" style="width:{{ project.progress }}%;height:8px"></div></div>
 </div>
 
+<!-- ═══ CONTACTOS ═══ -->
+<div class="table-card" style="margin-bottom:24px">
+    <div class="table-card-header">
+        <h3>Contactos</h3>
+        <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--text-tertiary)">{{ contacts|length }} contactos</span>
+            <button class="btn btn-sm btn-primary" onclick="openModal('createContactModal')">+ Contacto</button>
+        </div>
+    </div>
+    {% if contacts %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Nombre</th><th>Rol</th><th>Telefono</th><th>Email</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for c in contacts %}
+            <tr>
+                <td><strong>{{ c.name }}</strong></td>
+                <td>{{ c.role or '—' }}</td>
+                <td>{% if c.phone %}<a href="tel:{{ c.phone }}" style="color:var(--accent)">{{ c.phone }}</a>{% else %}—{% endif %}</td>
+                <td>{% if c.email %}<a href="mailto:{{ c.email }}" style="color:var(--accent)">{{ c.email }}</a>{% else %}—{% endif %}</td>
+                <td style="text-align:right">
+                    <button class="btn btn-sm btn-secondary" onclick="editContact({{ c.id }}, '{{ c.name|e }}', '{{ c.role|e }}', '{{ c.phone|e }}', '{{ c.email|e }}', '{{ c.notes|e }}')">Editar</button>
+                    <form method="POST" action="{{ url_for('projects.delete_contact', pid=project.id, cid=c.id) }}" style="display:inline" onsubmit="return confirm('Eliminar contacto?')">
+                        <button type="submit" class="btn btn-sm btn-danger">X</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:32px;text-align:center">
+        <p style="color:var(--text-tertiary);font-size:13px">No hay contactos en este proyecto</p>
+    </div>
+    {% endif %}
+</div>
+
 <!-- ═══ TAREAS ═══ -->
 <div class="table-card" style="margin-bottom:24px">
     <div class="table-card-header">
         <h3>Tareas</h3>
-        <span style="font-size:12px;color:var(--text-tertiary)">{{ tasks|length }} total</span>
+        <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--text-tertiary)">{{ tasks|length }} total</span>
+            <button class="btn btn-sm btn-primary" onclick="openModal('createTaskModal')">+ Tarea</button>
+        </div>
     </div>
     {% if tasks %}
     <table class="data-table">
@@ -81,6 +122,79 @@
     {% else %}
     <div class="empty-state" style="padding:32px;text-align:center">
         <p style="color:var(--text-tertiary);font-size:13px">No hay tareas en este proyecto</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══ PROPUESTAS ═══ -->
+<div class="table-card" style="margin-bottom:24px">
+    <div class="table-card-header">
+        <h3>Propuestas</h3>
+        <span style="font-size:12px;color:var(--text-tertiary)">{{ proposals|length }} propuestas</span>
+    </div>
+    {% if proposals %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Nombre</th><th>Fecha</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for d in proposals %}
+            <tr>
+                <td><strong>{{ d.name }}</strong></td>
+                <td>{{ d.created_at.strftime('%d/%m/%Y') }}</td>
+                <td><a href="{{ url_for('documents.download', did=d.id) }}" class="btn btn-sm btn-secondary">Descargar</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:32px;text-align:center">
+        <p style="color:var(--text-tertiary);font-size:13px">No hay propuestas. Sube documentos con categoria "propuesta" desde Documentos.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══ IDEAS ═══ -->
+<div class="table-card" style="margin-bottom:24px">
+    <div class="table-card-header">
+        <h3>Ideas</h3>
+        <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--text-tertiary)">{{ ideas|length }} ideas</span>
+            <button class="btn btn-sm btn-primary" onclick="openModal('createIdeaModal')">+ Idea</button>
+        </div>
+    </div>
+    {% if ideas %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Idea</th><th>Categoria</th><th>Estado</th><th>Votos</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for idea in ideas %}
+            <tr>
+                <td>
+                    <strong>{{ idea.title }}</strong>
+                    {% if idea.description %}<br><span style="font-size:12px;color:var(--text-tertiary)">{{ idea.description[:80] }}{% if idea.description|length > 80 %}...{% endif %}</span>{% endif %}
+                </td>
+                <td><span class="badge">{{ idea.category }}</span></td>
+                <td><span class="badge badge-{{ idea.status }}">{{ idea.status }}</span></td>
+                <td>
+                    <form method="POST" action="{{ url_for('projects.vote_idea', pid=project.id, iid=idea.id) }}" style="display:inline">
+                        <button type="submit" class="btn btn-sm btn-secondary" style="font-size:12px">+1 ({{ idea.votes or 0 }})</button>
+                    </form>
+                </td>
+                <td style="text-align:right">
+                    <button class="btn btn-sm btn-secondary" onclick="editIdea({{ idea.id }}, '{{ idea.title|e }}', '{{ idea.description|e }}', '{{ idea.category }}', '{{ idea.status }}')">Editar</button>
+                    <form method="POST" action="{{ url_for('projects.delete_idea', pid=project.id, iid=idea.id) }}" style="display:inline" onsubmit="return confirm('Eliminar idea?')">
+                        <button type="submit" class="btn btn-sm btn-danger">X</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:32px;text-align:center">
+        <p style="color:var(--text-tertiary);font-size:13px">No hay ideas para este proyecto</p>
     </div>
     {% endif %}
 </div>
@@ -197,4 +311,149 @@
         {% endif %}
     </div>
 </div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- MODALS -->
+<!-- ═══════════════════════════════════════════ -->
+
+<!-- Create Contact Modal -->
+<div class="modal-overlay" id="createContactModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Nuevo contacto</h3><button class="modal-close" onclick="closeModal('createContactModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('projects.create_contact', pid=project.id) }}">
+            <div class="modal-body">
+                <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Rol / Cargo</label><input type="text" name="role" placeholder="CEO, Desarrollador..."></div>
+                    <div class="form-group"><label>Telefono</label><input type="tel" name="phone"></div>
+                </div>
+                <div class="form-group"><label>Email</label><input type="email" name="email"></div>
+                <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createContactModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Contact Modal -->
+<div class="modal-overlay" id="editContactModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Editar contacto</h3><button class="modal-close" onclick="closeModal('editContactModal')">&times;</button></div>
+        <form method="POST" id="editContactForm" action="">
+            <div class="modal-body">
+                <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Rol / Cargo</label><input type="text" name="role"></div>
+                    <div class="form-group"><label>Telefono</label><input type="tel" name="phone"></div>
+                </div>
+                <div class="form-group"><label>Email</label><input type="email" name="email"></div>
+                <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editContactModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Create Task Modal -->
+<div class="modal-overlay" id="createTaskModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Nueva tarea</h3><button class="modal-close" onclick="closeModal('createTaskModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('projects.create_task', pid=project.id) }}">
+            <div class="modal-body">
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Prioridad</label>
+                        <select name="priority">
+                            <option value="alta">Alta</option>
+                            <option value="media" selected>Media</option>
+                            <option value="baja">Baja</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Asignar a</label>
+                        <select name="assigned_to">
+                            <option value="">Sin asignar</option>
+                            {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Fecha limite</label><input type="date" name="due_date"></div>
+                    <div class="form-group"><label>Tiempo estimado (min)</label><input type="number" name="estimated_minutes" min="0" placeholder="60"></div>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createTaskModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Create Idea Modal -->
+<div class="modal-overlay" id="createIdeaModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Nueva idea</h3><button class="modal-close" onclick="closeModal('createIdeaModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('projects.create_idea', pid=project.id) }}">
+            <div class="modal-body">
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="3"></textarea></div>
+                <div class="form-group"><label>Categoria</label>
+                    <select name="category">
+                        <option value="feature">Feature</option>
+                        <option value="mejora">Mejora</option>
+                        <option value="proyecto">Proyecto</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createIdeaModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Idea Modal -->
+<div class="modal-overlay" id="editIdeaModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Editar idea</h3><button class="modal-close" onclick="closeModal('editIdeaModal')">&times;</button></div>
+        <form method="POST" id="editIdeaForm" action="">
+            <div class="modal-body">
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="3"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Categoria</label>
+                        <select name="category">
+                            <option value="feature">Feature</option>
+                            <option value="mejora">Mejora</option>
+                            <option value="proyecto">Proyecto</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Estado</label>
+                        <select name="status">
+                            <option value="nueva">Nueva</option>
+                            <option value="evaluando">Evaluando</option>
+                            <option value="aprobada">Aprobada</option>
+                            <option value="descartada">Descartada</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editIdeaModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editContact(id, name, role, phone, email, notes) {
+    document.getElementById('editContactForm').action = '/proyectos/{{ project.id }}/contacts/edit/' + id;
+    populateEditModal({name, role, phone, email, notes}, 'editContactForm');
+    openModal('editContactModal');
+}
+
+function editIdea(id, title, description, category, status) {
+    document.getElementById('editIdeaForm').action = '/proyectos/{{ project.id }}/ideas/edit/' + id;
+    populateEditModal({title, description, category, status}, 'editIdeaForm');
+    openModal('editIdeaModal');
+}
+</script>
 {% endblock %}

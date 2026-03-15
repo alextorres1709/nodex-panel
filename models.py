@@ -69,6 +69,20 @@ class Project(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class ProjectContact(db.Model):
+    __tablename__ = "project_contacts"
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    role = db.Column(db.String(100), default="")
+    phone = db.Column(db.String(50), default="")
+    email = db.Column(db.String(200), default="")
+    notes = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    project = db.relationship("Project", foreign_keys=[project_id])
+
+
 class Tool(db.Model):
     __tablename__ = "tools"
     id = db.Column(db.Integer, primary_key=True)
