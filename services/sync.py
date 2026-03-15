@@ -65,8 +65,42 @@ class SyncManager:
         # Frontend polls this to detect changes and refresh UI
         self.sync_version = 0
 
+    def ensure_remote_tables(self):
+        """Create missing tables on remote PostgreSQL based on local SQLite schema."""
+        try:
+            local_meta = sa.MetaData()
+            local_meta.reflect(bind=self.local_engine)
+            remote_meta = sa.MetaData()
+            remote_meta.reflect(bind=self.remote_engine)
+
+            for table_name in SYNC_TABLES:
+                if table_name in local_meta.tables and table_name not in remote_meta.tables:
+                    local_table = local_meta.tables[table_name]
+                    # Recreate table definition for remote engine (PostgreSQL)
+                    cols = []
+                    for col in local_table.columns:
+                        # Map SQLite types to PostgreSQL-compatible types
+                        col_type = col.type
+                        if isinstance(col_type, sa.types.NullType):
+                            col_type = sa.Text()
+                        new_col = sa.Column(
+                            col.name, col_type,
+                            primary_key=col.primary_key,
+                            nullable=col.nullable,
+                        )
+                        cols.append(new_col)
+                    new_table = sa.Table(table_name, sa.MetaData(), *cols)
+                    new_table.create(bind=self.remote_engine)
+                    log.info(f"Created remote table: {table_name}")
+
+            # Invalidate metadata cache after creating tables
+            self._meta_cache_time = 0
+        except Exception as e:
+            log.warning(f"Failed to ensure remote tables: {e}")
+
     def start(self):
         """Start the background sync thread."""
+        self.ensure_remote_tables()
         self._thread = threading.Thread(target=self._loop, daemon=True, name="sync")
         self._thread.start()
 
