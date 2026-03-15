@@ -2,7 +2,7 @@
 
 ## v3.0.0
 - Todos los emojis reemplazados por iconos SVG en todo el panel
-- Eliminados atajos de teclado (solo queda ⌘K y ESC)
+- Eliminados atajos de teclado (solo queda Cmd+K y ESC)
 - Eliminado grafico de Ingresos vs Gastos del dashboard
 - Añadida explicacion al heatmap de actividad de 12 semanas
 - Eliminadas plantillas de tareas (Web, Landing, Bot)
@@ -10,6 +10,10 @@
 - Nueva vista de equipo en Time Tracking (horas semana/mes por usuario)
 - Columna de usuario añadida a la tabla de registros de tiempo
 - Opcion "General" en selector de proyecto del Time Tracking
+- Cowork/Mensajes eliminado de la navegacion
+- Tareas: tarjetas kanban y vista lista mas grandes y legibles
+- Proyectos: vista de tarjetas centradas en grid responsive (antes tabla)
+- Nueva pagina de detalle de proyecto con tareas, time tracking, documentos, facturas e ingresos
 
 ## v2.3.0
 - Release intermedia
