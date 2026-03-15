@@ -20,6 +20,7 @@ def _auto_migrate(app):
         ("users", "api_token", "VARCHAR(64)"),
         ("tasks", "estimated_minutes", "INTEGER DEFAULT 0"),
         ("tasks", "kanban_order", "INTEGER DEFAULT 0"),
+        ("tasks", "company_id", "INTEGER"),
     ]
 
     for table, column, col_type in migrations:
