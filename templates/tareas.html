@@ -80,8 +80,7 @@
                 {% endif %}
                 <div class="kanban-card-footer">
                     <div class="kanban-card-meta">
-                        {% if t.assignee %}<span class="kanban-avatar" title="{{ t.assignee.name }}">{{
-                            t.assignee.name[:2]|upper }}</span>{% endif %}
+                        {% for u in t.assignees %}<span class="kanban-avatar" title="{{ u.name }}">{{ u.name[:2]|upper }}</span>{% endfor %}
                         {% if t.project %}<span class="kanban-project">{{ t.project.name }}</span>{% endif %}
                     </div>
                     {% if t.due_date %}<span class="kanban-due {{ 'overdue' if t.due_date < today }}">{{
@@ -89,7 +88,7 @@
                 </div>
                 <div class="kanban-card-actions">
                     <button class="btn btn-sm btn-secondary"
-                        onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, '{{ t.assigned_to or '' }}', '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
+                        onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
                     <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline"
                         onsubmit="return confirm('Eliminar?')">
                         <button type="submit" class="btn btn-sm btn-danger">X</button>
@@ -125,7 +124,7 @@
             <div class="task-meta">
                 <span class="badge badge-{{ t.priority }}">{{ t.priority }}</span>
                 <span class="badge badge-{{ t.status }}">{{ t.status|replace('_',' ') }}</span>
-                {% if t.assignee %}<span>{{ t.assignee.name }}</span>{% endif %}
+                {% for u in t.assignees %}<span>{{ u.name }}</span>{% endfor %}
                 {% if t.project %}<span>{{ t.project.name }}</span>{% endif %}
                 {% if t.due_date %}<span>{{ t.due_date.strftime('%d/%m/%Y') }}</span>{% endif %}
                 {% if t.estimated_minutes %}<span>{{ t.estimated_minutes }}min</span>{% endif %}
@@ -134,7 +133,7 @@
         </div>
         <div class="task-actions">
             <button class="btn btn-sm btn-secondary"
-                onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, '{{ t.assigned_to or '' }}', '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}')">Editar</button>
+                onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
             <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline"
                 onsubmit="return confirm('Eliminar?')">
                 <button type="submit" class="btn btn-sm btn-danger">X</button>
@@ -167,10 +166,9 @@
                             <option value="media" selected>Media</option>
                             <option value="baja">Baja</option>
                         </select></div>
-                    <div class="form-group"><label>Asignar a</label><select name="assigned_to">
-                            <option value="">Sin asignar</option>{% for u in users %}<option value="{{ u.id }}">{{
-                                u.name }}</option>{% endfor %}
-                        </select></div>
+                    <div class="form-group"><label>Asignar a</label><select name="assigned_to" multiple style="min-height:60px">
+                            {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+                        </select><span style="font-size:11px;color:var(--text-tertiary)">Ctrl/Cmd+clic para varios</span></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>Fecha limite</label><input type="date" name="due_date"></div>
@@ -226,10 +224,9 @@
                         </select></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Asignar a</label><select name="assigned_to">
-                            <option value="">Sin asignar</option>{% for u in users %}<option value="{{ u.id }}">{{
-                                u.name }}</option>{% endfor %}
-                        </select></div>
+                    <div class="form-group"><label>Asignar a</label><select name="assigned_to" multiple style="min-height:60px">
+                            {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+                        </select><span style="font-size:11px;color:var(--text-tertiary)">Ctrl/Cmd+clic para varios</span></div>
                     <div class="form-group"><label>Fecha limite</label><input type="date" name="due_date"></div>
                 </div>
                 <div class="form-row">
@@ -258,18 +255,22 @@
 <script>
     var today = new Date().toISOString().split('T')[0];
 
-    function editTask(id, title, description, assigned_to, priority, status, due_date, project_id, estimated_minutes, recurrence) {
+    function editTask(id, title, description, assignedIds, priority, status, due_date, project_id, estimated_minutes, recurrence) {
         document.getElementById('editForm').action = '/tareas/edit/' + id;
         var f = document.getElementById('editForm');
         f.querySelector('[name=title]').value = title;
         f.querySelector('[name=description]').value = description;
-        f.querySelector('[name=assigned_to]').value = assigned_to;
         f.querySelector('[name=priority]').value = priority;
         f.querySelector('[name=status]').value = status;
         f.querySelector('[name=due_date]').value = due_date;
         f.querySelector('[name=project_id]').value = project_id;
         f.querySelector('[name=estimated_minutes]').value = estimated_minutes;
         f.querySelector('[name=recurrence]').value = recurrence || 'ninguna';
+        // Multi-select assignees
+        var sel = f.querySelector('[name=assigned_to]');
+        Array.from(sel.options).forEach(function(opt) {
+            opt.selected = assignedIds.indexOf(parseInt(opt.value)) !== -1;
+        });
         openModal('editModal');
     }
 

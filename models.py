@@ -126,7 +126,7 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(300), nullable=False)
     description = db.Column(db.Text, default="")
-    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)  # legacy, kept for compat
     priority = db.Column(db.String(10), default="media")  # alta, media, baja
     status = db.Column(db.String(20), default="pendiente")  # pendiente, en_progreso, completada
     due_date = db.Column(db.Date, nullable=True)
@@ -138,8 +138,17 @@ class Task(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     assignee = db.relationship("User", foreign_keys=[assigned_to])
+    assignees = db.relationship("User", secondary="task_assignments", backref="assigned_tasks")
     project = db.relationship("Project", foreign_keys=[project_id])
     company = db.relationship("Company", foreign_keys=[company_id])
+
+
+class TaskAssignment(db.Model):
+    __tablename__ = "task_assignments"
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Idea(db.Model):

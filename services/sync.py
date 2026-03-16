@@ -24,6 +24,7 @@ SYNC_TABLES = [
     "payments",
     "incomes",
     "tasks",
+    "task_assignments",
     "subtasks",
     "ideas",
     "credentials",

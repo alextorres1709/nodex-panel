@@ -37,6 +37,17 @@ def _auto_migrate(app):
     conn.close()
 
 
+def _migrate_task_assignments():
+    """One-time: copy legacy assigned_to into task_assignments table."""
+    from models import Task, TaskAssignment
+    tasks_with_assignee = Task.query.filter(Task.assigned_to.isnot(None)).all()
+    for t in tasks_with_assignee:
+        existing = TaskAssignment.query.filter_by(task_id=t.id, user_id=t.assigned_to).first()
+        if not existing:
+            db.session.add(TaskAssignment(task_id=t.id, user_id=t.assigned_to))
+    db.session.commit()
+
+
 def create_app():
     app = Flask(
         __name__,
@@ -53,6 +64,9 @@ def create_app():
 
         # Auto-migrate: add missing columns to existing tables
         _auto_migrate(app)
+
+        # Migrate legacy assigned_to → task_assignments (one-time)
+        _migrate_task_assignments()
 
         # Start background sync from Railway PostgreSQL
         from services.sync import SyncManager, sync_manager

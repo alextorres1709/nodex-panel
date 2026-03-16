@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from sqlalchemy.orm import joinedload
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from models import db, Task, Subtask, User, Project
+from models import db, Task, TaskAssignment, Subtask, User, Project
 from routes.auth import login_required
 from services.activity import log_activity
 
@@ -16,13 +16,13 @@ def index():
     priority = request.args.get("priority", "")
     assigned = request.args.get("assigned_to", "")
 
-    q = Task.query.options(joinedload(Task.assignee), joinedload(Task.project))
+    q = Task.query.options(joinedload(Task.assignees), joinedload(Task.project))
     if status:
         q = q.filter_by(status=status)
     if priority:
         q = q.filter_by(priority=priority)
     if assigned:
-        q = q.filter_by(assigned_to=int(assigned))
+        q = q.filter(Task.assignees.any(User.id == int(assigned)))
     tasks = q.order_by(Task.kanban_order.asc(), Task.due_date.asc().nullslast(), Task.created_at.desc()).all()
 
     # Group by status for Kanban
@@ -45,13 +45,12 @@ def index():
 def create():
     try:
         dd = request.form.get("due_date", "").strip()
-        at = request.form.get("assigned_to", "").strip()
         pid = request.form.get("project_id", "").strip()
         em = request.form.get("estimated_minutes", "").strip()
+        assigned_ids = request.form.getlist("assigned_to")
         t = Task(
             title=request.form.get("title", "").strip(),
             description=request.form.get("description", "").strip(),
-            assigned_to=int(at) if at else None,
             priority=request.form.get("priority", "media"),
             status=request.form.get("status", "pendiente"),
             due_date=datetime.strptime(dd, "%Y-%m-%d").date() if dd else None,
@@ -61,6 +60,13 @@ def create():
         )
         db.session.add(t)
         db.session.flush()
+
+        # Assignees (multi)
+        for uid in assigned_ids:
+            uid = uid.strip()
+            if uid:
+                ta = TaskAssignment(task_id=t.id, user_id=int(uid))
+                db.session.add(ta)
 
         # Subtasks
         sub_titles = request.form.getlist("subtask_title")
@@ -73,6 +79,8 @@ def create():
         db.session.commit()
         from services.sync import push_change
         push_change("tasks", t.id)
+        for ta in TaskAssignment.query.filter_by(task_id=t.id).all():
+            push_change("task_assignments", ta.id)
         for st in Subtask.query.filter_by(task_id=t.id).all():
             push_change("subtasks", st.id)
         flash("Tarea creada", "success")
@@ -92,8 +100,6 @@ def edit(tid):
     try:
         t.title = request.form.get("title", t.title).strip()
         t.description = request.form.get("description", "").strip()
-        at = request.form.get("assigned_to", "").strip()
-        t.assigned_to = int(at) if at else None
         t.priority = request.form.get("priority", t.priority)
         t.status = request.form.get("status", t.status)
         dd = request.form.get("due_date", "").strip()
@@ -103,10 +109,21 @@ def edit(tid):
         em = request.form.get("estimated_minutes", "").strip()
         t.estimated_minutes = int(em) if em else 0
         t.recurrence = request.form.get("recurrence", t.recurrence or "ninguna")
+
+        # Update assignees (replace all)
+        assigned_ids = request.form.getlist("assigned_to")
+        TaskAssignment.query.filter_by(task_id=t.id).delete()
+        for uid in assigned_ids:
+            uid = uid.strip()
+            if uid:
+                db.session.add(TaskAssignment(task_id=t.id, user_id=int(uid)))
+
         log_activity("update", "task", t.id, f"Editada: {t.title}")
         db.session.commit()
         from services.sync import push_change
         push_change("tasks", t.id)
+        for ta in TaskAssignment.query.filter_by(task_id=t.id).all():
+            push_change("task_assignments", ta.id)
         flash("Tarea actualizada", "success")
     except Exception as e:
         db.session.rollback()

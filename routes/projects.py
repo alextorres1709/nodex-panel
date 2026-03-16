@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, g
 from sqlalchemy.orm import joinedload
-from models import db, Project, ProjectContact, Task, Subtask, TimeEntry, Document, Invoice, Income, Idea, User, Client
+from models import db, Project, ProjectContact, Task, TaskAssignment, Subtask, TimeEntry, Document, Invoice, Income, Idea, User, Client
 from routes.auth import login_required
 from services.activity import log_activity
 
@@ -233,12 +233,11 @@ def create_task(pid):
         abort(404)
     try:
         dd = request.form.get("due_date", "").strip()
-        at = request.form.get("assigned_to", "").strip()
+        assigned_ids = request.form.getlist("assigned_to")
         em = request.form.get("estimated_minutes", "").strip()
         t = Task(
             title=request.form.get("title", "").strip(),
             description=request.form.get("description", "").strip(),
-            assigned_to=int(at) if at else None,
             priority=request.form.get("priority", "media"),
             status="pendiente",
             due_date=datetime.strptime(dd, "%Y-%m-%d").date() if dd else None,
@@ -247,10 +246,16 @@ def create_task(pid):
         )
         db.session.add(t)
         db.session.flush()
+        for uid in assigned_ids:
+            uid = uid.strip()
+            if uid:
+                db.session.add(TaskAssignment(task_id=t.id, user_id=int(uid)))
         log_activity("create", "task", details=f"Nueva tarea: {t.title}")
         db.session.commit()
         from services.sync import push_change
         push_change("tasks", t.id)
+        for ta in TaskAssignment.query.filter_by(task_id=t.id).all():
+            push_change("task_assignments", ta.id)
         flash("Tarea creada", "success")
     except Exception as e:
         db.session.rollback()
