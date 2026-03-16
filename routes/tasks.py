@@ -57,6 +57,7 @@ def create():
             due_date=datetime.strptime(dd, "%Y-%m-%d").date() if dd else None,
             project_id=int(pid) if pid else None,
             estimated_minutes=int(em) if em else 0,
+            recurrence=request.form.get("recurrence", "ninguna"),
         )
         db.session.add(t)
         db.session.flush()
@@ -101,6 +102,7 @@ def edit(tid):
         t.project_id = int(pid) if pid else None
         em = request.form.get("estimated_minutes", "").strip()
         t.estimated_minutes = int(em) if em else 0
+        t.recurrence = request.form.get("recurrence", t.recurrence or "ninguna")
         log_activity("update", "task", t.id, f"Editada: {t.title}")
         db.session.commit()
         from services.sync import push_change

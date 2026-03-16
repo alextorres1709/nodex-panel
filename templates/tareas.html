@@ -14,6 +14,7 @@
         <a href="{{ url_for('tasks.index', view='list') }}"
             class="btn btn-sm {{ 'btn-primary' if view=='list' else 'btn-secondary' }}">Lista</a>
         <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva tarea</button>
+    </div>
 </div>
 
 <form class="filter-bar" method="GET">
@@ -57,8 +58,10 @@
             <div class="kanban-card" draggable="true" data-task-id="{{ t.id }}">
                 <div class="kanban-card-header">
                     <span class="badge badge-{{ t.priority }}">{{ t.priority }}</span>
-                    {% if t.estimated_minutes %}<span class="kanban-estimate">{{ t.estimated_minutes }}min</span>{%
-                    endif %}
+                    <div style="display:flex;gap:4px;align-items:center">
+                        {% if t.recurrence and t.recurrence != 'ninguna' %}<span class="badge" style="background:rgba(59,130,246,0.1);color:#3b82f6;font-size:10px">{{ t.recurrence }}</span>{% endif %}
+                        {% if t.estimated_minutes %}<span class="kanban-estimate">{{ t.estimated_minutes }}min</span>{% endif %}
+                    </div>
                 </div>
                 <div class="kanban-card-title">{{ t.title }}</div>
                 {% if t.description %}<div class="kanban-card-desc">{{ t.description[:80] }}{% if t.description|length >
@@ -86,7 +89,7 @@
                 </div>
                 <div class="kanban-card-actions">
                     <button class="btn btn-sm btn-secondary"
-                        onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, '{{ t.assigned_to or '' }}', '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}')">Editar</button>
+                        onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, '{{ t.assigned_to or '' }}', '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
                     <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline"
                         onsubmit="return confirm('Eliminar?')">
                         <button type="submit" class="btn btn-sm btn-danger">X</button>
@@ -126,6 +129,7 @@
                 {% if t.project %}<span>{{ t.project.name }}</span>{% endif %}
                 {% if t.due_date %}<span>{{ t.due_date.strftime('%d/%m/%Y') }}</span>{% endif %}
                 {% if t.estimated_minutes %}<span>{{ t.estimated_minutes }}min</span>{% endif %}
+                {% if t.recurrence and t.recurrence != 'ninguna' %}<span class="badge" style="background:rgba(59,130,246,0.1);color:#3b82f6;font-size:10px">{{ t.recurrence }}</span>{% endif %}
             </div>
         </div>
         <div class="task-actions">
@@ -173,10 +177,17 @@
                     <div class="form-group"><label>Tiempo estimado (min)</label><input type="number"
                             name="estimated_minutes" min="0" placeholder="60"></div>
                 </div>
-                <div class="form-group"><label>Proyecto</label><select name="project_id">
-                        <option value="">Ninguno</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}
-                        </option>{% endfor %}
-                    </select></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Proyecto</label><select name="project_id">
+                            <option value="">Ninguno</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}
+                            </option>{% endfor %}
+                        </select></div>
+                    <div class="form-group"><label>Recurrencia</label><select name="recurrence">
+                            <option value="ninguna" selected>Ninguna</option>
+                            <option value="semanal">Semanal</option>
+                            <option value="anual">Anual</option>
+                        </select></div>
+                </div>
                 <div class="form-group">
                     <label>Subtareas</label>
                     <div id="subtaskList"></div>
@@ -229,6 +240,11 @@
                     <div class="form-group"><label>Tiempo estimado (min)</label><input type="number"
                             name="estimated_minutes" min="0"></div>
                 </div>
+                <div class="form-group"><label>Recurrencia</label><select name="recurrence">
+                        <option value="ninguna">Ninguna</option>
+                        <option value="semanal">Semanal</option>
+                        <option value="anual">Anual</option>
+                    </select></div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary"
                     onclick="closeModal('editModal')">Cancelar</button><button type="submit"
@@ -242,7 +258,7 @@
 <script>
     var today = new Date().toISOString().split('T')[0];
 
-    function editTask(id, title, description, assigned_to, priority, status, due_date, project_id, estimated_minutes) {
+    function editTask(id, title, description, assigned_to, priority, status, due_date, project_id, estimated_minutes, recurrence) {
         document.getElementById('editForm').action = '/tareas/edit/' + id;
         var f = document.getElementById('editForm');
         f.querySelector('[name=title]').value = title;
@@ -253,6 +269,7 @@
         f.querySelector('[name=due_date]').value = due_date;
         f.querySelector('[name=project_id]').value = project_id;
         f.querySelector('[name=estimated_minutes]').value = estimated_minutes;
+        f.querySelector('[name=recurrence]').value = recurrence || 'ninguna';
         openModal('editModal');
     }
 

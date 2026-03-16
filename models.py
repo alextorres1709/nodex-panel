@@ -134,6 +134,7 @@ class Task(db.Model):
     company_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=True)
     estimated_minutes = db.Column(db.Integer, default=0)  # tiempo estimado
     kanban_order = db.Column(db.Integer, default=0)  # orden en columna kanban
+    recurrence = db.Column(db.String(20), default="ninguna")  # ninguna, semanal, anual
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     assignee = db.relationship("User", foreign_keys=[assigned_to])
