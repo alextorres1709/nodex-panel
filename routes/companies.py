@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, g
 from sqlalchemy.orm import joinedload
-from models import db, Company, CompanyContact, Task, User
+from models import db, Company, CompanyContact, Task, User, Idea
 from routes.auth import login_required
 from services.activity import log_activity
 
@@ -42,11 +42,12 @@ def view(cid):
         "en_progreso": sum(1 for t in tasks if t.status == "en_progreso"),
         "completada": sum(1 for t in tasks if t.status == "completada"),
     }
+    ideas = Idea.query.filter_by(company_id=cid).order_by(Idea.votes.desc(), Idea.created_at.desc()).all()
     users = User.query.filter_by(active=True).all()
 
     return render_template("empresa_detail.html", company=company,
                            contacts=contacts, tasks=tasks,
-                           task_counts=task_counts, users=users)
+                           task_counts=task_counts, ideas=ideas, users=users)
 
 
 @companies_bp.route("/empresas/create", methods=["POST"])
@@ -57,7 +58,8 @@ def create():
             name=request.form.get("name", "").strip(),
             industry=request.form.get("industry", "").strip(),
             website=request.form.get("website", "").strip(),
-            status=request.form.get("status", "escrito"),
+            status=request.form.get("status", "por_escribir"),
+            interest=request.form.get("interest", "").strip(),
             notes=request.form.get("notes", "").strip(),
         )
         db.session.add(c)
@@ -84,6 +86,7 @@ def edit(cid):
         c.industry = request.form.get("industry", "").strip()
         c.website = request.form.get("website", "").strip()
         c.status = request.form.get("status", c.status)
+        c.interest = request.form.get("interest", "").strip()
         c.notes = request.form.get("notes", "").strip()
         log_activity("update", "company", c.id, f"Editada: {c.name}")
         db.session.commit()
@@ -222,3 +225,77 @@ def update_status(cid):
         from services.sync import push_change
         push_change("companies", c.id)
     return redirect(url_for("companies.index"))
+
+
+# ═══════════════════════════════════════════
+# IDEAS CRUD
+# ═══════════════════════════════════════════
+
+@companies_bp.route("/empresas/<int:cid>/ideas/create", methods=["POST"])
+@login_required
+def create_idea(cid):
+    company = db.session.get(Company, cid)
+    if not company:
+        abort(404)
+    try:
+        idea = Idea(
+            title=request.form.get("title", "").strip(),
+            description=request.form.get("description", "").strip(),
+            category=request.form.get("category", "feature"),
+            status="nueva",
+            company_id=cid,
+            created_by=g.user.id if g.get("user") else None,
+        )
+        db.session.add(idea)
+        db.session.commit()
+        from services.sync import push_change
+        push_change("ideas", idea.id)
+        flash("Idea creada", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {e}", "error")
+    return redirect(url_for("companies.view", cid=cid))
+
+
+@companies_bp.route("/empresas/<int:cid>/ideas/edit/<int:iid>", methods=["POST"])
+@login_required
+def edit_idea(cid, iid):
+    idea = db.session.get(Idea, iid)
+    if not idea or idea.company_id != cid:
+        abort(404)
+    try:
+        idea.title = request.form.get("title", idea.title).strip()
+        idea.description = request.form.get("description", "").strip()
+        idea.category = request.form.get("category", idea.category)
+        idea.status = request.form.get("status", idea.status)
+        db.session.commit()
+        from services.sync import push_change
+        push_change("ideas", idea.id)
+        flash("Idea actualizada", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {e}", "error")
+    return redirect(url_for("companies.view", cid=cid))
+
+
+@companies_bp.route("/empresas/<int:cid>/ideas/delete/<int:iid>", methods=["POST"])
+@login_required
+def delete_idea(cid, iid):
+    idea = db.session.get(Idea, iid)
+    if idea and idea.company_id == cid:
+        db.session.delete(idea)
+        db.session.commit()
+        flash("Idea eliminada", "success")
+    return redirect(url_for("companies.view", cid=cid))
+
+
+@companies_bp.route("/empresas/<int:cid>/ideas/vote/<int:iid>", methods=["POST"])
+@login_required
+def vote_idea(cid, iid):
+    idea = db.session.get(Idea, iid)
+    if idea and idea.company_id == cid:
+        idea.votes = (idea.votes or 0) + 1
+        db.session.commit()
+        from services.sync import push_change
+        push_change("ideas", idea.id)
+    return redirect(url_for("companies.view", cid=cid))

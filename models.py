@@ -76,6 +76,7 @@ class Company(db.Model):
     industry = db.Column(db.String(100), default="")
     website = db.Column(db.String(300), default="")
     status = db.Column(db.String(30), default="por_escribir")  # por_escribir, contactada, en_espera, han_contestado, no_responden, en_negociacion, cerrada
+    interest = db.Column(db.String(300), default="")  # nivel / area de interes de la empresa
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -149,11 +150,13 @@ class Idea(db.Model):
     status = db.Column(db.String(20), default="nueva")  # nueva, evaluando, aprobada, descartada
     votes = db.Column(db.Integer, default=0)
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     author = db.relationship("User", foreign_keys=[created_by])
     project = db.relationship("Project", foreign_keys=[project_id])
+    company = db.relationship("Company", foreign_keys=[company_id])
 
 
 class Income(db.Model):

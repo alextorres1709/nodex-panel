@@ -30,7 +30,21 @@
         <div class="kpi-label">Estado</div>
         <div class="kpi-value" style="font-size:18px">{{ status_labels.get(company.status, company.status|replace('_',' ')) }}</div>
     </div>
+    <div class="kpi-card accent-yellow">
+        <div class="kpi-label">Ideas</div>
+        <div class="kpi-value">{{ ideas|length }}</div>
+    </div>
 </div>
+
+{% if company.interest %}
+<div class="table-card" style="margin-bottom:24px;padding:20px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <strong style="font-size:13px;color:var(--text-secondary)">Interes</strong>
+    </div>
+    <p style="color:var(--text-secondary);font-size:13px;line-height:1.6">{{ company.interest }}</p>
+</div>
+{% endif %}
 
 {% if company.notes %}
 <div class="table-card" style="margin-bottom:24px;padding:20px">
@@ -111,6 +125,51 @@
     {% endif %}
 </div>
 
+<!-- ═══ IDEAS ═══ -->
+<div class="table-card" style="margin-bottom:24px">
+    <div class="table-card-header">
+        <h3>Ideas</h3>
+        <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--text-tertiary)">{{ ideas|length }} ideas</span>
+            <button class="btn btn-sm btn-primary" onclick="openModal('createIdeaModal')">+ Idea</button>
+        </div>
+    </div>
+    {% if ideas %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Idea</th><th>Categoria</th><th>Estado</th><th>Votos</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for idea in ideas %}
+            <tr>
+                <td>
+                    <strong>{{ idea.title }}</strong>
+                    {% if idea.description %}<div style="font-size:12px;color:var(--text-tertiary);margin-top:2px">{{ idea.description[:80] }}{% if idea.description|length > 80 %}...{% endif %}</div>{% endif %}
+                </td>
+                <td><span class="badge">{{ idea.category }}</span></td>
+                <td><span class="badge badge-{{ idea.status }}">{{ idea.status|replace('_',' ') }}</span></td>
+                <td>
+                    <form method="POST" action="{{ url_for('companies.vote_idea', cid=company.id, iid=idea.id) }}" style="display:inline">
+                        <button type="submit" class="btn btn-sm btn-secondary" style="min-width:auto;padding:2px 8px">{{ idea.votes or 0 }} +1</button>
+                    </form>
+                </td>
+                <td style="text-align:right">
+                    <button class="btn btn-sm btn-secondary" onclick="editIdea({{ idea.id }}, '{{ idea.title|e }}', '{{ idea.description|e }}', '{{ idea.category }}', '{{ idea.status }}')">Editar</button>
+                    <form method="POST" action="{{ url_for('companies.delete_idea', cid=company.id, iid=idea.id) }}" style="display:inline" onsubmit="return confirm('Eliminar idea?')">
+                        <button type="submit" class="btn btn-sm btn-danger">X</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:32px;text-align:center">
+        <p style="color:var(--text-tertiary);font-size:13px">No hay ideas para esta empresa</p>
+    </div>
+    {% endif %}
+</div>
+
 <!-- ═══════════════════════════════════════════ -->
 <!-- MODALS -->
 <!-- ═══════════════════════════════════════════ -->
@@ -185,6 +244,59 @@
         </form>
     </div>
 </div>
+<!-- Create Idea Modal -->
+<div class="modal-overlay" id="createIdeaModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Nueva idea</h3><button class="modal-close" onclick="closeModal('createIdeaModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('companies.create_idea', cid=company.id) }}">
+            <div class="modal-body">
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required placeholder="Que se les podria ofrecer..."></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="3" placeholder="Detalle de la idea, servicio o proyecto..."></textarea></div>
+                <div class="form-group"><label>Categoria</label>
+                    <select name="category">
+                        <option value="feature">Servicio</option>
+                        <option value="proyecto">Proyecto</option>
+                        <option value="mejora">Mejora</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createIdeaModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Idea Modal -->
+<div class="modal-overlay" id="editIdeaModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Editar idea</h3><button class="modal-close" onclick="closeModal('editIdeaModal')">&times;</button></div>
+        <form method="POST" id="editIdeaForm" action="">
+            <div class="modal-body">
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="3"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Categoria</label>
+                        <select name="category">
+                            <option value="feature">Servicio</option>
+                            <option value="proyecto">Proyecto</option>
+                            <option value="mejora">Mejora</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Estado</label>
+                        <select name="status">
+                            <option value="nueva">Nueva</option>
+                            <option value="evaluando">Evaluando</option>
+                            <option value="aprobada">Aprobada</option>
+                            <option value="descartada">Descartada</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editIdeaModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -193,6 +305,11 @@ function editContact(id, name, role, phone, email, notes) {
     document.getElementById('editContactForm').action = '/empresas/{{ company.id }}/contacts/edit/' + id;
     populateEditModal({name, role, phone, email, notes}, 'editContactForm');
     openModal('editContactModal');
+}
+function editIdea(id, title, description, category, status) {
+    document.getElementById('editIdeaForm').action = '/empresas/{{ company.id }}/ideas/edit/' + id;
+    populateEditModal({title, description, category, status}, 'editIdeaForm');
+    openModal('editIdeaModal');
 }
 </script>
 {% endblock %}

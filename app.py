@@ -21,6 +21,8 @@ def _auto_migrate(app):
         ("tasks", "estimated_minutes", "INTEGER DEFAULT 0"),
         ("tasks", "kanban_order", "INTEGER DEFAULT 0"),
         ("tasks", "company_id", "INTEGER"),
+        ("ideas", "company_id", "INTEGER"),
+        ("companies", "interest", "VARCHAR(300) DEFAULT ''"),
     ]
 
     for table, column, col_type in migrations:

@@ -59,6 +59,12 @@
                 <span class="project-meta-label">Contactos</span>
                 <span>{{ contact_counts.get(c.id, 0) }}</span>
             </div>
+            {% if c.interest %}
+            <div class="project-meta-row">
+                <span class="project-meta-label">Interes</span>
+                <span>{{ c.interest[:40] }}{% if c.interest|length > 40 %}...{% endif %}</span>
+            </div>
+            {% endif %}
             {% if c.notes %}
             <div style="margin-top:10px">
                 <span style="font-size:12px;color:var(--text-tertiary)">{{ c.notes[:60] }}{% if c.notes|length > 60 %}...{% endif %}</span>
@@ -66,7 +72,7 @@
             {% endif %}
         </div>
         <div class="project-card-footer">
-            <button class="btn btn-sm btn-secondary" onclick="editCompany({{ c.id }}, '{{ c.name|e }}', '{{ c.industry|e }}', '{{ c.website|e }}', '{{ c.status }}', '{{ c.notes|e }}')">Editar</button>
+            <button class="btn btn-sm btn-secondary" onclick="editCompany({{ c.id }}, '{{ c.name|e }}', '{{ c.industry|e }}', '{{ c.website|e }}', '{{ c.status }}', '{{ c.interest|e }}', '{{ c.notes|e }}')">Editar</button>
             <form method="POST" action="{{ url_for('companies.delete', cid=c.id) }}" style="display:inline" onsubmit="return confirm('Eliminar empresa?')">
                 <button type="submit" class="btn btn-sm btn-danger">X</button>
             </form>
@@ -102,6 +108,7 @@
                         <option value="cerrada">Cerrada</option>
                     </select>
                 </div>
+                <div class="form-group"><label>Interes</label><input type="text" name="interest" placeholder="Que les podria interesar..."></div>
                 <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
@@ -131,6 +138,7 @@
                         <option value="cerrada">Cerrada</option>
                     </select>
                 </div>
+                <div class="form-group"><label>Interes</label><input type="text" name="interest"></div>
                 <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
@@ -141,9 +149,9 @@
 
 {% block scripts %}
 <script>
-function editCompany(id, name, industry, website, status, notes) {
+function editCompany(id, name, industry, website, status, interest, notes) {
     document.getElementById('editForm').action = '/empresas/edit/' + id;
-    populateEditModal({name, industry, website, status, notes}, 'editForm');
+    populateEditModal({name, industry, website, status, interest, notes}, 'editForm');
     openModal('editModal');
 }
 </script>
