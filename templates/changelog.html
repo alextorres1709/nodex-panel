@@ -13,15 +13,29 @@
 <div class="info-card" style="margin-bottom: 24px; max-width: 800px;">
     <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <h2 style="margin:0; color: var(--brand-primary);">v{{ config.APP_VERSION }}</h2>
-        <span class="badge badge-activo" style="font-size: 13px;">Versión Actual</span>
+        <span class="badge badge-activo" style="font-size: 13px;">Version Actual</span>
     </div>
     <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
-        <li><strong style="color: var(--text-primary);">⌘K COMMAND PALETTE:</strong> Busca cualquier pagina, tarea, proyecto o cliente al instante con ⌘K / Ctrl+K.</li>
+        <li><strong style="color: var(--text-primary);">FIX DEFINITIVO PERDIDA DE DATOS:</strong> Sync reescrito con estrategia MERGE (UPSERT) en vez de DELETE ALL + INSERT destructivo. Los datos locales no pusheados ya no se pierden. Cola de pushes se vacia antes de cada pull y al cerrar la app.</li>
+        <li><strong style="color: var(--text-primary);">TAREAS REDISEÑADAS:</strong> KPIs de estadisticas (total, pendientes, en progreso, completadas, vencidas), buscador local instantaneo, cards kanban con borde de prioridad (rojo/naranja/verde), subtareas inline con checkboxes clicables, quick-add al pie de columnas kanban.</li>
+        <li><strong style="color: var(--text-primary);">VISTA LISTA MEJORADA:</strong> Barra de prioridad vertical, acciones hover, tags semanticos con iconos (proyecto, fecha, tiempo, recurrencia), indicadores overdue/hoy con colores.</li>
+        <li><strong style="color: var(--text-primary);">PROYECTOS VINCULADOS A EMPRESAS:</strong> Nuevo campo company_id en proyectos, selector de empresa al crear/editar, seccion "Proyectos vinculados" en el detalle de empresa.</li>
+        <li><strong style="color: var(--text-primary);">SYNC MEJORADO:</strong> push_change añadido a 14 route files, fix del error DATETIME en PostgreSQL, tablas documents/resources/automations añadidas al sync.</li>
+    </ul>
+    <div style="margin-top: 16px; font-size: 12px; color: var(--text-tertiary);">Publicado: 17/03/2026</div>
+</div>
+
+<div class="info-card" style="margin-bottom: 24px; max-width: 800px;">
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin:0; color: var(--brand-primary);">v3.2.0</h2>
+    </div>
+    <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
+        <li><strong style="color: var(--text-primary);">COMMAND PALETTE:</strong> Busca cualquier pagina, tarea, proyecto o cliente al instante con Cmd+K / Ctrl+K.</li>
         <li><strong style="color: var(--text-primary);">DASHBOARD MEJORADO:</strong> Nuevos widgets: stats semanales, objetivo mensual, grafico ingresos vs gastos (6 meses), y heatmap de actividad estilo GitHub.</li>
         <li><strong style="color: var(--text-primary);">POMODORO TIMER:</strong> Temporizador flotante con ciclos 25/5 minutos, anillo de progreso visual y notificacion sonora.</li>
         <li><strong style="color: var(--text-primary);">NOTAS RAPIDAS:</strong> Bloc de notas flotante accesible desde cualquier pagina (tecla Q). Auto-guardado en localStorage.</li>
-        <li><strong style="color: var(--text-primary);">PIPELINE CRM VISUAL:</strong> Vista Kanban de clientes con drag &amp; drop entre etapas (Lead → Propuesta → Negociacion → Cerrado).</li>
-        <li><strong style="color: var(--text-primary);">ATAJOS DE TECLADO:</strong> Navegación rapida: N (tarea), D (dashboard), T (tracking), P (pomodoro), Q (notas), ? (ayuda).</li>
+        <li><strong style="color: var(--text-primary);">PIPELINE CRM VISUAL:</strong> Vista Kanban de clientes con drag &amp; drop entre etapas (Lead, Propuesta, Negociacion, Cerrado).</li>
+        <li><strong style="color: var(--text-primary);">ATAJOS DE TECLADO:</strong> Navegacion rapida: N (tarea), D (dashboard), T (tracking), P (pomodoro), Q (notas), ? (ayuda).</li>
         <li><strong style="color: var(--text-primary);">PLANTILLAS DE TAREAS:</strong> Crea proyectos completos con un click: Proyecto Web (10), Landing (6), Bot WhatsApp (7).</li>
     </ul>
     <div style="margin-top: 16px; font-size: 12px; color: var(--text-tertiary);">Publicado: 15/03/2026</div>
