@@ -124,16 +124,20 @@
                     </td>
                     <td>{{ c.source if not c.is_contact else c['source'] }}</td>
                     <td class="actions-cell">
-                        {% if not c.is_contact %}
-                        <button class="btn btn-sm btn-secondary"
-                            onclick="editClient({{ c.id }}, '{{ c.name }}', '{{ c.company }}', '{{ c.email }}', '{{ c.phone }}', '{{ c.address }}', '{{ c.nif }}', '{{ c.tags }}', '{{ c.pipeline_stage }}', '{{ c.source }}', `{{ c.notes|replace('`','') }}`)">Editar</button>
-                        <form method="POST" action="{{ url_for('clients.delete', cid=c.id) }}" style="display:inline"
-                            onsubmit="return confirm('¿Eliminar cliente?')">
-                            <button type="submit" class="btn btn-sm btn-danger">×</button>
-                        </form>
-                        {% else %}
-                        <a href="{{ url_for('companies.view', cid=c.company_id) }}" class="btn btn-sm btn-primary" title="Ver prospecto en su ficha de Empresa">Ver Empresa</a>
-                        {% endif %}
+                        <div style="display:flex; gap:6px; align-items:center; justify-content:flex-end;">
+                            {% if not c.is_contact %}
+                            <button class="btn btn-sm btn-secondary"
+                                onclick="editClient({{ c.id }}, '{{ c.name }}', '{{ c.company }}', '{{ c.email }}', '{{ c.phone }}', '{{ c.address }}', '{{ c.nif }}', '{{ c.tags }}', '{{ c.pipeline_stage }}', '{{ c.source }}', `{{ c.notes|replace('`','') }}`)">Editar</button>
+                            <form method="POST" action="{{ url_for('clients.delete', cid=c.id) }}" style="display:inline"
+                                onsubmit="return confirm('¿Eliminar cliente?')">
+                                <button type="submit" class="btn btn-sm btn-danger">×</button>
+                            </form>
+                            {% else %}
+                            <button class="btn btn-sm btn-secondary"
+                                onclick="editContact({{ c.real_id }}, '{{ c.raw_name }}', '{{ c.role }}', '{{ c.email }}', '{{ c.phone }}', `{{ c.notes|replace('`','') }}`)">Editar</button>
+                            <a href="{{ url_for('companies.view', cid=c.company_id) }}" class="btn btn-sm btn-primary" title="Ver prospecto en su ficha de Empresa" style="white-space:nowrap;">Ver Empresa</a>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -235,6 +239,29 @@
         </form>
     </div>
 </div>
+
+<!-- Edit Contact Modal -->
+<div id="editContactModal" class="modal" style="display:none">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>Editar contacto (Prospecto)</h3>
+            <button class="modal-close" onclick="this.closest('.modal').style.display='none'">&times;</button>
+        </div>
+        <form method="POST" id="editContactForm">
+            <div class="form-grid">
+                <div class="form-group"><label>Nombre *</label><input name="name" id="cd_name" required class="form-input"></div>
+                <div class="form-group"><label>Cargo / Rol</label><input name="role" id="cd_role" class="form-input"></div>
+                <div class="form-group"><label>Email</label><input name="email" id="cd_email" type="email" class="form-input"></div>
+                <div class="form-group"><label>Teléfono</label><input name="phone" id="cd_phone" class="form-input"></div>
+            </div>
+            <div class="form-group">
+                <label>Notas</label>
+                <textarea name="notes" id="cd_notes" rows="3" class="form-input"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Guardar contacto</button>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -252,6 +279,16 @@
         document.getElementById('ed_source').value = source;
         document.getElementById('ed_notes').value = notes;
         document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function editContact(id, name, role, email, phone, notes) {
+        document.getElementById('editContactForm').action = '/clientes/contact/' + id + '/edit';
+        document.getElementById('cd_name').value = name;
+        document.getElementById('cd_role').value = role;
+        document.getElementById('cd_email').value = email;
+        document.getElementById('cd_phone').value = phone;
+        document.getElementById('cd_notes').value = notes;
+        document.getElementById('editContactModal').style.display = 'flex';
     }
 
     // Pipeline view toggle

@@ -28,8 +28,11 @@ def index():
         company_name = ct.company.name if ct.company else ""
         mock_contacts.append({
             "id": f"contact_{ct.id}",
+            "real_id": ct.id,
             "is_contact": True,
             "name": f"{ct.name} ({ct.role or 'Contacto'})",
+            "raw_name": ct.name,
+            "role": ct.role or "",
             "company": company_name,
             "company_id": ct.company_id,
             "email": ct.email or "",
@@ -125,4 +128,22 @@ def update_stage(cid):
     db.session.commit()
     push_change("clients", c.id)
     log_activity("update", "client", c.id, f"{c.name} → {new_stage}")
+    return redirect(url_for("clients.index"))
+
+
+@clients_bp.route("/clientes/contact/<int:ctid>/edit", methods=["POST"])
+@login_required
+def edit_contact(ctid):
+    from models import CompanyContact
+    ct = CompanyContact.query.get_or_404(ctid)
+    ct.name = request.form.get("name", ct.name)
+    ct.role = request.form.get("role", ct.role)
+    ct.email = request.form.get("email", ct.email)
+    ct.phone = request.form.get("phone", ct.phone)
+    ct.notes = request.form.get("notes", ct.notes)
+    
+    db.session.commit()
+    push_change("companies", ct.company_id)
+    log_activity("update", "company_contact", ct.id, f"Contacto actualizado: {ct.name}")
+    flash("Contacto de empresa actualizado", "success")
     return redirect(url_for("clients.index"))
