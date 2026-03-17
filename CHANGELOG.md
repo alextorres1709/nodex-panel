@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.5.0
+- **Sync Contactos ↔ Clientes**: Se ha añadido un botón de "Promover a Cliente" en la vista de detalle de cada Empresa (`/empresas/<id>`) para agregar automáticamente prospectos a la cartera de Clientes con su rol, datos y asociación de empresa, activando `push_change` en la red.
+- **Asociación de Empresas a Proyectos**: Integración nativa habilitada; los Proyectos ahora muestran en su tabla y modal la empresa prospectada de origen.
+
 ## v3.4.1
 - **Fix**: Error 500 en `/tareas` debido a fechas malformadas provenientes de la sincronización remota. Se ha añadido programación defensiva (`safe_due_date`) para manejar la conversión de tipos en el modelo, backend y frontend.
 

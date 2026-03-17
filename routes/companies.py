@@ -176,6 +176,36 @@ def delete_contact(cid, ctid):
     return redirect(url_for("companies.view", cid=cid))
 
 
+@companies_bp.route("/empresas/<int:cid>/contacts/<int:ctid>/promote", methods=["POST"])
+@login_required
+def promote_contact(cid, ctid):
+    company = db.session.get(Company, cid)
+    ct = db.session.get(CompanyContact, ctid)
+    if not company or not ct or ct.company_id != cid:
+        abort(404)
+    try:
+        from models import Client
+        cname = " ".join([company.name, f"({ct.name})"])
+        cli = Client(
+            name=cname,
+            company=company.name,
+            email=ct.email or "",
+            phone=ct.phone or "",
+            notes=f"Contacto promovido desde Empresas: {ct.role}\n" + (ct.notes or ""),
+            pipeline_stage="lead",
+            source="empresa",
+        )
+        db.session.add(cli)
+        log_activity("create", "client", details=f"Cliente promovido: {cname}")
+        db.session.commit()
+        push_change("clients", cli.id)
+        flash("Contacto promovido a Cliente con éxito", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error al promover: {e}", "error")
+    return redirect(url_for("companies.view", cid=cid))
+
+
 # ═══════════════════════════════════════════
 # TASK CREATION FROM COMPANY
 # ═══════════════════════════════════════════

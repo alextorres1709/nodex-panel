@@ -74,6 +74,11 @@
                 <td>{% if ct.phone %}<a href="tel:{{ ct.phone }}" style="color:var(--accent)">{{ ct.phone }}</a>{% else %}—{% endif %}</td>
                 <td>{% if ct.email %}<a href="mailto:{{ ct.email }}" style="color:var(--accent)">{{ ct.email }}</a>{% else %}—{% endif %}</td>
                 <td style="text-align:right">
+                    <form method="POST" action="{{ url_for('companies.promote_contact', cid=company.id, ctid=ct.id) }}" style="display:inline" onsubmit="return confirm('¿Añadir este contacto a tu cartera oficial de Clientes?')">
+                        <button type="submit" class="btn btn-sm btn-success" title="Promover a Cliente" style="padding:4px 8px">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                        </button>
+                    </form>
                     <button class="btn btn-sm btn-secondary" onclick="editContact({{ ct.id }}, '{{ ct.name|e }}', '{{ ct.role|e }}', '{{ ct.phone|e }}', '{{ ct.email|e }}', '{{ ct.notes|e }}')">Editar</button>
                     <form method="POST" action="{{ url_for('companies.delete_contact', cid=company.id, ctid=ct.id) }}" style="display:inline" onsubmit="return confirm('Eliminar contacto?')">
                         <button type="submit" class="btn btn-sm btn-danger">X</button>
