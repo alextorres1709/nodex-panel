@@ -32,12 +32,22 @@ def index():
         "completada": [t for t in tasks if t.status == "completada"],
     }
 
+    # Stats
+    all_tasks = Task.query.all()
+    total = len(all_tasks)
+    pending = sum(1 for t in all_tasks if t.status == "pendiente")
+    in_progress = sum(1 for t in all_tasks if t.status == "en_progreso")
+    completed = sum(1 for t in all_tasks if t.status == "completada")
+    overdue = sum(1 for t in all_tasks if t.due_date and t.due_date < date.today() and t.status != "completada")
+
     users = User.query.filter_by(active=True).all()
     projects = Project.query.order_by(Project.name).all()
 
     return render_template("tareas.html", tasks=tasks, kanban=kanban, users=users, projects=projects,
                            sel_status=status, sel_priority=priority, sel_assigned=assigned, view=view,
-                           today=date.today())
+                           today=date.today(),
+                           stats={"total": total, "pending": pending, "in_progress": in_progress,
+                                  "completed": completed, "overdue": overdue})
 
 
 @tasks_bp.route("/tareas/create", methods=["POST"])

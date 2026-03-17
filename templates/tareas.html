@@ -6,19 +6,79 @@
 <div class="page-header">
     <div>
         <h1>Tareas</h1>
-        <p class="page-subtitle">Gestión de tareas del equipo</p>
+        <p class="page-subtitle">Gestion de tareas del equipo</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
         <a href="{{ url_for('tasks.index', view='kanban') }}"
-            class="btn btn-sm {{ 'btn-primary' if view=='kanban' else 'btn-secondary' }}">Kanban</a>
+            class="btn btn-sm {{ 'btn-primary' if view=='kanban' else 'btn-secondary' }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Kanban</a>
         <a href="{{ url_for('tasks.index', view='list') }}"
-            class="btn btn-sm {{ 'btn-primary' if view=='list' else 'btn-secondary' }}">Lista</a>
-        <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva tarea</button>
+            class="btn btn-sm {{ 'btn-primary' if view=='list' else 'btn-secondary' }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Lista</a>
+        <button class="btn btn-primary" onclick="openModal('createModal')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nueva tarea</button>
     </div>
 </div>
 
-<form class="filter-bar" method="GET">
+<!-- KPI Stats -->
+<div class="task-stats-grid">
+    <div class="task-stat-card">
+        <div class="task-stat-icon task-stat-icon--total">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        </div>
+        <div class="task-stat-info">
+            <span class="task-stat-value">{{ stats.total }}</span>
+            <span class="task-stat-label">Total</span>
+        </div>
+    </div>
+    <div class="task-stat-card">
+        <div class="task-stat-icon task-stat-icon--pending">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="task-stat-info">
+            <span class="task-stat-value">{{ stats.pending }}</span>
+            <span class="task-stat-label">Pendientes</span>
+        </div>
+    </div>
+    <div class="task-stat-card">
+        <div class="task-stat-icon task-stat-icon--progress">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="task-stat-info">
+            <span class="task-stat-value">{{ stats.in_progress }}</span>
+            <span class="task-stat-label">En progreso</span>
+        </div>
+    </div>
+    <div class="task-stat-card">
+        <div class="task-stat-icon task-stat-icon--done">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="task-stat-info">
+            <span class="task-stat-value">{{ stats.completed }}</span>
+            <span class="task-stat-label">Completadas</span>
+        </div>
+    </div>
+    {% if stats.overdue > 0 %}
+    <div class="task-stat-card task-stat-card--alert">
+        <div class="task-stat-icon task-stat-icon--overdue">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div class="task-stat-info">
+            <span class="task-stat-value">{{ stats.overdue }}</span>
+            <span class="task-stat-label">Vencidas</span>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Filters -->
+<form class="task-filter-bar" method="GET">
     <input type="hidden" name="view" value="{{ view }}">
+    <div class="task-search-wrap">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="taskSearchInput" placeholder="Buscar tareas..." oninput="filterTasksLocal(this.value)">
+    </div>
     <select name="status">
         <option value="">Todos los estados</option>
         {% for s in ['pendiente','en_progreso','completada'] %}
@@ -46,8 +106,7 @@
 {% if view == 'kanban' %}
 <!-- ═══ KANBAN BOARD ═══ -->
 <div class="kanban-board">
-    {% for col_status, col_label, col_color in [('pendiente','Pendiente','amber'),('en_progreso','En
-    Progreso','blue'),('completada','Completada','green')] %}
+    {% for col_status, col_label, col_color in [('pendiente','Pendiente','amber'),('en_progreso','En Progreso','blue'),('completada','Completada','green')] %}
     <div class="kanban-column" data-status="{{ col_status }}">
         <div class="kanban-column-header kanban-header-{{ col_color }}">
             <span>{{ col_label }}</span>
@@ -55,27 +114,39 @@
         </div>
         <div class="kanban-cards" data-status="{{ col_status }}">
             {% for t in kanban[col_status] %}
-            <div class="kanban-card" draggable="true" data-task-id="{{ t.id }}">
+            <div class="kanban-card kanban-card--{{ t.priority }}{{ ' kanban-card--overdue' if t.due_date and t.due_date < today and t.status != 'completada' }}" draggable="true" data-task-id="{{ t.id }}" data-title="{{ t.title|lower }}">
                 <div class="kanban-card-header">
                     <span class="badge badge-{{ t.priority }}">{{ t.priority }}</span>
                     <div style="display:flex;gap:4px;align-items:center">
-                        {% if t.recurrence and t.recurrence != 'ninguna' %}<span class="badge" style="background:rgba(59,130,246,0.1);color:#3b82f6;font-size:10px">{{ t.recurrence }}</span>{% endif %}
-                        {% if t.estimated_minutes %}<span class="kanban-estimate">{{ t.estimated_minutes }}min</span>{% endif %}
+                        {% if t.recurrence and t.recurrence != 'ninguna' %}<span class="badge" style="background:rgba(59,130,246,0.1);color:#3b82f6;font-size:10px">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px;margin-right:2px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                            {{ t.recurrence }}</span>{% endif %}
+                        {% if t.estimated_minutes %}<span class="kanban-estimate">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            {{ t.estimated_minutes }}m</span>{% endif %}
                     </div>
                 </div>
                 <div class="kanban-card-title">{{ t.title }}</div>
-                {% if t.description %}<div class="kanban-card-desc">{{ t.description[:80] }}{% if t.description|length >
-                    80 %}...{% endif %}</div>{% endif %}
+                {% if t.description %}<div class="kanban-card-desc">{{ t.description[:80] }}{% if t.description|length > 80 %}...{% endif %}</div>{% endif %}
                 <!-- Subtasks -->
                 {% set subs = t.subtasks.all() %}
                 {% if subs %}
-                <div class="kanban-subtasks">
+                <div class="kanban-subtasks-section">
                     {% set done_count = subs|selectattr('done')|list|length %}
-                    <div class="kanban-subtask-bar">
-                        <div class="kanban-subtask-fill"
-                            style="width:{{ (done_count / subs|length * 100) if subs|length else 0 }}%"></div>
+                    <div class="kanban-subtasks">
+                        <div class="kanban-subtask-bar">
+                            <div class="kanban-subtask-fill" style="width:{{ (done_count / subs|length * 100) if subs|length else 0 }}%"></div>
+                        </div>
+                        <span class="kanban-subtask-count">{{ done_count }}/{{ subs|length }}</span>
                     </div>
-                    <span class="kanban-subtask-count">{{ done_count }}/{{ subs|length }}</span>
+                    <div class="kanban-subtask-list">
+                        {% for sub in subs %}
+                        <label class="kanban-subtask-item" onclick="event.stopPropagation()">
+                            <input type="checkbox" {{ 'checked' if sub.done }} onchange="toggleSubtask({{ sub.id }}, this)">
+                            <span class="{{ 'done' if sub.done }}">{{ sub.title }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
                 </div>
                 {% endif %}
                 <div class="kanban-card-footer">
@@ -83,67 +154,121 @@
                         {% for u in t.assignees %}<span class="kanban-avatar" title="{{ u.name }}">{{ u.name[:2]|upper }}</span>{% endfor %}
                         {% if t.project %}<span class="kanban-project">{{ t.project.name }}</span>{% endif %}
                     </div>
-                    {% if t.due_date %}<span class="kanban-due {{ 'overdue' if t.due_date < today }}">{{
-                        t.due_date.strftime('%d/%m') }}</span>{% endif %}
+                    {% if t.due_date %}
+                    <span class="kanban-due {{ 'overdue' if t.due_date < today and t.status != 'completada' }}{{ ' due-soon' if t.due_date == today and t.status != 'completada' }}">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        {{ t.due_date.strftime('%d/%m') }}
+                    </span>
+                    {% endif %}
                 </div>
                 <div class="kanban-card-actions">
-                    <button class="btn btn-sm btn-secondary"
-                        onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
-                    <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline"
-                        onsubmit="return confirm('Eliminar?')">
-                        <button type="submit" class="btn btn-sm btn-danger">X</button>
+                    <button class="btn btn-sm btn-secondary" onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
+                    {% if t.status != 'completada' %}
+                    <form method="POST" action="{{ url_for('tasks.toggle', tid=t.id) }}" style="display:inline">
+                        <button type="submit" class="btn btn-sm btn-success" title="Completar">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                        </button>
+                    </form>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline" onsubmit="return confirm('Eliminar?')">
+                        <button type="submit" class="btn btn-sm btn-danger">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
                     </form>
                 </div>
             </div>
             {% endfor %}
             {% if not kanban[col_status] %}
-            <div class="empty-state" style="padding:40px 16px;text-align:center">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;margin:0 auto 8px;opacity:0.3;display:block">
+            <div class="kanban-empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;margin:0 auto 8px;opacity:0.2;display:block">
                     <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
                 </svg>
-                <p style="color:var(--text-tertiary);font-size:12px;margin:0">Sin tareas</p>
+                <p>Sin tareas</p>
             </div>
             {% endif %}
         </div>
+        <!-- Quick add -->
+        {% if col_status != 'completada' %}
+        <div class="kanban-quick-add">
+            <form method="POST" action="{{ url_for('tasks.create') }}" class="kanban-quick-form" id="quickForm-{{ col_status }}">
+                <input type="hidden" name="status" value="{{ col_status }}">
+                <input type="text" name="title" placeholder="+ Agregar tarea..." class="kanban-quick-input" onfocus="this.parentElement.classList.add('active')" onblur="setTimeout(function(){document.getElementById('quickForm-{{ col_status }}').classList.remove('active')},200)">
+                <button type="submit" class="kanban-quick-btn" title="Crear">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+            </form>
+        </div>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
 
 {% else %}
 <!-- ═══ LIST VIEW ═══ -->
-<div class="table-card">
+<div class="task-list-container">
     {% for t in tasks %}
-    <div class="task-item {{ 'completed' if t.status == 'completada' }}">
+    <div class="task-list-item {{ 'task-list-item--completed' if t.status == 'completada' }}{{ ' task-list-item--overdue' if t.due_date and t.due_date < today and t.status != 'completada' }}" data-title="{{ t.title|lower }}">
         <form method="POST" action="{{ url_for('tasks.toggle', tid=t.id) }}" style="display:inline">
-            <button type="submit" class="task-check" title="Toggle">
-                {% if t.status == 'completada' %}&#10003;{% endif %}
+            <button type="submit" class="task-check-btn {{ 'checked' if t.status == 'completada' }}" title="Toggle">
+                {% if t.status == 'completada' %}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                {% endif %}
             </button>
         </form>
-        <div class="task-info">
-            <div class="task-title">{{ t.title }}</div>
-            <div class="task-meta">
+        <div class="task-list-priority task-list-priority--{{ t.priority }}"></div>
+        <div class="task-list-content">
+            <div class="task-list-title">{{ t.title }}</div>
+            <div class="task-list-meta">
                 <span class="badge badge-{{ t.priority }}">{{ t.priority }}</span>
                 <span class="badge badge-{{ t.status }}">{{ t.status|replace('_',' ') }}</span>
-                {% for u in t.assignees %}<span>{{ u.name }}</span>{% endfor %}
-                {% if t.project %}<span>{{ t.project.name }}</span>{% endif %}
-                {% if t.due_date %}<span>{{ t.due_date.strftime('%d/%m/%Y') }}</span>{% endif %}
-                {% if t.estimated_minutes %}<span>{{ t.estimated_minutes }}min</span>{% endif %}
-                {% if t.recurrence and t.recurrence != 'ninguna' %}<span class="badge" style="background:rgba(59,130,246,0.1);color:#3b82f6;font-size:10px">{{ t.recurrence }}</span>{% endif %}
+                {% if t.project %}<span class="task-list-tag">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                    {{ t.project.name }}</span>{% endif %}
+                {% if t.due_date %}<span class="task-list-tag {{ 'task-list-tag--overdue' if t.due_date < today and t.status != 'completada' }}{{ ' task-list-tag--today' if t.due_date == today and t.status != 'completada' }}">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
+                    {{ t.due_date.strftime('%d/%m/%Y') }}</span>{% endif %}
+                {% if t.estimated_minutes %}<span class="task-list-tag">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    {{ t.estimated_minutes }}min</span>{% endif %}
+                {% if t.recurrence and t.recurrence != 'ninguna' %}<span class="task-list-tag task-list-tag--recurrence">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                    {{ t.recurrence }}</span>{% endif %}
             </div>
+            {% set subs = t.subtasks.all() %}
+            {% if subs %}
+            {% set done_count = subs|selectattr('done')|list|length %}
+            <div class="task-list-subtask-bar">
+                <div class="kanban-subtask-bar" style="max-width:120px">
+                    <div class="kanban-subtask-fill" style="width:{{ (done_count / subs|length * 100) if subs|length else 0 }}%"></div>
+                </div>
+                <span style="font-size:11px;color:var(--text-tertiary)">{{ done_count }}/{{ subs|length }} subtareas</span>
+            </div>
+            {% endif %}
         </div>
-        <div class="task-actions">
+        <div class="task-list-assignees">
+            {% for u in t.assignees %}
+            <span class="kanban-avatar" title="{{ u.name }}">{{ u.name[:2]|upper }}</span>
+            {% endfor %}
+        </div>
+        <div class="task-list-actions">
             <button class="btn btn-sm btn-secondary"
                 onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
             <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline"
                 onsubmit="return confirm('Eliminar?')">
-                <button type="submit" class="btn btn-sm btn-danger">X</button>
+                <button type="submit" class="btn btn-sm btn-danger">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
             </form>
         </div>
     </div>
     {% endfor %}
     {% if not tasks %}
-    <div class="empty-state">
-        <p>No hay tareas</p>
+    <div class="empty-state" style="padding:60px;text-align:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;margin:0 auto 16px;opacity:0.15;display:block">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+        <p style="color:var(--text-tertiary);font-size:14px;margin:0 0 4px">No hay tareas</p>
+        <p style="color:var(--text-tertiary);font-size:12px;margin:0">Crea tu primera tarea para empezar</p>
     </div>
     {% endif %}
 </div>
@@ -157,9 +282,8 @@
         </div>
         <form method="POST" action="{{ url_for('tasks.create') }}">
             <div class="modal-body">
-                <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
-                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea>
-                </div>
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required placeholder="Que hay que hacer?"></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2" placeholder="Detalles opcionales..."></textarea></div>
                 <div class="form-row">
                     <div class="form-group"><label>Prioridad</label><select name="priority">
                             <option value="alta">Alta</option>
@@ -168,7 +292,7 @@
                         </select></div>
                     <div class="form-group"><label>Asignar a</label><select name="assigned_to" multiple style="min-height:60px">
                             {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
-                        </select><span style="font-size:11px;color:var(--text-tertiary)">Ctrl/Cmd+clic para varios</span></div>
+                        </select><span style="font-size:11px;color:var(--text-tertiary)">Cmd+clic para varios</span></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>Fecha limite</label><input type="date" name="due_date"></div>
@@ -177,8 +301,7 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>Proyecto</label><select name="project_id">
-                            <option value="">Ninguno</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}
-                            </option>{% endfor %}
+                            <option value="">Ninguno</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
                         </select></div>
                     <div class="form-group"><label>Recurrencia</label><select name="recurrence">
                             <option value="ninguna" selected>Ninguna</option>
@@ -209,8 +332,7 @@
         <form method="POST" id="editForm" action="">
             <div class="modal-body">
                 <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
-                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea>
-                </div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="2"></textarea></div>
                 <div class="form-row">
                     <div class="form-group"><label>Prioridad</label><select name="priority">
                             <option value="alta">Alta</option>
@@ -226,13 +348,12 @@
                 <div class="form-row">
                     <div class="form-group"><label>Asignar a</label><select name="assigned_to" multiple style="min-height:60px">
                             {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
-                        </select><span style="font-size:11px;color:var(--text-tertiary)">Ctrl/Cmd+clic para varios</span></div>
+                        </select><span style="font-size:11px;color:var(--text-tertiary)">Cmd+clic para varios</span></div>
                     <div class="form-group"><label>Fecha limite</label><input type="date" name="due_date"></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>Proyecto</label><select name="project_id">
-                            <option value="">Ninguno</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name
-                                }}</option>{% endfor %}
+                            <option value="">Ninguno</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
                         </select></div>
                     <div class="form-group"><label>Tiempo estimado (min)</label><input type="number"
                             name="estimated_minutes" min="0"></div>
@@ -266,7 +387,6 @@
         f.querySelector('[name=project_id]').value = project_id;
         f.querySelector('[name=estimated_minutes]').value = estimated_minutes;
         f.querySelector('[name=recurrence]').value = recurrence || 'ninguna';
-        // Multi-select assignees
         var sel = f.querySelector('[name=assigned_to]');
         Array.from(sel.options).forEach(function(opt) {
             opt.selected = assignedIds.indexOf(parseInt(opt.value)) !== -1;
@@ -283,37 +403,80 @@
         list.appendChild(div);
     }
 
+    // ═══ INLINE SUBTASK TOGGLE ═══
+    function toggleSubtask(subtaskId, checkbox) {
+        fetch('/api/subtasks/' + subtaskId + '/toggle', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var span = checkbox.nextElementSibling;
+                if (data.done) {
+                    span.classList.add('done');
+                } else {
+                    span.classList.remove('done');
+                }
+                // Update subtask progress bar
+                var section = checkbox.closest('.kanban-subtasks-section');
+                if (section) {
+                    var checks = section.querySelectorAll('input[type=checkbox]');
+                    var done = Array.from(checks).filter(function(c) { return c.checked; }).length;
+                    var total = checks.length;
+                    var fill = section.querySelector('.kanban-subtask-fill');
+                    var count = section.querySelector('.kanban-subtask-count');
+                    if (fill) fill.style.width = (done / total * 100) + '%';
+                    if (count) count.textContent = done + '/' + total;
+                }
+            });
+    }
+
+    // ═══ LOCAL SEARCH FILTER ═══
+    function filterTasksLocal(query) {
+        var q = query.toLowerCase().trim();
+        // Kanban cards
+        document.querySelectorAll('.kanban-card[data-title]').forEach(function(card) {
+            card.style.display = !q || card.dataset.title.indexOf(q) !== -1 ? '' : 'none';
+        });
+        // List items
+        document.querySelectorAll('.task-list-item[data-title]').forEach(function(item) {
+            item.style.display = !q || item.dataset.title.indexOf(q) !== -1 ? '' : 'none';
+        });
+        // Update kanban counts
+        document.querySelectorAll('.kanban-column').forEach(function(col) {
+            var visible = col.querySelectorAll('.kanban-card[data-title]:not([style*="display: none"])').length;
+            col.querySelector('.kanban-count').textContent = visible;
+        });
+    }
+
     // ═══ KANBAN DRAG & DROP ═══
     var dragCard = null;
 
-    document.addEventListener('dragstart', function (e) {
+    document.addEventListener('dragstart', function(e) {
         if (e.target.classList.contains('kanban-card')) {
             dragCard = e.target;
-            e.target.style.opacity = '0.4';
+            e.target.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
         }
     });
 
-    document.addEventListener('dragend', function (e) {
+    document.addEventListener('dragend', function(e) {
         if (e.target.classList.contains('kanban-card')) {
-            e.target.style.opacity = '1';
+            e.target.classList.remove('dragging');
             dragCard = null;
-            document.querySelectorAll('.kanban-cards').forEach(function (col) {
+            document.querySelectorAll('.kanban-cards').forEach(function(col) {
                 col.classList.remove('kanban-drag-over');
             });
         }
     });
 
-    document.querySelectorAll('.kanban-cards').forEach(function (col) {
-        col.addEventListener('dragover', function (e) {
+    document.querySelectorAll('.kanban-cards').forEach(function(col) {
+        col.addEventListener('dragover', function(e) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             col.classList.add('kanban-drag-over');
         });
-        col.addEventListener('dragleave', function (e) {
+        col.addEventListener('dragleave', function(e) {
             col.classList.remove('kanban-drag-over');
         });
-        col.addEventListener('drop', function (e) {
+        col.addEventListener('drop', function(e) {
             e.preventDefault();
             col.classList.remove('kanban-drag-over');
             if (!dragCard) return;
@@ -322,8 +485,8 @@
             col.appendChild(dragCard);
 
             // Update counters
-            document.querySelectorAll('.kanban-column').forEach(function (c) {
-                var cards = c.querySelector('.kanban-cards').children.length;
+            document.querySelectorAll('.kanban-column').forEach(function(c) {
+                var cards = c.querySelectorAll('.kanban-card').length;
                 c.querySelector('.kanban-count').textContent = cards;
             });
 
@@ -336,24 +499,20 @@
         });
     });
 
-    // ═══ REAL-TIME SYNC: auto-refresh tasks when data changes ═══
+    // ═══ REAL-TIME SYNC ═══
     (function() {
         var knownTaskIds = new Set();
-        // Collect current task IDs from DOM
         document.querySelectorAll('.kanban-card[data-task-id]').forEach(function(el) {
             knownTaskIds.add(parseInt(el.dataset.taskId));
         });
-        document.querySelectorAll('.task-item').forEach(function(el, i) {
-            // list view tasks don't have data-task-id on the item, use index
+        document.querySelectorAll('.task-list-item').forEach(function(el, i) {
             knownTaskIds.add(i);
         });
 
         document.addEventListener('nodex-sync', function() {
-            // Fetch fresh task data and check if anything changed
             fetch('/api/tasks').then(function(r) { return r.json(); }).then(function(data) {
                 if (!data.tasks) return;
                 var newIds = new Set(data.tasks.map(function(t) { return t.id; }));
-                // Check if task list changed (added, removed, or count differs)
                 var changed = newIds.size !== knownTaskIds.size;
                 if (!changed) {
                     newIds.forEach(function(id) {
@@ -361,7 +520,6 @@
                     });
                 }
                 if (changed) {
-                    // Reload page to reflect changes (preserves current view/filters)
                     window.location.reload();
                 }
             }).catch(function() {});

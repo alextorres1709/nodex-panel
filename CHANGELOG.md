@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.4.0
+- **Fix definitivo: perdida de datos al reiniciar** — sync reescrito con estrategia MERGE (UPSERT) en vez de DELETE ALL + INSERT destructivo. Los datos locales no pusheados ya no se pierden. Se flushea la cola de pushes antes de cada pull y al cerrar la app (atexit handler). Deteccion inteligente de eliminaciones remotas.
+- **Seccion de tareas rediseñada**: KPIs de estadisticas (total, pendientes, en progreso, completadas, vencidas), buscador local instantaneo, cards kanban con borde de prioridad (rojo/naranja/verde), subtareas inline con checkboxes, quick-add al pie de columnas kanban, boton completar directo, iconos SVG en badges
+- **Vista lista mejorada**: barra de prioridad vertical, acciones hover, tags semanticos con iconos (proyecto, fecha, tiempo, recurrencia), indicadores overdue/hoy, progreso subtareas inline
+- Responsive: stats 2-col en mobile, acciones siempre visibles en pantallas pequeñas
+
 ## v3.3.0
 - **Fix critico: persistencia de datos** — todos los datos (time tracking, pagos, ingresos, proyectos, credenciales, facturas, clientes, herramientas, documentos, recursos, automatizaciones, ideas) ahora se sincronizan al remoto inmediatamente al crear/editar/eliminar. Antes se perdian al reiniciar porque el sync sobreescribia los cambios locales no empujados.
 - Proyectos vinculados a empresas: nuevo campo `company_id` en proyectos, selector de empresa al crear/editar proyecto, link directo desde tarjeta de proyecto a la empresa
