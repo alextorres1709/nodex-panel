@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import db, Idea, Project
 from routes.auth import login_required
 from services.activity import log_activity
+from services.sync import push_change
 
 ideas_bp = Blueprint("ideas", __name__)
 
@@ -40,6 +41,7 @@ def create():
         db.session.add(idea)
         log_activity("create", "idea", details=f"Nueva idea: {idea.title}")
         db.session.commit()
+        push_change("ideas", idea.id)
         flash("Idea creada", "success")
     except Exception as e:
         db.session.rollback()
@@ -63,6 +65,7 @@ def edit(iid):
         idea.project_id = int(pid) if pid else None
         log_activity("update", "idea", idea.id, f"Editada: {idea.title}")
         db.session.commit()
+        push_change("ideas", idea.id)
         flash("Idea actualizada", "success")
     except Exception as e:
         db.session.rollback()
@@ -78,6 +81,7 @@ def vote(iid):
         idea.votes += 1
         log_activity("vote", "idea", idea.id, f"+1: {idea.title}")
         db.session.commit()
+        push_change("ideas", idea.id)
     return redirect(url_for("ideas.index"))
 
 
@@ -86,8 +90,10 @@ def vote(iid):
 def delete(iid):
     idea = db.session.get(Idea, iid)
     if idea:
+        idea_id = idea.id
         log_activity("delete", "idea", idea.id, f"Eliminada: {idea.title}")
         db.session.delete(idea)
         db.session.commit()
+        push_change("ideas", idea_id)
         flash("Idea eliminada", "success")
     return redirect(url_for("ideas.index"))

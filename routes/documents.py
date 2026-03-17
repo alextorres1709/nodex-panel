@@ -6,6 +6,7 @@ from models import db, Document, Project, Client
 from routes.auth import login_required
 from services.activity import log_activity
 from config import BASE_DIR
+from services.sync import push_change
 
 documents_bp = Blueprint("documents", __name__)
 
@@ -89,6 +90,7 @@ def upload():
     db.session.add(doc)
     log_activity("create", "document", details=f"Subido: {doc.name}")
     db.session.commit()
+    push_change("documents", doc.id)
     flash("Documento subido", "success")
     return redirect(url_for("documents.index"))
 
@@ -110,8 +112,10 @@ def delete(did):
     if doc:
         if doc.file_path and os.path.exists(doc.file_path):
             os.remove(doc.file_path)
+        doc_id = doc.id
         log_activity("delete", "document", doc.id, f"Eliminado: {doc.name}")
         db.session.delete(doc)
         db.session.commit()
+        push_change("documents", doc_id)
         flash("Documento eliminado", "success")
     return redirect(url_for("documents.index"))

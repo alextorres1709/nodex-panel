@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import db, Client, Project, Income, Invoice
 from routes.auth import login_required
 from services.activity import log_activity
+from services.sync import push_change
 
 clients_bp = Blueprint("clients", __name__)
 
@@ -44,6 +45,7 @@ def create():
     )
     db.session.add(c)
     db.session.commit()
+    push_change("clients", c.id)
     log_activity(g.user.id, "create", "client", c.id, c.name)
     flash("Cliente creado", "success")
     return redirect(url_for("clients.index"))
@@ -64,6 +66,7 @@ def edit(cid):
     c.source = request.form.get("source", c.source)
     c.notes = request.form.get("notes", c.notes)
     db.session.commit()
+    push_change("clients", c.id)
     log_activity(g.user.id, "update", "client", c.id, c.name)
     flash("Cliente actualizado", "success")
     return redirect(url_for("clients.index"))
@@ -76,6 +79,7 @@ def delete(cid):
     name = c.name
     db.session.delete(c)
     db.session.commit()
+    push_change("clients", cid)
     log_activity(g.user.id, "delete", "client", cid, name)
     flash("Cliente eliminado", "success")
     return redirect(url_for("clients.index"))
@@ -88,5 +92,6 @@ def update_stage(cid):
     new_stage = request.form.get("stage", c.pipeline_stage)
     c.pipeline_stage = new_stage
     db.session.commit()
+    push_change("clients", c.id)
     log_activity(g.user.id, "update", "client", c.id, f"{c.name} → {new_stage}")
     return redirect(url_for("clients.index"))

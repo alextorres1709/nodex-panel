@@ -42,6 +42,12 @@
                 <span class="project-meta-label">Cliente</span>
                 <span>{{ p.client_name or '—' }}</span>
             </div>
+            {% if p.company %}
+            <div class="project-meta-row">
+                <span class="project-meta-label">Empresa</span>
+                <span><a href="{{ url_for('companies.view', cid=p.company_id) }}" style="color:var(--accent)">{{ p.company.name }}</a></span>
+            </div>
+            {% endif %}
             <div class="project-meta-row">
                 <span class="project-meta-label">Tipo</span>
                 <span>{{ p.type|capitalize }}</span>
@@ -63,7 +69,7 @@
             </div>
         </div>
         <div class="project-card-footer">
-            <button class="btn btn-sm btn-secondary" onclick="editProject({{ p.id }}, '{{ p.name|e }}', '{{ p.client_name|e }}', '{{ p.status }}', '{{ p.type }}', {{ p.budget }}, {{ p.progress }}, '{{ p.deadline or '' }}', '{{ p.description|e }}', '{{ p.notes|e }}')">Editar</button>
+            <button class="btn btn-sm btn-secondary" onclick="editProject({{ p.id }}, '{{ p.name|e }}', '{{ p.client_name|e }}', '{{ p.company_id or '' }}', '{{ p.status }}', '{{ p.type }}', {{ p.budget }}, {{ p.progress }}, '{{ p.deadline or '' }}', '{{ p.description|e }}', '{{ p.notes|e }}')">Editar</button>
             <form method="POST" action="{{ url_for('projects.delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('Eliminar?')">
                 <button type="submit" class="btn btn-sm btn-danger">X</button>
             </form>
@@ -85,6 +91,12 @@
             <div class="modal-body">
                 <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
                 <div class="form-group"><label>Cliente</label><input type="text" name="client_name" placeholder="Nombre del cliente"></div>
+                <div class="form-group"><label>Empresa vinculada</label>
+                    <select name="company_id">
+                        <option value="">— Sin empresa —</option>
+                        {% for c in companies %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                    </select>
+                </div>
                 <div class="form-row">
                     <div class="form-group"><label>Tipo</label><select name="type"><option value="web">Web</option><option value="app">App</option><option value="bot">Bot</option><option value="otro">Otro</option></select></div>
                     <div class="form-group"><label>Estado</label><select name="status"><option value="activo">Activo</option><option value="pausado">Pausado</option><option value="completado">Completado</option></select></div>
@@ -110,6 +122,12 @@
             <div class="modal-body">
                 <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
                 <div class="form-group"><label>Cliente</label><input type="text" name="client_name"></div>
+                <div class="form-group"><label>Empresa vinculada</label>
+                    <select name="company_id">
+                        <option value="">— Sin empresa —</option>
+                        {% for c in companies %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                    </select>
+                </div>
                 <div class="form-row">
                     <div class="form-group"><label>Tipo</label><select name="type"><option value="web">Web</option><option value="app">App</option><option value="bot">Bot</option><option value="otro">Otro</option></select></div>
                     <div class="form-group"><label>Estado</label><select name="status"><option value="activo">Activo</option><option value="pausado">Pausado</option><option value="completado">Completado</option><option value="cancelado">Cancelado</option></select></div>
@@ -130,9 +148,9 @@
 
 {% block scripts %}
 <script>
-function editProject(id, name, client_name, status, type, budget, progress, deadline, description, notes) {
+function editProject(id, name, client_name, company_id, status, type, budget, progress, deadline, description, notes) {
     document.getElementById('editForm').action = '/proyectos/edit/' + id;
-    populateEditModal({name, client_name, status, type, budget, progress, deadline, description, notes}, 'editForm');
+    populateEditModal({name, client_name, company_id, status, type, budget, progress, deadline, description, notes}, 'editForm');
     openModal('editModal');
 }
 </script>

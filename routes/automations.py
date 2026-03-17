@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import db, Automation
 from routes.auth import login_required
 from services.activity import log_activity
+from services.sync import push_change
 
 automations_bp = Blueprint("automations", __name__)
 
@@ -39,6 +40,7 @@ def create():
         db.session.add(auto)
         log_activity("create", "automation", details=f"Nueva: {auto.name}")
         db.session.commit()
+        push_change("automations", auto.id)
         flash("Automatización creada", "success")
     except Exception as e:
         db.session.rollback()
@@ -55,6 +57,7 @@ def toggle(aid):
         log_activity("update", "automation", auto.id,
                      f"{'Activada' if auto.active else 'Desactivada'}: {auto.name}")
         db.session.commit()
+        push_change("automations", auto.id)
     return redirect(url_for("automations.index"))
 
 
@@ -63,9 +66,11 @@ def toggle(aid):
 def delete(aid):
     auto = db.session.get(Automation, aid)
     if auto:
+        auto_id = auto.id
         log_activity("delete", "automation", auto.id, f"Eliminada: {auto.name}")
         db.session.delete(auto)
         db.session.commit()
+        push_change("automations", auto_id)
         flash("Automatización eliminada", "success")
     return redirect(url_for("automations.index"))
 
@@ -99,5 +104,6 @@ def run_manual(aid):
     from datetime import datetime, timezone
     auto.last_run = datetime.now(timezone.utc)
     db.session.commit()
+    push_change("automations", auto.id)
 
     return jsonify({"ok": True, "run_count": auto.run_count})

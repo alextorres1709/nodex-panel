@@ -1,9 +1,10 @@
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, g
 from sqlalchemy.orm import joinedload
-from models import db, Project, ProjectContact, Task, TaskAssignment, Subtask, TimeEntry, Document, Invoice, Income, Idea, User, Client
+from models import db, Project, ProjectContact, Task, TaskAssignment, Subtask, TimeEntry, Document, Invoice, Income, Idea, User, Client, Company
 from routes.auth import login_required
 from services.activity import log_activity
+from services.sync import push_change
 
 projects_bp = Blueprint("projects", __name__)
 
@@ -19,7 +20,8 @@ def index():
     if ptype:
         q = q.filter_by(type=ptype)
     projects = q.order_by(Project.created_at.desc()).all()
-    return render_template("proyectos.html", projects=projects, sel_status=status, sel_type=ptype)
+    companies = Company.query.order_by(Company.name).all()
+    return render_template("proyectos.html", projects=projects, companies=companies, sel_status=status, sel_type=ptype)
 
 
 @projects_bp.route("/proyectos/<int:pid>")
@@ -53,6 +55,7 @@ def view(pid):
     ideas = Idea.query.filter_by(project_id=pid).order_by(Idea.created_at.desc()).all()
     proposals = [d for d in documents if d.category == "propuesta"]
     users = User.query.filter_by(active=True).all()
+    companies = Company.query.order_by(Company.name).all()
 
     return render_template(
         "proyecto_detail.html", project=project, tasks=tasks, task_counts=task_counts,
@@ -60,6 +63,7 @@ def view(pid):
         documents=documents, invoices=invoices, total_invoiced=total_invoiced,
         incomes=incomes, total_income=total_income,
         contacts=contacts, ideas=ideas, proposals=proposals, users=users,
+        companies=companies,
     )
 
 
@@ -68,9 +72,11 @@ def view(pid):
 def create():
     try:
         dl = request.form.get("deadline", "").strip()
+        cid = request.form.get("company_id", "").strip()
         p = Project(
             name=request.form.get("name", "").strip(),
             client_name=request.form.get("client_name", "").strip(),
+            company_id=int(cid) if cid else None,
             status=request.form.get("status", "activo"),
             type=request.form.get("type", "web"),
             budget=float(request.form.get("budget", 0) or 0),
@@ -82,6 +88,7 @@ def create():
         db.session.add(p)
         log_activity("create", "project", details=f"Nuevo proyecto: {p.name}")
         db.session.commit()
+        push_change("projects", p.id)
         flash("Proyecto creado", "success")
     except Exception as e:
         db.session.rollback()
@@ -99,6 +106,8 @@ def edit(pid):
     try:
         p.name = request.form.get("name", p.name).strip()
         p.client_name = request.form.get("client_name", p.client_name).strip()
+        cid = request.form.get("company_id", "").strip()
+        p.company_id = int(cid) if cid else None
         p.status = request.form.get("status", p.status)
         p.type = request.form.get("type", p.type)
         p.budget = float(request.form.get("budget", p.budget) or 0)
@@ -109,6 +118,7 @@ def edit(pid):
         p.notes = request.form.get("notes", "").strip()
         log_activity("update", "project", p.id, f"Editado: {p.name}")
         db.session.commit()
+        push_change("projects", p.id)
         flash("Proyecto actualizado", "success")
     except Exception as e:
         db.session.rollback()
@@ -121,9 +131,11 @@ def edit(pid):
 def delete(pid):
     p = db.session.get(Project, pid)
     if p:
+        pid_val = p.id
         log_activity("delete", "project", p.id, f"Eliminado: {p.name}")
         db.session.delete(p)
         db.session.commit()
+        push_change("projects", pid_val)
         flash("Proyecto eliminado", "success")
     return redirect(url_for("projects.index"))
 
@@ -176,7 +188,6 @@ def create_contact(pid):
         # Also create/update in Clients
         _sync_contact_to_client(name, email, phone, role, project.name)
         db.session.commit()
-        from services.sync import push_change
         push_change("project_contacts", c.id)
         flash("Contacto creado", "success")
     except Exception as e:
@@ -201,7 +212,6 @@ def edit_contact(pid, cid):
         # Also update in Clients
         _sync_contact_to_client(c.name, c.email, c.phone, c.role, project.name if project else "")
         db.session.commit()
-        from services.sync import push_change
         push_change("project_contacts", c.id)
         flash("Contacto actualizado", "success")
     except Exception as e:
@@ -215,8 +225,10 @@ def edit_contact(pid, cid):
 def delete_contact(pid, cid):
     c = db.session.get(ProjectContact, cid)
     if c and c.project_id == pid:
+        cid_val = c.id
         db.session.delete(c)
         db.session.commit()
+        push_change("project_contacts", cid_val)
         flash("Contacto eliminado", "success")
     return redirect(url_for("projects.view", pid=pid))
 
@@ -252,7 +264,6 @@ def create_task(pid):
                 db.session.add(TaskAssignment(task_id=t.id, user_id=int(uid)))
         log_activity("create", "task", details=f"Nueva tarea: {t.title}")
         db.session.commit()
-        from services.sync import push_change
         push_change("tasks", t.id)
         for ta in TaskAssignment.query.filter_by(task_id=t.id).all():
             push_change("task_assignments", ta.id)
@@ -284,7 +295,6 @@ def create_idea(pid):
         )
         db.session.add(idea)
         db.session.commit()
-        from services.sync import push_change
         push_change("ideas", idea.id)
         flash("Idea creada", "success")
     except Exception as e:
@@ -305,7 +315,6 @@ def edit_idea(pid, iid):
         idea.category = request.form.get("category", idea.category)
         idea.status = request.form.get("status", idea.status)
         db.session.commit()
-        from services.sync import push_change
         push_change("ideas", idea.id)
         flash("Idea actualizada", "success")
     except Exception as e:
@@ -319,8 +328,10 @@ def edit_idea(pid, iid):
 def delete_idea(pid, iid):
     idea = db.session.get(Idea, iid)
     if idea and idea.project_id == pid:
+        idea_id = idea.id
         db.session.delete(idea)
         db.session.commit()
+        push_change("ideas", idea_id)
         flash("Idea eliminada", "success")
     return redirect(url_for("projects.view", pid=pid))
 

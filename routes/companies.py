@@ -1,9 +1,10 @@
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, g
 from sqlalchemy.orm import joinedload
-from models import db, Company, CompanyContact, Task, TaskAssignment, User, Idea
+from models import db, Company, CompanyContact, Project, Task, TaskAssignment, User, Idea
 from routes.auth import login_required
 from services.activity import log_activity
+from services.sync import push_change
 
 companies_bp = Blueprint("companies", __name__)
 
@@ -43,11 +44,12 @@ def view(cid):
         "completada": sum(1 for t in tasks if t.status == "completada"),
     }
     ideas = Idea.query.filter_by(company_id=cid).order_by(Idea.votes.desc(), Idea.created_at.desc()).all()
+    projects = Project.query.filter_by(company_id=cid).order_by(Project.created_at.desc()).all()
     users = User.query.filter_by(active=True).all()
 
     return render_template("empresa_detail.html", company=company,
                            contacts=contacts, tasks=tasks,
-                           task_counts=task_counts, ideas=ideas, users=users)
+                           task_counts=task_counts, ideas=ideas, projects=projects, users=users)
 
 
 @companies_bp.route("/empresas/create", methods=["POST"])
@@ -65,7 +67,6 @@ def create():
         db.session.add(c)
         log_activity("create", "company", details=f"Nueva empresa: {c.name}")
         db.session.commit()
-        from services.sync import push_change
         push_change("companies", c.id)
         flash("Empresa creada", "success")
     except Exception as e:
@@ -90,7 +91,6 @@ def edit(cid):
         c.notes = request.form.get("notes", "").strip()
         log_activity("update", "company", c.id, f"Editada: {c.name}")
         db.session.commit()
-        from services.sync import push_change
         push_change("companies", c.id)
         flash("Empresa actualizada", "success")
     except Exception as e:
@@ -104,9 +104,11 @@ def edit(cid):
 def delete(cid):
     c = db.session.get(Company, cid)
     if c:
+        cid_val = c.id
         log_activity("delete", "company", c.id, f"Eliminada: {c.name}")
         db.session.delete(c)
         db.session.commit()
+        push_change("companies", cid_val)
         flash("Empresa eliminada", "success")
     return redirect(url_for("companies.index"))
 
@@ -132,7 +134,6 @@ def create_contact(cid):
         )
         db.session.add(ct)
         db.session.commit()
-        from services.sync import push_change
         push_change("company_contacts", ct.id)
         flash("Contacto creado", "success")
     except Exception as e:
@@ -154,7 +155,6 @@ def edit_contact(cid, ctid):
         ct.email = request.form.get("email", "").strip()
         ct.notes = request.form.get("notes", "").strip()
         db.session.commit()
-        from services.sync import push_change
         push_change("company_contacts", ct.id)
         flash("Contacto actualizado", "success")
     except Exception as e:
@@ -168,8 +168,10 @@ def edit_contact(cid, ctid):
 def delete_contact(cid, ctid):
     ct = db.session.get(CompanyContact, ctid)
     if ct and ct.company_id == cid:
+        ctid_val = ct.id
         db.session.delete(ct)
         db.session.commit()
+        push_change("company_contacts", ctid_val)
         flash("Contacto eliminado", "success")
     return redirect(url_for("companies.view", cid=cid))
 
@@ -205,7 +207,6 @@ def create_task(cid):
                 db.session.add(TaskAssignment(task_id=t.id, user_id=int(uid)))
         log_activity("create", "task", details=f"Nueva tarea: {t.title}")
         db.session.commit()
-        from services.sync import push_change
         push_change("tasks", t.id)
         for ta in TaskAssignment.query.filter_by(task_id=t.id).all():
             push_change("task_assignments", ta.id)
@@ -227,7 +228,6 @@ def update_status(cid):
     if c:
         c.status = request.form.get("status", c.status)
         db.session.commit()
-        from services.sync import push_change
         push_change("companies", c.id)
     return redirect(url_for("companies.index"))
 
@@ -253,7 +253,6 @@ def create_idea(cid):
         )
         db.session.add(idea)
         db.session.commit()
-        from services.sync import push_change
         push_change("ideas", idea.id)
         flash("Idea creada", "success")
     except Exception as e:
@@ -274,7 +273,6 @@ def edit_idea(cid, iid):
         idea.category = request.form.get("category", idea.category)
         idea.status = request.form.get("status", idea.status)
         db.session.commit()
-        from services.sync import push_change
         push_change("ideas", idea.id)
         flash("Idea actualizada", "success")
     except Exception as e:
@@ -288,8 +286,10 @@ def edit_idea(cid, iid):
 def delete_idea(cid, iid):
     idea = db.session.get(Idea, iid)
     if idea and idea.company_id == cid:
+        idea_id = idea.id
         db.session.delete(idea)
         db.session.commit()
+        push_change("ideas", idea_id)
         flash("Idea eliminada", "success")
     return redirect(url_for("companies.view", cid=cid))
 
@@ -301,6 +301,5 @@ def vote_idea(cid, iid):
     if idea and idea.company_id == cid:
         idea.votes = (idea.votes or 0) + 1
         db.session.commit()
-        from services.sync import push_change
         push_change("ideas", idea.id)
     return redirect(url_for("companies.view", cid=cid))

@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from models import db, Tool
 from routes.auth import login_required
 from services.activity import log_activity
+from services.sync import push_change
 
 tools_bp = Blueprint("tools", __name__)
 
@@ -33,6 +34,7 @@ def create():
         db.session.add(t)
         log_activity("create", "tool", details=f"Nueva herramienta: {t.name}")
         db.session.commit()
+        push_change("tools", t.id)
         flash("Herramienta creada", "success")
     except Exception as e:
         db.session.rollback()
@@ -56,6 +58,7 @@ def edit(tid):
         t.used_by = request.form.get("used_by", t.used_by)
         log_activity("update", "tool", t.id, f"Editada: {t.name}")
         db.session.commit()
+        push_change("tools", t.id)
         flash("Herramienta actualizada", "success")
     except Exception as e:
         db.session.rollback()
@@ -68,8 +71,10 @@ def edit(tid):
 def delete(tid):
     t = db.session.get(Tool, tid)
     if t:
+        tid_val = t.id
         log_activity("delete", "tool", t.id, f"Eliminada: {t.name}")
         db.session.delete(t)
         db.session.commit()
+        push_change("tools", tid_val)
         flash("Herramienta eliminada", "success")
     return redirect(url_for("tools.index"))

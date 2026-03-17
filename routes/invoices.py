@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import db, Invoice, Client, Project, CompanyInfo
 from routes.auth import login_required
 from services.activity import log_activity
+from services.sync import push_change
 
 invoices_bp = Blueprint("invoices", __name__)
 
@@ -77,6 +78,7 @@ def create():
         db.session.add(inv)
         log_activity("create", "invoice", details=f"Factura {inv.number}")
         db.session.commit()
+        push_change("invoices", inv.id)
         flash("Factura creada", "success")
     except Exception as e:
         db.session.rollback()
@@ -116,6 +118,7 @@ def edit(iid):
 
         log_activity("update", "invoice", inv.id, f"Factura {inv.number}")
         db.session.commit()
+        push_change("invoices", inv.id)
         flash("Factura actualizada", "success")
     except Exception as e:
         db.session.rollback()
@@ -133,6 +136,7 @@ def change_status(iid, status):
             inv.paid_date = date.today()
         log_activity("update", "invoice", inv.id, f"Estado → {status}: {inv.number}")
         db.session.commit()
+        push_change("invoices", inv.id)
         flash(f"Factura marcada como {status}", "success")
     return redirect(url_for("invoices.index"))
 
@@ -142,9 +146,11 @@ def change_status(iid, status):
 def delete(iid):
     inv = db.session.get(Invoice, iid)
     if inv:
+        inv_id = inv.id
         log_activity("delete", "invoice", inv.id, f"Eliminada: {inv.number}")
         db.session.delete(inv)
         db.session.commit()
+        push_change("invoices", inv_id)
         flash("Factura eliminada", "success")
     return redirect(url_for("invoices.index"))
 

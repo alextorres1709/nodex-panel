@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.3.0
+- **Fix critico: persistencia de datos** — todos los datos (time tracking, pagos, ingresos, proyectos, credenciales, facturas, clientes, herramientas, documentos, recursos, automatizaciones, ideas) ahora se sincronizan al remoto inmediatamente al crear/editar/eliminar. Antes se perdian al reiniciar porque el sync sobreescribia los cambios locales no empujados.
+- Proyectos vinculados a empresas: nuevo campo `company_id` en proyectos, selector de empresa al crear/editar proyecto, link directo desde tarjeta de proyecto a la empresa
+- Empresa detail: nueva seccion "Proyectos vinculados" con tabla de progreso, estado y presupuesto
+- KPI de proyectos en vista de empresa (reemplaza el KPI de ideas)
+- Sync mejorado: fix del error DATETIME en PostgreSQL al crear tablas remotas, añadidas tablas documents/resources/automations al sync
+- push_change añadido a 14 route files (payments, incomes, projects, companies, credentials, invoices, clients, tools, documents, resources, automations, ideas, timetracking)
+
 ## v3.2.0
 - Nueva seccion Empresas: pipeline de prospectos (escrito, responden, no responden, en negociacion, cerrado, perdido)
 - Detalle de empresa con contactos y tareas sincronizadas

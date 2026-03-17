@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from models import db, Income, Project
 from routes.auth import login_required
 from services.activity import log_activity
+from services.sync import push_change
 
 incomes_bp = Blueprint("incomes", __name__)
 
@@ -65,6 +66,7 @@ def create():
         db.session.add(i)
         log_activity("create", "income", details=f"Nuevo ingreso: {i.name}")
         db.session.commit()
+        push_change("incomes", i.id)
         flash("Ingreso creado", "success")
     except Exception as e:
         db.session.rollback()
@@ -96,6 +98,7 @@ def edit(iid):
         i.notes = request.form.get("notes", "").strip()
         log_activity("update", "income", i.id, f"Editado: {i.name}")
         db.session.commit()
+        push_change("incomes", i.id)
         flash("Ingreso actualizado", "success")
     except Exception as e:
         db.session.rollback()
@@ -108,8 +111,10 @@ def edit(iid):
 def delete(iid):
     i = db.session.get(Income, iid)
     if i:
+        iid_val = i.id
         log_activity("delete", "income", i.id, f"Eliminado: {i.name}")
         db.session.delete(i)
         db.session.commit()
+        push_change("incomes", iid_val)
         flash("Ingreso eliminado", "success")
     return redirect(url_for("incomes.index"))

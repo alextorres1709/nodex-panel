@@ -83,6 +83,8 @@ def create():
         db.session.add(entry)
         log_activity("create", "time_entry", details=f"{entry.minutes}min")
         db.session.commit()
+        from services.sync import push_change
+        push_change("time_entries", entry.id)
         flash("Tiempo registrado", "success")
     except Exception as e:
         db.session.rollback()
@@ -95,9 +97,12 @@ def create():
 def delete(eid):
     entry = db.session.get(TimeEntry, eid)
     if entry:
+        eid_copy = entry.id
         log_activity("delete", "time_entry", entry.id, f"{entry.minutes}min eliminados")
         db.session.delete(entry)
         db.session.commit()
+        from services.sync import push_change
+        push_change("time_entries", eid_copy)
         flash("Entrada eliminada", "success")
     return redirect(url_for("timetracking.index"))
 
@@ -123,4 +128,6 @@ def api_stop_timer():
     db.session.add(entry)
     log_activity("create", "time_entry", details=f"Timer: {minutes}min")
     db.session.commit()
+    from services.sync import push_change
+    push_change("time_entries", entry.id)
     return jsonify({"ok": True, "id": entry.id, "minutes": entry.minutes})

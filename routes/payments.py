@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from models import db, Payment
 from routes.auth import login_required
 from services.activity import log_activity
+from services.sync import push_change
 
 payments_bp = Blueprint("payments", __name__)
 
@@ -54,6 +55,7 @@ def create():
         db.session.add(p)
         log_activity("create", "payment", details=f"Nuevo pago: {p.name}")
         db.session.commit()
+        push_change("payments", p.id)
         flash("Pago creado", "success")
     except Exception as e:
         db.session.rollback()
@@ -80,6 +82,7 @@ def edit(pid):
         p.notes = request.form.get("notes", "").strip()
         log_activity("update", "payment", p.id, f"Editado: {p.name}")
         db.session.commit()
+        push_change("payments", p.id)
         flash("Pago actualizado", "success")
     except Exception as e:
         db.session.rollback()
@@ -92,8 +95,10 @@ def edit(pid):
 def delete(pid):
     p = db.session.get(Payment, pid)
     if p:
+        pid = p.id
         log_activity("delete", "payment", p.id, f"Eliminado: {p.name}")
         db.session.delete(p)
         db.session.commit()
+        push_change("payments", pid)
         flash("Pago eliminado", "success")
     return redirect(url_for("payments.index"))

@@ -3,6 +3,7 @@ from models import db, Credential
 from routes.auth import login_required
 from services.activity import log_activity
 from services.crypto import encrypt, decrypt
+from services.sync import push_change
 
 credentials_bp = Blueprint("credentials", __name__)
 
@@ -39,6 +40,7 @@ def create():
         db.session.add(c)
         log_activity("create", "credential", details=f"Nueva credencial: {c.service}")
         db.session.commit()
+        push_change("credentials", c.id)
         flash("Credencial guardada", "success")
     except Exception as e:
         db.session.rollback()
@@ -64,6 +66,7 @@ def edit(cid):
         c.category = request.form.get("category", c.category)
         log_activity("update", "credential", c.id, f"Editada: {c.service}")
         db.session.commit()
+        push_change("credentials", c.id)
         flash("Credencial actualizada", "success")
     except Exception as e:
         db.session.rollback()
@@ -76,8 +79,10 @@ def edit(cid):
 def delete(cid):
     c = db.session.get(Credential, cid)
     if c:
+        cid_val = c.id
         log_activity("delete", "credential", c.id, f"Eliminada: {c.service}")
         db.session.delete(c)
         db.session.commit()
+        push_change("credentials", cid_val)
         flash("Credencial eliminada", "success")
     return redirect(url_for("credentials.index"))

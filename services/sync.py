@@ -35,6 +35,9 @@ SYNC_TABLES = [
     "notifications",
     "time_entries",
     "invoices",
+    "documents",
+    "resources",
+    "automations",
 ]
 
 SYNC_INTERVAL = 10  # seconds (was 30 — reduced for near-real-time)
@@ -84,6 +87,10 @@ class SyncManager:
                         col_type = col.type
                         if isinstance(col_type, sa.types.NullType):
                             col_type = sa.Text()
+                        elif isinstance(col_type, sa.DateTime) or str(col_type).upper() == "DATETIME":
+                            col_type = sa.DateTime()
+                        elif isinstance(col_type, sa.Boolean) or str(col_type).upper() == "BOOLEAN":
+                            col_type = sa.Boolean()
                         new_col = sa.Column(
                             col.name, col_type,
                             primary_key=col.primary_key,
