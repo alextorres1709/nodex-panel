@@ -33,6 +33,7 @@
                 <td>{{ u.created_at.strftime('%d/%m/%Y') }}</td>
                 <td>
                     <button class="btn btn-sm btn-secondary" onclick="editUser({{ u.id }}, '{{ u.name|e }}', '{{ u.email }}', '{{ u.role }}', {{ 'true' if u.active else 'false' }})">Editar</button>
+                    <form method="POST" action="{{ url_for('users.delete', uid=u.id) }}" style="display:inline" onsubmit="return confirm('¿Eliminar a {{ u.name|e }}?')"><button type="submit" class="btn btn-sm btn-danger">Eliminar</button></form>
                 </td>
             </tr>
             {% endfor %}

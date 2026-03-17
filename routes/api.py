@@ -750,7 +750,7 @@ def _task_dict(t):
         "assignee_name": t.assignee.name if t.assignee else None,
         "project_id": t.project_id,
         "project_name": t.project.name if t.project else None,
-        "due_date": t.due_date.isoformat() if t.due_date else None,
+        "due_date": t.safe_due_date.isoformat() if t.safe_due_date else None,
         "estimated_minutes": t.estimated_minutes,
         "kanban_order": t.kanban_order,
         "created_at": t.created_at.isoformat() if t.created_at else None,

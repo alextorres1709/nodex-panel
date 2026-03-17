@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, g
 from models import db, User
 from routes.auth import admin_required
 from services.activity import log_activity
@@ -58,4 +58,21 @@ def edit(uid):
     except Exception as e:
         db.session.rollback()
         flash(f"Error: {e}", "error")
+    return redirect(url_for("users.index"))
+
+
+@users_bp.route("/usuarios/delete/<int:uid>", methods=["POST"])
+@admin_required
+def delete(uid):
+    if g.get("user") and g.user.id == uid:
+        flash("No puedes eliminarte a ti mismo", "error")
+        return redirect(url_for("users.index"))
+    u = db.session.get(User, uid)
+    if u:
+        log_activity("delete", "user", u.id, f"Eliminado: {u.name}")
+        db.session.delete(u)
+        db.session.commit()
+        from services.sync import push_change
+        push_change("users", uid)
+        flash("Usuario eliminado", "success")
     return redirect(url_for("users.index"))

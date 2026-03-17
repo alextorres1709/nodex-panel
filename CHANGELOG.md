@@ -1,5 +1,8 @@
 # Changelog
 
+## v3.4.1
+- **Fix**: Error 500 en `/tareas` debido a fechas malformadas provenientes de la sincronización remota. Se ha añadido programación defensiva (`safe_due_date`) para manejar la conversión de tipos en el modelo, backend y frontend.
+
 ## v3.4.0
 - **Fix definitivo: perdida de datos al reiniciar** — sync reescrito con estrategia MERGE (UPSERT) en vez de DELETE ALL + INSERT destructivo. Los datos locales no pusheados ya no se pierden. Se flushea la cola de pushes antes de cada pull y al cerrar la app (atexit handler). Deteccion inteligente de eliminaciones remotas.
 - **Seccion de tareas rediseñada**: KPIs de estadisticas (total, pendientes, en progreso, completadas, vencidas), buscador local instantaneo, cards kanban con borde de prioridad (rojo/naranja/verde), subtareas inline con checkboxes, quick-add al pie de columnas kanban, boton completar directo, iconos SVG en badges

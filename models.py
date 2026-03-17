@@ -145,6 +145,22 @@ class Task(db.Model):
     project = db.relationship("Project", foreign_keys=[project_id])
     company = db.relationship("Company", foreign_keys=[company_id])
 
+    @property
+    def safe_due_date(self):
+        if not self.due_date:
+            return None
+        try:
+            from datetime import date, datetime
+            if isinstance(self.due_date, datetime):
+                return self.due_date.date()
+            if isinstance(self.due_date, date):
+                return self.due_date
+            if isinstance(self.due_date, str):
+                return datetime.strptime(str(self.due_date).split("T")[0].split(" ")[0], "%Y-%m-%d").date()
+            return None
+        except Exception:
+            return None
+
 
 class TaskAssignment(db.Model):
     __tablename__ = "task_assignments"

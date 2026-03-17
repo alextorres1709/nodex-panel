@@ -114,7 +114,7 @@
         </div>
         <div class="kanban-cards" data-status="{{ col_status }}">
             {% for t in kanban[col_status] %}
-            <div class="kanban-card kanban-card--{{ t.priority }}{{ ' kanban-card--overdue' if t.due_date and t.due_date < today and t.status != 'completada' }}" draggable="true" data-task-id="{{ t.id }}" data-title="{{ t.title|lower }}">
+            <div class="kanban-card kanban-card--{{ t.priority }}{{ ' kanban-card--overdue' if t.safe_due_date and t.safe_due_date < today and t.status != 'completada' }}" draggable="true" data-task-id="{{ t.id }}" data-title="{{ t.title|lower }}">
                 <div class="kanban-card-header">
                     <span class="badge badge-{{ t.priority }}">{{ t.priority }}</span>
                     <div style="display:flex;gap:4px;align-items:center">
@@ -154,15 +154,15 @@
                         {% for u in t.assignees %}<span class="kanban-avatar" title="{{ u.name }}">{{ u.name[:2]|upper }}</span>{% endfor %}
                         {% if t.project %}<span class="kanban-project">{{ t.project.name }}</span>{% endif %}
                     </div>
-                    {% if t.due_date %}
-                    <span class="kanban-due {{ 'overdue' if t.due_date < today and t.status != 'completada' }}{{ ' due-soon' if t.due_date == today and t.status != 'completada' }}">
+                    {% if t.safe_due_date %}
+                    <span class="kanban-due {{ 'overdue' if t.safe_due_date < today and t.status != 'completada' }}{{ ' due-soon' if t.safe_due_date == today and t.status != 'completada' }}">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        {{ t.due_date.strftime('%d/%m') }}
+                        {{ t.safe_due_date.strftime('%d/%m') }}
                     </span>
                     {% endif %}
                 </div>
                 <div class="kanban-card-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
+                    <button class="btn btn-sm btn-secondary" onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.safe_due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
                     {% if t.status != 'completada' %}
                     <form method="POST" action="{{ url_for('tasks.toggle', tid=t.id) }}" style="display:inline">
                         <button type="submit" class="btn btn-sm btn-success" title="Completar">
@@ -207,7 +207,7 @@
 <!-- ═══ LIST VIEW ═══ -->
 <div class="task-list-container">
     {% for t in tasks %}
-    <div class="task-list-item {{ 'task-list-item--completed' if t.status == 'completada' }}{{ ' task-list-item--overdue' if t.due_date and t.due_date < today and t.status != 'completada' }}" data-title="{{ t.title|lower }}">
+    <div class="task-list-item {{ 'task-list-item--completed' if t.status == 'completada' }}{{ ' task-list-item--overdue' if t.safe_due_date and t.safe_due_date < today and t.status != 'completada' }}" data-title="{{ t.title|lower }}">
         <form method="POST" action="{{ url_for('tasks.toggle', tid=t.id) }}" style="display:inline">
             <button type="submit" class="task-check-btn {{ 'checked' if t.status == 'completada' }}" title="Toggle">
                 {% if t.status == 'completada' %}
@@ -224,9 +224,9 @@
                 {% if t.project %}<span class="task-list-tag">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                     {{ t.project.name }}</span>{% endif %}
-                {% if t.due_date %}<span class="task-list-tag {{ 'task-list-tag--overdue' if t.due_date < today and t.status != 'completada' }}{{ ' task-list-tag--today' if t.due_date == today and t.status != 'completada' }}">
+                {% if t.safe_due_date %}<span class="task-list-tag {{ 'task-list-tag--overdue' if t.safe_due_date < today and t.status != 'completada' }}{{ ' task-list-tag--today' if t.safe_due_date == today and t.status != 'completada' }}">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
-                    {{ t.due_date.strftime('%d/%m/%Y') }}</span>{% endif %}
+                    {{ t.safe_due_date.strftime('%d/%m/%Y') }}</span>{% endif %}
                 {% if t.estimated_minutes %}<span class="task-list-tag">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     {{ t.estimated_minutes }}min</span>{% endif %}
@@ -252,7 +252,7 @@
         </div>
         <div class="task-list-actions">
             <button class="btn btn-sm btn-secondary"
-                onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
+                onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.safe_due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
             <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline"
                 onsubmit="return confirm('Eliminar?')">
                 <button type="submit" class="btn btn-sm btn-danger">

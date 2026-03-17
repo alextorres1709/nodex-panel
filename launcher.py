@@ -74,33 +74,14 @@ def main():
     if getattr(sys, "frozen", False):
         sys.path.insert(0, sys._MEIPASS)
 
-    from app import create_app
     import webview
 
     # Patch before creating any windows
     _patch_media_permissions()
 
     port = find_free_port()
-    flask_app = create_app()
 
-    # Add restart endpoint for auto-updater
-    @flask_app.route("/__restart__")
-    def _restart():
-        threading.Thread(target=_delayed_restart, daemon=True).start()
-        return "Restarting...", 200
-
-    def _delayed_restart():
-        time.sleep(0.5)
-        from services.updater import _restart_app
-        _restart_app()
-
-    # Run Flask in a daemon thread
-    server_thread = threading.Thread(
-        target=start_server, args=(flask_app, port), daemon=True
-    )
-    server_thread.start()
-
-    # Dark loading page shown while Flask boots
+    # Dark loading page shown IMMEDIATELY while Flask boots in background
     LOADING_HTML = """
     <html>
     <body style="margin:0;background:#0d1117;display:flex;justify-content:center;align-items:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;flex-direction:column;gap:20px">
@@ -125,15 +106,48 @@ def main():
         background_color='#0d1117',
     )
 
-    def _wait_and_navigate(win):
-        """Wait for Flask to be ready, navigate, then check for updates."""
+    def _hide_titlebar_text():
+        """Hide title bar text but keep traffic-light buttons (close/minimize/maximize)."""
+        time.sleep(0.3)
+        try:
+            from AppKit import NSApp
+            for nswindow in NSApp.windows():
+                nswindow.setTitleVisibility_(1)           # NSWindowTitleHidden
+                nswindow.setTitlebarAppearsTransparent_(True)
+                mask = nswindow.styleMask()
+                nswindow.setStyleMask_(mask | (1 << 15))  # NSFullSizeContentViewWindowMask
+                break
+        except Exception:
+            pass
+
+    def _boot_flask_and_navigate(win):
+        """Boot Flask (create_app + server) in background, then navigate when ready."""
+        from app import create_app
+        flask_app = create_app()
+
+        # Add restart endpoint for auto-updater
+        @flask_app.route("/__restart__")
+        def _restart():
+            threading.Thread(target=_delayed_restart, daemon=True).start()
+            return "Restarting...", 200
+
+        def _delayed_restart():
+            time.sleep(0.5)
+            from services.updater import _restart_app
+            _restart_app()
+
+        # Start Flask server
+        threading.Thread(
+            target=start_server, args=(flask_app, port), daemon=True
+        ).start()
+
+        # Wait for Flask to be ready, then navigate
         import urllib.request
         url = f"http://127.0.0.1:{port}"
         for _ in range(60):
             try:
                 urllib.request.urlopen(url, timeout=1)
                 win.load_url(url)
-                # Start auto-updater after successful navigation
                 from services.updater import check_and_update
                 threading.Thread(
                     target=check_and_update, args=(win,), daemon=True
@@ -143,7 +157,8 @@ def main():
                 time.sleep(0.1)
         win.load_url(url)
 
-    threading.Thread(target=_wait_and_navigate, args=(window,), daemon=True).start()
+    threading.Thread(target=_hide_titlebar_text, daemon=True).start()
+    threading.Thread(target=_boot_flask_and_navigate, args=(window,), daemon=True).start()
 
     webview.start(private_mode=False)
 

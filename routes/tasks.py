@@ -38,7 +38,7 @@ def index():
     pending = sum(1 for t in all_tasks if t.status == "pendiente")
     in_progress = sum(1 for t in all_tasks if t.status == "en_progreso")
     completed = sum(1 for t in all_tasks if t.status == "completada")
-    overdue = sum(1 for t in all_tasks if t.due_date and t.due_date < date.today() and t.status != "completada")
+    overdue = sum(1 for t in all_tasks if t.safe_due_date and t.safe_due_date < date.today() and t.status != "completada")
 
     users = User.query.filter_by(active=True).all()
     projects = Project.query.order_by(Project.name).all()
