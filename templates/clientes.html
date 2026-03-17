@@ -61,11 +61,14 @@
              ondragover="event.preventDefault();this.classList.add('kanban-drag-over')"
              ondragleave="this.classList.remove('kanban-drag-over')"
              ondrop="dropClient(event, '{{ stage_id }}')">
-            {% for c in all_clients if c.pipeline_stage == stage_id %}
-            <div class="kanban-card" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '{{ c.id }}')" data-client-id="{{ c.id }}">
-                <div class="kanban-card-title">{{ c.name }}</div>
-                {% if c.company %}<div class="kanban-card-desc">{{ c.company }}</div>{% endif %}
-                {% if c.email %}<div style="font-size:11px;color:var(--text-tertiary)">{{ c.email }}</div>{% endif %}
+            {% for c in all_clients if (c.pipeline_stage if not c.is_contact else c['pipeline_stage']) == stage_id %}
+            <div class="kanban-card {% if c.is_contact %}kanban-card-contact{% endif %}" 
+                 {% if not c.is_contact %}draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '{{ c.id }}')" data-client-id="{{ c.id }}"{% endif %}>
+                <div class="kanban-card-title">{{ c.name if not c.is_contact else c['name'] }} {% if c.is_contact %}<span style="font-size:10px;color:var(--text-tertiary)">(Prospecto)</span>{% endif %}</div>
+                {% set comp = c.company if not c.is_contact else c['company'] %}
+                {% if comp %}<div class="kanban-card-desc">{{ comp }}</div>{% endif %}
+                {% set mail = c.email if not c.is_contact else c['email'] %}
+                {% if mail %}<div style="font-size:11px;color:var(--text-tertiary)">{{ mail }}</div>{% endif %}
             </div>
             {% endfor %}
         </div>
@@ -95,11 +98,12 @@
             <tbody>
                 {% for c in clients %}
                 <tr>
-                    <td><strong>{{ c.name }}</strong></td>
-                    <td>{{ c.company }}</td>
-                    <td>{{ c.email }}</td>
-                    <td>{{ c.phone }}</td>
+                    <td><strong>{{ c.name if not c.is_contact else c['name'] }}</strong><br>{% if c.is_contact %}<span style="font-size:11px;color:var(--text-tertiary)">Prospecto</span>{% endif %}</td>
+                    <td>{{ c.company if not c.is_contact else c['company'] }}</td>
+                    <td>{{ c.email if not c.is_contact else c['email'] }}</td>
+                    <td>{{ c.phone if not c.is_contact else c['phone'] }}</td>
                     <td>
+                        {% if not c.is_contact %}
                         <form method="POST" action="{{ url_for('clients.update_stage', cid=c.id) }}"
                             style="display:inline">
                             <select name="stage" onchange="this.form.submit()" class="inline-select">
@@ -112,15 +116,22 @@
                                 <option value="perdido" {{ 'selected' if c.pipeline_stage=='perdido' }}>Perdido</option>
                             </select>
                         </form>
+                        {% else %}
+                        <span class="badge badge-lead">Lead</span>
+                        {% endif %}
                     </td>
-                    <td>{{ c.source }}</td>
+                    <td>{{ c.source if not c.is_contact else c['source'] }}</td>
                     <td class="actions-cell">
+                        {% if not c.is_contact %}
                         <button class="btn btn-sm btn-secondary"
                             onclick="editClient({{ c.id }}, '{{ c.name }}', '{{ c.company }}', '{{ c.email }}', '{{ c.phone }}', '{{ c.address }}', '{{ c.nif }}', '{{ c.tags }}', '{{ c.pipeline_stage }}', '{{ c.source }}', `{{ c.notes|replace('`','') }}`)">Editar</button>
                         <form method="POST" action="{{ url_for('clients.delete', cid=c.id) }}" style="display:inline"
                             onsubmit="return confirm('¿Eliminar cliente?')">
                             <button type="submit" class="btn btn-sm btn-danger">×</button>
                         </form>
+                        {% else %}
+                        <span style="font-size:11px;color:var(--text-tertiary)">Gestionar en Empresas</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}

@@ -14,16 +14,46 @@ def index():
     q = Client.query
     if stage:
         q = q.filter_by(pipeline_stage=stage)
-    clients = q.order_by(Client.created_at.desc()).all()
+    
+    # 1. Fetch official clients
+    real_clients = q.order_by(Client.created_at.desc()).all()
+    all_real_clients = Client.query.order_by(Client.created_at.desc()).all()
+
+    # 2. Fetch Company contacts and mock them to look like clients
+    from models import CompanyContact
+    all_contacts = CompanyContact.query.all()
+    
+    mock_contacts = []
+    for ct in all_contacts:
+        company_name = ct.company.name if ct.company else ""
+        mock_contacts.append({
+            "id": f"contact_{ct.id}",
+            "is_contact": True,
+            "name": f"{ct.name} ({ct.role or 'Contacto'})",
+            "company": company_name,
+            "email": ct.email or "",
+            "phone": ct.phone or "",
+            "pipeline_stage": "lead", # Treat contacts as leads by default
+            "source": "Empresas",
+            "notes": ct.notes or ""
+        })
+
+    # 3. Filter contacts based on current stage
+    filtered_contacts = []
+    if not stage or stage == "lead":
+        filtered_contacts = mock_contacts
+
+    # 4. Merge
+    clients = list(real_clients) + filtered_contacts
+    all_clients = list(all_real_clients) + mock_contacts
 
     stages = {
-        "lead": Client.query.filter_by(pipeline_stage="lead").count(),
+        "lead": Client.query.filter_by(pipeline_stage="lead").count() + len(mock_contacts),
         "propuesta": Client.query.filter_by(pipeline_stage="propuesta").count(),
         "negociacion": Client.query.filter_by(pipeline_stage="negociacion").count(),
         "cerrado": Client.query.filter_by(pipeline_stage="cerrado").count(),
         "perdido": Client.query.filter_by(pipeline_stage="perdido").count(),
     }
-    all_clients = Client.query.order_by(Client.created_at.desc()).all()
 
     return render_template("clientes.html", clients=clients, all_clients=all_clients, stages=stages, current_stage=stage)
 
