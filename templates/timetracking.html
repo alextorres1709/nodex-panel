@@ -29,20 +29,56 @@
 
 <!-- Team stats -->
 <div class="table-card" style="margin-bottom:24px">
-    <div class="table-card-header"><h3>Equipo — Esta semana</h3></div>
-    <table class="data-table">
-        <thead><tr><th>Usuario</th><th>Semana</th><th>Mes</th></tr></thead>
+    <div class="table-card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <h3>Equipo — Esta semana</h3>
+        <div id="teamFilterChips" style="display:flex;flex-wrap:wrap;gap:6px">
+            {% for ts in team_stats %}
+            <button class="btn btn-sm team-chip active"
+                data-user-id="{{ ts.id }}"
+                onclick="toggleTeamUser(this)"
+                style="border-radius:20px;font-size:12px;padding:4px 12px;transition:all .2s;cursor:pointer">
+                {{ ts.name }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div style="padding:16px 20px;height:220px">
+        <canvas id="teamWeekChart"></canvas>
+    </div>
+
+    <!-- Filtered table -->
+    <table class="data-table" id="teamTable">
+        <thead><tr><th>Usuario</th><th>Semana</th><th>Mes</th><th>Media/día</th></tr></thead>
         <tbody>
             {% for ts in team_stats %}
-            <tr>
+            <tr data-user-id="{{ ts.id }}">
                 <td><strong>{{ ts.name }}</strong></td>
                 <td>{{ ts.week // 60 }}h {{ ts.week % 60 }}m</td>
                 <td>{{ ts.month // 60 }}h {{ ts.month % 60 }}m</td>
+                <td>{% if ts.week > 0 %}{{ (ts.week // 5) // 60 }}h {{ (ts.week // 5) % 60 }}m{% else %}0h 0m{% endif %}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<style>
+.team-chip {
+    background: var(--card-bg, #1e1e2e);
+    color: var(--text-secondary, #888);
+    border: 1px solid var(--border-color, #2a2a3e);
+}
+.team-chip.active {
+    background: var(--brand-primary, #7c3aed);
+    color: #fff;
+    border-color: var(--brand-primary, #7c3aed);
+}
+.team-chip:hover {
+    opacity: 0.85;
+}
+</style>
 
 <!-- Timer -->
 <div class="timer-card">
@@ -163,6 +199,74 @@
 
 {% block scripts %}
 <script>
+    /* ── Team Chart & Filter ── */
+    var TEAM_DATA = [
+        {% for ts in team_stats %}
+        { id: {{ ts.id }}, name: "{{ ts.name }}", daily: {{ ts.daily }}, week: {{ ts.week }}, month: {{ ts.month }} },
+        {% endfor %}
+    ];
+    var TEAM_COLORS = ['#7c3aed','#22c55e','#3b82f6','#f59e0b','#ef4444','#ec4899','#06b6d4','#f97316'];
+    var DAY_LABELS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+    var activeUsers = new Set(TEAM_DATA.map(function(u){ return u.id; }));
+
+    // Build datasets
+    function buildDatasets() {
+        return TEAM_DATA.filter(function(u) { return activeUsers.has(u.id); }).map(function(u, i) {
+            var colorIdx = TEAM_DATA.indexOf(u) % TEAM_COLORS.length;
+            return {
+                label: u.name,
+                data: u.daily.map(function(m) { return Math.round(m / 60 * 10) / 10; }),
+                backgroundColor: TEAM_COLORS[colorIdx],
+                borderRadius: 4,
+                borderSkipped: false,
+                maxBarThickness: 28,
+            };
+        });
+    }
+
+    var teamCtx = document.getElementById('teamWeekChart').getContext('2d');
+    var teamChart = new Chart(teamCtx, {
+        type: 'bar',
+        data: { labels: DAY_LABELS, datasets: buildDatasets() },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400, easing: 'easeOutQuart' },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { color: 'rgba(255,255,255,0.6)', font: { size: 11 }, usePointStyle: true, pointStyle: 'circle', padding: 16, boxWidth: 8 } },
+                tooltip: {
+                    backgroundColor: 'rgba(15,15,30,0.95)', titleColor: '#fff', bodyColor: 'rgba(255,255,255,0.8)',
+                    borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, cornerRadius: 8, padding: 10,
+                    callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y + 'h'; } }
+                }
+            },
+            scales: {
+                x: { stacked: true, grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 11 } } },
+                y: { stacked: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 11 }, callback: function(v) { return v + 'h'; } }, beginAtZero: true }
+            }
+        }
+    });
+
+    function toggleTeamUser(btn) {
+        var uid = parseInt(btn.getAttribute('data-user-id'));
+        if (activeUsers.has(uid)) {
+            if (activeUsers.size <= 1) return; // keep at least one
+            activeUsers.delete(uid);
+            btn.classList.remove('active');
+        } else {
+            activeUsers.add(uid);
+            btn.classList.add('active');
+        }
+        // Update chart
+        teamChart.data.datasets = buildDatasets();
+        teamChart.update('active');
+        // Update table
+        var rows = document.querySelectorAll('#teamTable tbody tr');
+        rows.forEach(function(row) {
+            var rid = parseInt(row.getAttribute('data-user-id'));
+            row.style.display = activeUsers.has(rid) ? '' : 'none';
+        });
+    }
     var timerInterval = null;
 
     function pad(n) { return n < 10 ? '0' + n : n; }

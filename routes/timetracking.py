@@ -43,16 +43,27 @@ def index():
     projects = Project.query.order_by(Project.name).all()
     users = User.query.filter_by(active=True).all()
 
-    # Team stats: week and month minutes per user
+    # Team stats: week and month minutes per user + daily breakdown
     team_stats = []
+    day_names = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
     for u in users:
-        u_week = sum(e.minutes for e in TimeEntry.query.filter(
-            TimeEntry.date >= week_start, TimeEntry.user_id == u.id).all())
+        u_week_entries = TimeEntry.query.filter(
+            TimeEntry.date >= week_start, TimeEntry.user_id == u.id).all()
+        u_week = sum(e.minutes for e in u_week_entries)
         u_month = sum(e.minutes for e in TimeEntry.query.filter(
             db.extract("month", TimeEntry.date) == date.today().month,
             db.extract("year", TimeEntry.date) == date.today().year,
             TimeEntry.user_id == u.id).all())
-        team_stats.append({"name": u.name, "week": u_week, "month": u_month})
+        # Daily breakdown for the week (Mon-Sun)
+        daily = [0] * 7
+        for e in u_week_entries:
+            wd = e.date.weekday()  # 0=Mon
+            daily[wd] += e.minutes
+        team_stats.append({
+            "id": u.id, "name": u.name,
+            "week": u_week, "month": u_month,
+            "daily": daily,
+        })
 
     return render_template(
         "timetracking.html", entries=entries, tasks=tasks, projects=projects,
