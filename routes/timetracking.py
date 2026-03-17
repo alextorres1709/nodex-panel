@@ -27,6 +27,22 @@ def index():
 
     entries = q.order_by(TimeEntry.date.desc(), TimeEntry.created_at.desc()).all()
 
+    # Chart navigation: week selected
+    chart_week_str = request.args.get("chart_week", "")
+    if chart_week_str:
+        try:
+            chart_week_start = datetime.strptime(chart_week_str, "%Y-%m-%d").date()
+            # Ensure it's a Monday
+            chart_week_start = chart_week_start - timedelta(days=chart_week_start.weekday())
+        except ValueError:
+            chart_week_start = date.today() - timedelta(days=date.today().weekday())
+    else:
+        chart_week_start = date.today() - timedelta(days=date.today().weekday())
+        
+    chart_week_end = chart_week_start + timedelta(days=6)
+    prev_week = chart_week_start - timedelta(days=7)
+    next_week = chart_week_start + timedelta(days=7)
+
     # Stats
     today_minutes = sum(e.minutes for e in entries if e.date == date.today())
     week_start = date.today() - timedelta(days=date.today().weekday())
@@ -43,18 +59,21 @@ def index():
     projects = Project.query.order_by(Project.name).all()
     users = User.query.filter_by(active=True).all()
 
-    # Team stats: week and month minutes per user + daily breakdown
+    # Team stats: week and month minutes per user + daily breakdown for chart_week
     team_stats = []
     day_names = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
     for u in users:
         u_week_entries = TimeEntry.query.filter(
-            TimeEntry.date >= week_start, TimeEntry.user_id == u.id).all()
+            TimeEntry.date >= chart_week_start, 
+            TimeEntry.date <= chart_week_end,
+            TimeEntry.user_id == u.id
+        ).all()
         u_week = sum(e.minutes for e in u_week_entries)
         u_month = sum(e.minutes for e in TimeEntry.query.filter(
-            db.extract("month", TimeEntry.date) == date.today().month,
-            db.extract("year", TimeEntry.date) == date.today().year,
+            db.extract("month", TimeEntry.date) == chart_week_start.month,
+            db.extract("year", TimeEntry.date) == chart_week_start.year,
             TimeEntry.user_id == u.id).all())
-        # Daily breakdown for the week (Mon-Sun)
+        # Daily breakdown for the selected week (Mon-Sun)
         daily = [0] * 7
         for e in u_week_entries:
             wd = e.date.weekday()  # 0=Mon
@@ -70,6 +89,8 @@ def index():
         today_minutes=today_minutes, week_minutes=week_minutes, month_minutes=month_minutes,
         filter_date=filter_date, filter_project=filter_project,
         team_stats=team_stats,
+        chart_week_start=chart_week_start, chart_week_end=chart_week_end,
+        prev_week=prev_week, next_week=next_week
     )
 
 

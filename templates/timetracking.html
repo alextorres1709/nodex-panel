@@ -30,7 +30,14 @@
 <!-- Team stats -->
 <div class="table-card" style="margin-bottom:24px">
     <div class="table-card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <h3>Equipo — Esta semana</h3>
+        <div style="display:flex;align-items:center;gap:12px">
+            <h3>Equipo — Sem. {{ chart_week_start.strftime('%d/%m') }} - {{ chart_week_end.strftime('%d/%m') }}</h3>
+            <div style="display:flex;gap:4px">
+                <a href="{{ url_for('timetracking.index', chart_week=prev_week, date=filter_date, project_id=filter_project) }}" class="btn btn-sm btn-secondary" style="padding:2px 8px" title="Semana anterior">&larr;</a>
+                <a href="{{ url_for('timetracking.index', date=filter_date, project_id=filter_project) }}" class="btn btn-sm btn-secondary" style="padding:2px 8px" title="Semana actual">Hoy</a>
+                <a href="{{ url_for('timetracking.index', chart_week=next_week, date=filter_date, project_id=filter_project) }}" class="btn btn-sm btn-secondary" style="padding:2px 8px" title="Semana siguiente">&rarr;</a>
+            </div>
+        </div>
         <div id="teamFilterChips" style="display:flex;flex-wrap:wrap;gap:6px">
             {% for ts in team_stats %}
             <button class="btn btn-sm team-chip active"
