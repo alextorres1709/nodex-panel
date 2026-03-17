@@ -31,6 +31,7 @@ def index():
             "is_contact": True,
             "name": f"{ct.name} ({ct.role or 'Contacto'})",
             "company": company_name,
+            "company_id": ct.company_id,
             "email": ct.email or "",
             "phone": ct.phone or "",
             "pipeline_stage": "lead", # Treat contacts as leads by default
@@ -76,7 +77,7 @@ def create():
     db.session.add(c)
     db.session.commit()
     push_change("clients", c.id)
-    log_activity(g.user.id, "create", "client", c.id, c.name)
+    log_activity("create", "client", c.id, f"Nuevo cliente: {c.name}")
     flash("Cliente creado", "success")
     return redirect(url_for("clients.index"))
 
@@ -97,7 +98,7 @@ def edit(cid):
     c.notes = request.form.get("notes", c.notes)
     db.session.commit()
     push_change("clients", c.id)
-    log_activity(g.user.id, "update", "client", c.id, c.name)
+    log_activity("update", "client", c.id, f"Cliente actualizado: {c.name}")
     flash("Cliente actualizado", "success")
     return redirect(url_for("clients.index"))
 
@@ -110,7 +111,7 @@ def delete(cid):
     db.session.delete(c)
     db.session.commit()
     push_change("clients", cid)
-    log_activity(g.user.id, "delete", "client", cid, name)
+    log_activity("delete", "client", cid, f"Cliente eliminado: {name}")
     flash("Cliente eliminado", "success")
     return redirect(url_for("clients.index"))
 
@@ -123,5 +124,5 @@ def update_stage(cid):
     c.pipeline_stage = new_stage
     db.session.commit()
     push_change("clients", c.id)
-    log_activity(g.user.id, "update", "client", c.id, f"{c.name} → {new_stage}")
+    log_activity("update", "client", c.id, f"{c.name} → {new_stage}")
     return redirect(url_for("clients.index"))
