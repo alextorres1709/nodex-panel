@@ -24,6 +24,8 @@ def _auto_migrate(app):
         ("tasks", "recurrence", "VARCHAR(20) DEFAULT 'ninguna'"),
         ("ideas", "company_id", "INTEGER"),
         ("companies", "interest", "VARCHAR(300) DEFAULT ''"),
+        ("companies", "problem", "TEXT DEFAULT ''"),
+        ("companies", "solution", "TEXT DEFAULT ''"),
         ("projects", "company_id", "INTEGER"),
     ]
 

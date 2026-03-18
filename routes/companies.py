@@ -62,6 +62,8 @@ def create():
             website=request.form.get("website", "").strip(),
             status=request.form.get("status", "por_escribir"),
             interest=request.form.get("interest", "").strip(),
+            problem=request.form.get("problem", "").strip(),
+            solution=request.form.get("solution", "").strip(),
             notes=request.form.get("notes", "").strip(),
         )
         db.session.add(c)
@@ -88,6 +90,8 @@ def edit(cid):
         c.website = request.form.get("website", "").strip()
         c.status = request.form.get("status", c.status)
         c.interest = request.form.get("interest", "").strip()
+        c.problem = request.form.get("problem", "").strip()
+        c.solution = request.form.get("solution", "").strip()
         c.notes = request.form.get("notes", "").strip()
         log_activity("update", "company", c.id, f"Editada: {c.name}")
         db.session.commit()

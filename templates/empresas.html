@@ -3,49 +3,6 @@
 {% block page_title %}Empresas a contactar{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1>Empresas a contactar</h1>
-        <p class="page-subtitle">Pipeline comercial y seguimiento de prospectos</p>
-    </div>
-    <div style="display:flex;gap:8px">
-        <a href="{{ url_for('captacion.index') }}" class="btn btn-secondary">Ver Proceso →</a>
-        <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva empresa</button>
-    </div>
-</div>
-
-<form class="filter-bar" method="GET">
-    <select name="status">
-        <option value="">Todos los estados</option>
-        <optgroup label="Pre-venta">
-            <option value="por_escribir" {{ 'selected' if sel_status == 'por_escribir' }}>Por escribir</option>
-            <option value="contactada_sin_respuesta" {{ 'selected' if sel_status == 'contactada_sin_respuesta' }}>Contactada – Sin respuesta</option>
-            <option value="interesado" {{ 'selected' if sel_status == 'interesado' }}>Interesado</option>
-            <option value="llamada_agendada" {{ 'selected' if sel_status == 'llamada_agendada' }}>Llamada agendada</option>
-            <option value="demo_preparacion" {{ 'selected' if sel_status == 'demo_preparacion' }}>Demo en preparación</option>
-            <option value="demo_realizada" {{ 'selected' if sel_status == 'demo_realizada' }}>Demo realizada</option>
-        </optgroup>
-        <optgroup label="Negociación">
-            <option value="propuesta_enviada" {{ 'selected' if sel_status == 'propuesta_enviada' }}>Propuesta enviada</option>
-            <option value="negociacion" {{ 'selected' if sel_status == 'negociacion' }}>En negociación</option>
-            <option value="cerrado_ganado" {{ 'selected' if sel_status == 'cerrado_ganado' }}>Cerrado (Ganado)</option>
-            <option value="cerrado_perdido" {{ 'selected' if sel_status == 'cerrado_perdido' }}>Cerrado (Perdido)</option>
-        </optgroup>
-        <optgroup label="Post-venta">
-            <option value="pago_recibido" {{ 'selected' if sel_status == 'pago_recibido' }}>Pago recibido</option>
-            <option value="welcome_enviado" {{ 'selected' if sel_status == 'welcome_enviado' }}>Welcome enviado</option>
-            <option value="en_implementacion" {{ 'selected' if sel_status == 'en_implementacion' }}>En implementación</option>
-            <option value="entregado" {{ 'selected' if sel_status == 'entregado' }}>Entregado</option>
-            <option value="seguimiento" {{ 'selected' if sel_status == 'seguimiento' }}>Seguimiento</option>
-        </optgroup>
-    </select>
-    <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
-    {% if sel_status %}
-    <a href="{{ url_for('companies.index') }}" class="btn btn-sm btn-secondary">Limpiar</a>
-    {% endif %}
-</form>
-
-<!-- Status counts — agrupados -->
 {% set status_labels = {
     'por_escribir':'Por escribir',
     'contactada_sin_respuesta':'Sin respuesta',
@@ -63,145 +20,117 @@
     'entregado':'Entregado',
     'seguimiento':'Seguimiento'
 } %}
-{% set status_colors = {
-    'por_escribir':'accent-gray',
-    'contactada_sin_respuesta':'accent-blue',
-    'interesado':'accent-cyan',
-    'llamada_agendada':'accent-purple',
-    'demo_preparacion':'accent-yellow',
-    'demo_realizada':'accent-blue',
-    'propuesta_enviada':'accent-yellow',
-    'negociacion':'accent-purple',
-    'cerrado_ganado':'accent-green',
-    'cerrado_perdido':'accent-red',
-    'pago_recibido':'accent-green',
-    'welcome_enviado':'accent-cyan',
-    'en_implementacion':'accent-blue',
-    'entregado':'accent-green',
-    'seguimiento':'accent-purple'
-} %}
 
-<!-- PRE-VENTA -->
-<div style="font-size:11px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1.5px;margin:16px 0 8px">Pre-venta</div>
-<div class="kpi-grid" style="margin-bottom:8px">
-    {% for s in ['por_escribir','contactada_sin_respuesta','interesado','llamada_agendada','demo_preparacion','demo_realizada'] %}
+<div class="page-header">
+    <div>
+        <h1>Empresas a contactar</h1>
+        <p class="page-subtitle">Pipeline comercial · {{ companies|length }} empresa{{ 's' if companies|length != 1 }}</p>
+    </div>
+    <div style="display:flex;gap:8px">
+        <a href="{{ url_for('captacion.index') }}" class="btn btn-secondary">Proceso →</a>
+        <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva empresa</button>
+    </div>
+</div>
+
+<!-- Compact KPI Bar -->
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">
+    {% set all_statuses = ['por_escribir','contactada_sin_respuesta','interesado','llamada_agendada','demo_preparacion','demo_realizada','propuesta_enviada','negociacion','cerrado_ganado','cerrado_perdido','pago_recibido','welcome_enviado','en_implementacion','entregado','seguimiento'] %}
+    {% for s in all_statuses %}
     {% set count = companies|selectattr('status','equalto',s)|list|length %}
-    <div class="kpi-card {{ status_colors[s] }}" style="cursor:pointer" onclick="window.location='?status={{ s }}'">
-        <div class="kpi-label">{{ status_labels[s] }}</div>
-        <div class="kpi-value">{{ count }}</div>
-    </div>
+    {% if count > 0 or sel_status == s %}
+    <a href="?status={{ s }}" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid {{ 'var(--brand-primary)' if sel_status == s else 'var(--border-color)' }};background:{{ 'var(--brand-primary-alpha, rgba(124,58,237,.1))' if sel_status == s else 'var(--bg-secondary)' }};color:{{ 'var(--brand-primary)' if sel_status == s else 'var(--text-secondary)' }}">
+        {{ status_labels[s] }} <span style="opacity:.7">{{ count }}</span>
+    </a>
+    {% endif %}
     {% endfor %}
+    {% if sel_status %}
+    <a href="{{ url_for('companies.index') }}" style="display:flex;align-items:center;gap:4px;padding:6px 12px;border-radius:8px;font-size:12px;text-decoration:none;color:var(--text-tertiary);border:1px dashed var(--border-color)">✕ Limpiar</a>
+    {% endif %}
 </div>
 
-<!-- NEGOCIACIÓN -->
-<div style="font-size:11px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1.5px;margin:16px 0 8px">Negociación</div>
-<div class="kpi-grid" style="margin-bottom:8px">
-    {% for s in ['propuesta_enviada','negociacion','cerrado_ganado','cerrado_perdido'] %}
-    {% set count = companies|selectattr('status','equalto',s)|list|length %}
-    <div class="kpi-card {{ status_colors[s] }}" style="cursor:pointer" onclick="window.location='?status={{ s }}'">
-        <div class="kpi-label">{{ status_labels[s] }}</div>
-        <div class="kpi-value">{{ count }}</div>
-    </div>
-    {% endfor %}
+<!-- Table list -->
+<div class="table-card">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Empresa</th>
+                <th>Industria</th>
+                <th>Estado</th>
+                <th>Problema</th>
+                <th>Contactos</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in companies %}
+            <tr style="cursor:pointer" onclick="window.location='{{ url_for('companies.view', cid=c.id) }}'">
+                <td>
+                    <div style="font-weight:600;color:var(--text-primary)">{{ c.name }}</div>
+                    {% if c.website %}<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px"><a href="{{ c.website }}" target="_blank" style="color:var(--accent)" onclick="event.stopPropagation()">{{ c.website|truncate(35) }}</a></div>{% endif %}
+                </td>
+                <td style="color:var(--text-secondary);font-size:13px">{{ c.industry or '—' }}</td>
+                <td><span class="badge badge-{{ c.status }}">{{ status_labels.get(c.status, c.status|replace('_',' ')) }}</span></td>
+                <td style="font-size:12px;color:var(--text-secondary);max-width:250px">
+                    {% if c.problem %}{{ c.problem[:80] }}{% if c.problem|length > 80 %}...{% endif %}{% else %}<span style="color:var(--text-tertiary)">—</span>{% endif %}
+                </td>
+                <td style="text-align:center;font-size:13px;color:var(--text-secondary)">{{ contact_counts.get(c.id, 0) }}</td>
+                <td style="text-align:right;white-space:nowrap" onclick="event.stopPropagation()">
+                    <button class="btn btn-sm btn-secondary" onclick="editCompany({{ c.id }}, {{ c|tojson|safe }})">Editar</button>
+                    <form method="POST" action="{{ url_for('companies.delete', cid=c.id) }}" style="display:inline" onsubmit="return confirm('Eliminar empresa?')">
+                        <button type="submit" class="btn btn-sm btn-danger">✕</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if not companies %}
+    <div style="padding:48px;text-align:center;color:var(--text-tertiary)">No hay empresas{% if sel_status %} con este estado{% endif %}</div>
+    {% endif %}
 </div>
-
-<!-- POST-VENTA -->
-<div style="font-size:11px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1.5px;margin:16px 0 8px">Post-venta</div>
-<div class="kpi-grid" style="margin-bottom:24px">
-    {% for s in ['pago_recibido','welcome_enviado','en_implementacion','entregado','seguimiento'] %}
-    {% set count = companies|selectattr('status','equalto',s)|list|length %}
-    <div class="kpi-card {{ status_colors[s] }}" style="cursor:pointer" onclick="window.location='?status={{ s }}'">
-        <div class="kpi-label">{{ status_labels[s] }}</div>
-        <div class="kpi-value">{{ count }}</div>
-    </div>
-    {% endfor %}
-</div>
-
-<div class="project-grid">
-    {% for c in companies %}
-    <div class="project-card">
-        <div class="project-card-header">
-            <h3 class="project-card-name"><a href="{{ url_for('companies.view', cid=c.id) }}" style="color:inherit;text-decoration:none">{{ c.name }}</a></h3>
-            <span class="badge badge-{{ c.status }}">{{ status_labels.get(c.status, c.status|replace('_',' ')) }}</span>
-        </div>
-        <div class="project-card-body">
-            <div class="project-meta-row">
-                <span class="project-meta-label">Industria</span>
-                <span>{{ c.industry or '—' }}</span>
-            </div>
-            <div class="project-meta-row">
-                <span class="project-meta-label">Web</span>
-                <span>{% if c.website %}<a href="{{ c.website }}" target="_blank" style="color:var(--accent)">{{ c.website|truncate(30) }}</a>{% else %}—{% endif %}</span>
-            </div>
-            <div class="project-meta-row">
-                <span class="project-meta-label">Contactos</span>
-                <span>{{ contact_counts.get(c.id, 0) }}</span>
-            </div>
-            {% if c.interest %}
-            <div class="project-meta-row">
-                <span class="project-meta-label">Interes</span>
-                <span>{{ c.interest[:40] }}{% if c.interest|length > 40 %}...{% endif %}</span>
-            </div>
-            {% endif %}
-            {% if c.notes %}
-            <div style="margin-top:10px">
-                <span style="font-size:12px;color:var(--text-tertiary)">{{ c.notes[:60] }}{% if c.notes|length > 60 %}...{% endif %}</span>
-            </div>
-            {% endif %}
-        </div>
-        <div class="project-card-footer">
-            <button class="btn btn-sm btn-secondary" onclick="editCompany({{ c.id }}, '{{ c.name|e }}', '{{ c.industry|e }}', '{{ c.website|e }}', '{{ c.status }}', '{{ c.interest|e }}', '{{ c.notes|e }}')">Editar</button>
-            <form method="POST" action="{{ url_for('companies.delete', cid=c.id) }}" style="display:inline" onsubmit="return confirm('Eliminar empresa?')">
-                <button type="submit" class="btn btn-sm btn-danger">X</button>
-            </form>
-        </div>
-    </div>
-    {% endfor %}
-</div>
-{% if not companies %}
-<div class="empty-state" style="padding:48px;text-align:center">
-    <p style="color:var(--text-tertiary)">No hay empresas</p>
-</div>
-{% endif %}
 
 <!-- Create Modal -->
 <div class="modal-overlay" id="createModal">
-    <div class="modal">
+    <div class="modal" style="max-width:620px">
         <div class="modal-header"><h3>Nueva empresa</h3><button class="modal-close" onclick="closeModal('createModal')">&times;</button></div>
         <form method="POST" action="{{ url_for('companies.create') }}">
             <div class="modal-body">
-                <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
+                <div class="form-group"><label>Nombre *</label><input type="text" name="name" required></div>
                 <div class="form-row">
-                    <div class="form-group"><label>Industria</label><input type="text" name="industry" placeholder="Tecnologia, Salud..."></div>
+                    <div class="form-group"><label>Industria</label><input type="text" name="industry" placeholder="Hostelería, Salud..."></div>
                     <div class="form-group"><label>Web</label><input type="url" name="website" placeholder="https://..."></div>
                 </div>
-                <div class="form-group"><label>Estado</label>
-                    <select name="status">
-                        <optgroup label="Pre-venta">
-                            <option value="por_escribir" selected>Por escribir</option>
-                            <option value="contactada_sin_respuesta">Contactada – Sin respuesta</option>
-                            <option value="interesado">Interesado</option>
-                            <option value="llamada_agendada">Llamada agendada</option>
-                            <option value="demo_preparacion">Demo en preparación</option>
-                            <option value="demo_realizada">Demo realizada</option>
-                        </optgroup>
-                        <optgroup label="Negociación">
-                            <option value="propuesta_enviada">Propuesta enviada</option>
-                            <option value="negociacion">En negociación</option>
-                            <option value="cerrado_ganado">Cerrado (Ganado)</option>
-                            <option value="cerrado_perdido">Cerrado (Perdido)</option>
-                        </optgroup>
-                        <optgroup label="Post-venta">
-                            <option value="pago_recibido">Pago recibido</option>
-                            <option value="welcome_enviado">Welcome enviado</option>
-                            <option value="en_implementacion">En implementación</option>
-                            <option value="entregado">Entregado</option>
-                            <option value="seguimiento">Seguimiento</option>
-                        </optgroup>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group"><label>Estado</label>
+                        <select name="status">
+                            <optgroup label="Pre-venta">
+                                <option value="por_escribir" selected>Por escribir</option>
+                                <option value="contactada_sin_respuesta">Contactada – Sin respuesta</option>
+                                <option value="interesado">Interesado</option>
+                                <option value="llamada_agendada">Llamada agendada</option>
+                                <option value="demo_preparacion">Demo en preparación</option>
+                                <option value="demo_realizada">Demo realizada</option>
+                            </optgroup>
+                            <optgroup label="Negociación">
+                                <option value="propuesta_enviada">Propuesta enviada</option>
+                                <option value="negociacion">En negociación</option>
+                                <option value="cerrado_ganado">Cerrado (Ganado)</option>
+                                <option value="cerrado_perdido">Cerrado (Perdido)</option>
+                            </optgroup>
+                            <optgroup label="Post-venta">
+                                <option value="pago_recibido">Pago recibido</option>
+                                <option value="welcome_enviado">Welcome enviado</option>
+                                <option value="en_implementacion">En implementación</option>
+                                <option value="entregado">Entregado</option>
+                                <option value="seguimiento">Seguimiento</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Interés</label><input type="text" name="interest" placeholder="Qué les podría interesar..."></div>
                 </div>
-                <div class="form-group"><label>Interes</label><input type="text" name="interest" placeholder="Que les podria interesar..."></div>
-                <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+                <div class="form-group"><label>🔍 Problema detectado</label><textarea name="problem" rows="3" placeholder="Qué problema hemos detectado en su negocio..."></textarea></div>
+                <div class="form-group"><label>💡 Soluciones que ofrecemos</label><textarea name="solution" rows="3" placeholder="Qué podemos hacer por ellos..."></textarea></div>
+                <div class="form-group"><label>Notas</label><textarea name="notes" rows="2" placeholder="Notas internas..."></textarea></div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
         </form>
@@ -210,41 +139,45 @@
 
 <!-- Edit Modal -->
 <div class="modal-overlay" id="editModal">
-    <div class="modal">
+    <div class="modal" style="max-width:620px">
         <div class="modal-header"><h3>Editar empresa</h3><button class="modal-close" onclick="closeModal('editModal')">&times;</button></div>
         <form method="POST" id="editForm" action="">
             <div class="modal-body">
-                <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
+                <div class="form-group"><label>Nombre *</label><input type="text" name="name" required></div>
                 <div class="form-row">
                     <div class="form-group"><label>Industria</label><input type="text" name="industry"></div>
                     <div class="form-group"><label>Web</label><input type="url" name="website"></div>
                 </div>
-                <div class="form-group"><label>Estado</label>
-                    <select name="status">
-                        <optgroup label="Pre-venta">
-                            <option value="por_escribir">Por escribir</option>
-                            <option value="contactada_sin_respuesta">Contactada – Sin respuesta</option>
-                            <option value="interesado">Interesado</option>
-                            <option value="llamada_agendada">Llamada agendada</option>
-                            <option value="demo_preparacion">Demo en preparación</option>
-                            <option value="demo_realizada">Demo realizada</option>
-                        </optgroup>
-                        <optgroup label="Negociación">
-                            <option value="propuesta_enviada">Propuesta enviada</option>
-                            <option value="negociacion">En negociación</option>
-                            <option value="cerrado_ganado">Cerrado (Ganado)</option>
-                            <option value="cerrado_perdido">Cerrado (Perdido)</option>
-                        </optgroup>
-                        <optgroup label="Post-venta">
-                            <option value="pago_recibido">Pago recibido</option>
-                            <option value="welcome_enviado">Welcome enviado</option>
-                            <option value="en_implementacion">En implementación</option>
-                            <option value="entregado">Entregado</option>
-                            <option value="seguimiento">Seguimiento</option>
-                        </optgroup>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group"><label>Estado</label>
+                        <select name="status">
+                            <optgroup label="Pre-venta">
+                                <option value="por_escribir">Por escribir</option>
+                                <option value="contactada_sin_respuesta">Contactada – Sin respuesta</option>
+                                <option value="interesado">Interesado</option>
+                                <option value="llamada_agendada">Llamada agendada</option>
+                                <option value="demo_preparacion">Demo en preparación</option>
+                                <option value="demo_realizada">Demo realizada</option>
+                            </optgroup>
+                            <optgroup label="Negociación">
+                                <option value="propuesta_enviada">Propuesta enviada</option>
+                                <option value="negociacion">En negociación</option>
+                                <option value="cerrado_ganado">Cerrado (Ganado)</option>
+                                <option value="cerrado_perdido">Cerrado (Perdido)</option>
+                            </optgroup>
+                            <optgroup label="Post-venta">
+                                <option value="pago_recibido">Pago recibido</option>
+                                <option value="welcome_enviado">Welcome enviado</option>
+                                <option value="en_implementacion">En implementación</option>
+                                <option value="entregado">Entregado</option>
+                                <option value="seguimiento">Seguimiento</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Interés</label><input type="text" name="interest"></div>
                 </div>
-                <div class="form-group"><label>Interes</label><input type="text" name="interest"></div>
+                <div class="form-group"><label>🔍 Problema detectado</label><textarea name="problem" rows="3"></textarea></div>
+                <div class="form-group"><label>💡 Soluciones que ofrecemos</label><textarea name="solution" rows="3"></textarea></div>
                 <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
@@ -255,9 +188,14 @@
 
 {% block scripts %}
 <script>
-function editCompany(id, name, industry, website, status, interest, notes) {
+function editCompany(id, data) {
     document.getElementById('editForm').action = '/empresas/edit/' + id;
-    populateEditModal({name, industry, website, status, interest, notes}, 'editForm');
+    const form = document.getElementById('editForm');
+    const fields = ['name','industry','website','status','interest','problem','solution','notes'];
+    fields.forEach(f => {
+        const el = form.querySelector('[name="' + f + '"]');
+        if (el) el.value = data[f] || '';
+    });
     openModal('editModal');
 }
 </script>
