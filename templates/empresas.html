@@ -32,21 +32,133 @@
     </div>
 </div>
 
-<!-- Compact KPI Bar -->
-<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">
-    {% set all_statuses = ['por_escribir','contactada_sin_respuesta','interesado','llamada_agendada','demo_preparacion','demo_realizada','propuesta_enviada','negociacion','cerrado_ganado','cerrado_perdido','pago_recibido','welcome_enviado','en_implementacion','entregado','seguimiento'] %}
-    {% for s in all_statuses %}
-    {% set count = companies|selectattr('status','equalto',s)|list|length %}
-    {% if count > 0 or sel_status == s %}
-    <a href="?status={{ s }}" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid {{ 'var(--brand-primary)' if sel_status == s else 'var(--border-color)' }};background:{{ 'var(--brand-primary-alpha, rgba(124,58,237,.1))' if sel_status == s else 'var(--bg-secondary)' }};color:{{ 'var(--brand-primary)' if sel_status == s else 'var(--text-secondary)' }}">
-        {{ status_labels[s] }} <span style="opacity:.7">{{ count }}</span>
-    </a>
+<!-- ═══ VISUAL DASHBOARD ═══ -->
+{% set total = companies|length %}
+{% set pre_statuses = ['por_escribir','contactada_sin_respuesta','interesado','llamada_agendada','demo_preparacion','demo_realizada'] %}
+{% set neg_statuses = ['propuesta_enviada','negociacion','cerrado_ganado','cerrado_perdido'] %}
+{% set post_statuses = ['pago_recibido','welcome_enviado','en_implementacion','entregado','seguimiento'] %}
+{% set all_statuses = pre_statuses + neg_statuses + post_statuses %}
+{% set ns = namespace(pre=0, neg=0, post=0) %}
+{% for c in companies %}
+    {% if c.status in pre_statuses %}{% set ns.pre = ns.pre + 1 %}
+    {% elif c.status in neg_statuses %}{% set ns.neg = ns.neg + 1 %}
+    {% elif c.status in post_statuses %}{% set ns.post = ns.post + 1 %}
     {% endif %}
-    {% endfor %}
-    {% if sel_status %}
-    <a href="{{ url_for('companies.index') }}" style="display:flex;align-items:center;gap:4px;padding:6px 12px;border-radius:8px;font-size:12px;text-decoration:none;color:var(--text-tertiary);border:1px dashed var(--border-color)">✕ Limpiar</a>
+{% endfor %}
+{% set pre_count = ns.pre %}
+{% set neg_count = ns.neg %}
+{% set post_count = ns.post %}
+{% set ganados = companies|selectattr('status','equalto','cerrado_ganado')|list|length %}
+{% set perdidos = companies|selectattr('status','equalto','cerrado_perdido')|list|length %}
+
+<!-- Phase Summary Cards -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
+    <!-- PRE-VENTA -->
+    <div class="table-card" style="padding:20px;border-top:3px solid #3b82f6">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+            <div>
+                <div style="font-size:11px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Pre-venta</div>
+                <div style="font-size:32px;font-weight:800;color:var(--text-primary);line-height:1">{{ pre_count }}</div>
+            </div>
+            <div style="width:44px;height:44px;border-radius:12px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center;font-size:20px">📨</div>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+            {% for s in pre_statuses %}
+            {% set sc = companies|selectattr('status','equalto',s)|list|length %}
+            {% if sc > 0 %}
+            <a href="?status={{ s }}" style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(59,130,246,.08);color:#3b82f6;text-decoration:none;white-space:nowrap">{{ status_labels[s] }} <strong>{{ sc }}</strong></a>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- NEGOCIACIÓN -->
+    <div class="table-card" style="padding:20px;border-top:3px solid #f59e0b">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+            <div>
+                <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Negociación</div>
+                <div style="font-size:32px;font-weight:800;color:var(--text-primary);line-height:1">{{ neg_count }}</div>
+            </div>
+            <div style="width:44px;height:44px;border-radius:12px;background:rgba(245,158,11,.1);display:flex;align-items:center;justify-content:center;font-size:20px">🤝</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+            {% if ganados > 0 %}<span style="font-size:12px;color:#22c55e;font-weight:600">✓ {{ ganados }} ganado{{ 's' if ganados != 1 }}</span>{% endif %}
+            {% if perdidos > 0 %}<span style="font-size:12px;color:#ef4444;font-weight:600">✗ {{ perdidos }} perdido{{ 's' if perdidos != 1 }}</span>{% endif %}
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+            {% for s in neg_statuses %}
+            {% set sc = companies|selectattr('status','equalto',s)|list|length %}
+            {% if sc > 0 %}
+            <a href="?status={{ s }}" style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(245,158,11,.08);color:#f59e0b;text-decoration:none;white-space:nowrap">{{ status_labels[s] }} <strong>{{ sc }}</strong></a>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- POST-VENTA -->
+    <div class="table-card" style="padding:20px;border-top:3px solid #22c55e">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+            <div>
+                <div style="font-size:11px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Post-venta</div>
+                <div style="font-size:32px;font-weight:800;color:var(--text-primary);line-height:1">{{ post_count }}</div>
+            </div>
+            <div style="width:44px;height:44px;border-radius:12px;background:rgba(34,197,94,.1);display:flex;align-items:center;justify-content:center;font-size:20px">🚀</div>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+            {% for s in post_statuses %}
+            {% set sc = companies|selectattr('status','equalto',s)|list|length %}
+            {% if sc > 0 %}
+            <a href="?status={{ s }}" style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(34,197,94,.08);color:#22c55e;text-decoration:none;white-space:nowrap">{{ status_labels[s] }} <strong>{{ sc }}</strong></a>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Pipeline Funnel + Conversion -->
+<div class="table-card" style="padding:20px;margin-bottom:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--text-primary)">Pipeline comercial</div>
+        {% if total > 0 %}
+        <div style="font-size:12px;color:var(--text-tertiary)">
+            Conversión: <strong style="color:{{ '#22c55e' if ganados > 0 else 'var(--text-secondary)' }}">{{ "%.0f"|format(ganados / total * 100) if total > 0 else 0 }}%</strong>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Funnel bars -->
+    {% if total > 0 %}
+    <div style="display:flex;flex-direction:column;gap:6px">
+        {% for s in all_statuses %}
+        {% set sc = companies|selectattr('status','equalto',s)|list|length %}
+        {% if sc > 0 %}
+        {% set pct = (sc / total * 100)|round(0)|int %}
+        {% set bar_color = '#3b82f6' if s in pre_statuses else '#f59e0b' if s in neg_statuses else '#22c55e' %}
+        {% if s == 'cerrado_perdido' %}{% set bar_color = '#ef4444' %}{% endif %}
+        <a href="?status={{ s }}" style="display:flex;align-items:center;gap:12px;text-decoration:none;padding:4px 0">
+            <div style="width:130px;font-size:12px;color:var(--text-secondary);text-align:right;flex-shrink:0">{{ status_labels[s] }}</div>
+            <div style="flex:1;height:24px;background:var(--bg-tertiary, rgba(255,255,255,.04));border-radius:6px;overflow:hidden;position:relative">
+                <div style="height:100%;width:{{ pct }}%;min-width:20px;background:{{ bar_color }};border-radius:6px;transition:width .5s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px">
+                    <span style="font-size:11px;font-weight:700;color:#fff">{{ sc }}</span>
+                </div>
+            </div>
+            <div style="width:36px;font-size:11px;color:var(--text-tertiary);text-align:right;flex-shrink:0">{{ pct }}%</div>
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:20px;color:var(--text-tertiary);font-size:13px">Añade empresas para ver el pipeline</div>
     {% endif %}
 </div>
+
+<!-- Filter pills (if filtered) -->
+{% if sel_status %}
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+    <span style="font-size:12px;color:var(--text-secondary);padding:6px 0">Filtrado por: <strong>{{ status_labels[sel_status] }}</strong></span>
+    <a href="{{ url_for('companies.index') }}" style="display:flex;align-items:center;gap:4px;padding:6px 12px;border-radius:8px;font-size:12px;text-decoration:none;color:var(--text-tertiary);border:1px dashed var(--border-color)">✕ Limpiar filtro</a>
+</div>
+{% endif %}
 
 <!-- Table list -->
 <div class="table-card">
