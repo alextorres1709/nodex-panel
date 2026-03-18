@@ -78,7 +78,7 @@ class Company(db.Model):
     name = db.Column(db.String(200), nullable=False)
     industry = db.Column(db.String(100), default="")
     website = db.Column(db.String(300), default="")
-    status = db.Column(db.String(30), default="por_escribir")  # por_escribir, contactada, en_espera, han_contestado, no_responden, en_negociacion, cerrada
+    status = db.Column(db.String(30), default="por_escribir")  # por_escribir, contactada_sin_respuesta, interesado, llamada_agendada, demo_preparacion, demo_realizada, propuesta_enviada, negociacion, cerrado_ganado, cerrado_perdido, pago_recibido, welcome_enviado, en_implementacion, entregado, seguimiento
     interest = db.Column(db.String(300), default="")  # nivel / area de interes de la empresa
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))

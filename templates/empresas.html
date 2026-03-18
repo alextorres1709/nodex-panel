@@ -6,18 +6,38 @@
 <div class="page-header">
     <div>
         <h1>Empresas a contactar</h1>
-        <p class="page-subtitle">Seguimiento de prospectos y contacto comercial</p>
+        <p class="page-subtitle">Pipeline comercial y seguimiento de prospectos</p>
     </div>
-    <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva empresa</button>
+    <div style="display:flex;gap:8px">
+        <a href="{{ url_for('captacion.index') }}" class="btn btn-secondary">Ver Proceso →</a>
+        <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva empresa</button>
+    </div>
 </div>
 
 <form class="filter-bar" method="GET">
     <select name="status">
         <option value="">Todos los estados</option>
-        {% set status_labels = {'por_escribir':'Por escribir','contactada':'Contactada','en_espera':'En espera','han_contestado':'Han contestado','no_responden':'No responden','en_negociacion':'En negociacion','cerrada':'Cerrada'} %}
-        {% for s, label in status_labels.items() %}
-        <option value="{{ s }}" {{ 'selected' if sel_status == s }}>{{ label }}</option>
-        {% endfor %}
+        <optgroup label="Pre-venta">
+            <option value="por_escribir" {{ 'selected' if sel_status == 'por_escribir' }}>Por escribir</option>
+            <option value="contactada_sin_respuesta" {{ 'selected' if sel_status == 'contactada_sin_respuesta' }}>Contactada – Sin respuesta</option>
+            <option value="interesado" {{ 'selected' if sel_status == 'interesado' }}>Interesado</option>
+            <option value="llamada_agendada" {{ 'selected' if sel_status == 'llamada_agendada' }}>Llamada agendada</option>
+            <option value="demo_preparacion" {{ 'selected' if sel_status == 'demo_preparacion' }}>Demo en preparación</option>
+            <option value="demo_realizada" {{ 'selected' if sel_status == 'demo_realizada' }}>Demo realizada</option>
+        </optgroup>
+        <optgroup label="Negociación">
+            <option value="propuesta_enviada" {{ 'selected' if sel_status == 'propuesta_enviada' }}>Propuesta enviada</option>
+            <option value="negociacion" {{ 'selected' if sel_status == 'negociacion' }}>En negociación</option>
+            <option value="cerrado_ganado" {{ 'selected' if sel_status == 'cerrado_ganado' }}>Cerrado (Ganado)</option>
+            <option value="cerrado_perdido" {{ 'selected' if sel_status == 'cerrado_perdido' }}>Cerrado (Perdido)</option>
+        </optgroup>
+        <optgroup label="Post-venta">
+            <option value="pago_recibido" {{ 'selected' if sel_status == 'pago_recibido' }}>Pago recibido</option>
+            <option value="welcome_enviado" {{ 'selected' if sel_status == 'welcome_enviado' }}>Welcome enviado</option>
+            <option value="en_implementacion" {{ 'selected' if sel_status == 'en_implementacion' }}>En implementación</option>
+            <option value="entregado" {{ 'selected' if sel_status == 'entregado' }}>Entregado</option>
+            <option value="seguimiento" {{ 'selected' if sel_status == 'seguimiento' }}>Seguimiento</option>
+        </optgroup>
     </select>
     <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
     {% if sel_status %}
@@ -25,12 +45,70 @@
     {% endif %}
 </form>
 
-<!-- Status counts -->
-{% set status_list = ['por_escribir','contactada','en_espera','han_contestado','no_responden','en_negociacion','cerrada'] %}
-{% set status_labels = {'por_escribir':'Por escribir','contactada':'Contactada','en_espera':'En espera','han_contestado':'Han contestado','no_responden':'No responden','en_negociacion':'En negociacion','cerrada':'Cerrada'} %}
-{% set status_colors = {'por_escribir':'accent-gray','contactada':'accent-blue','en_espera':'accent-cyan','han_contestado':'accent-purple','no_responden':'accent-red','en_negociacion':'accent-yellow','cerrada':'accent-green'} %}
+<!-- Status counts — agrupados -->
+{% set status_labels = {
+    'por_escribir':'Por escribir',
+    'contactada_sin_respuesta':'Sin respuesta',
+    'interesado':'Interesado',
+    'llamada_agendada':'Llamada agendada',
+    'demo_preparacion':'Demo prep.',
+    'demo_realizada':'Demo realizada',
+    'propuesta_enviada':'Propuesta',
+    'negociacion':'Negociación',
+    'cerrado_ganado':'Ganado ✓',
+    'cerrado_perdido':'Perdido ✗',
+    'pago_recibido':'Pago recibido',
+    'welcome_enviado':'Welcome',
+    'en_implementacion':'Implementando',
+    'entregado':'Entregado',
+    'seguimiento':'Seguimiento'
+} %}
+{% set status_colors = {
+    'por_escribir':'accent-gray',
+    'contactada_sin_respuesta':'accent-blue',
+    'interesado':'accent-cyan',
+    'llamada_agendada':'accent-purple',
+    'demo_preparacion':'accent-yellow',
+    'demo_realizada':'accent-blue',
+    'propuesta_enviada':'accent-yellow',
+    'negociacion':'accent-purple',
+    'cerrado_ganado':'accent-green',
+    'cerrado_perdido':'accent-red',
+    'pago_recibido':'accent-green',
+    'welcome_enviado':'accent-cyan',
+    'en_implementacion':'accent-blue',
+    'entregado':'accent-green',
+    'seguimiento':'accent-purple'
+} %}
+
+<!-- PRE-VENTA -->
+<div style="font-size:11px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1.5px;margin:16px 0 8px">Pre-venta</div>
+<div class="kpi-grid" style="margin-bottom:8px">
+    {% for s in ['por_escribir','contactada_sin_respuesta','interesado','llamada_agendada','demo_preparacion','demo_realizada'] %}
+    {% set count = companies|selectattr('status','equalto',s)|list|length %}
+    <div class="kpi-card {{ status_colors[s] }}" style="cursor:pointer" onclick="window.location='?status={{ s }}'">
+        <div class="kpi-label">{{ status_labels[s] }}</div>
+        <div class="kpi-value">{{ count }}</div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- NEGOCIACIÓN -->
+<div style="font-size:11px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1.5px;margin:16px 0 8px">Negociación</div>
+<div class="kpi-grid" style="margin-bottom:8px">
+    {% for s in ['propuesta_enviada','negociacion','cerrado_ganado','cerrado_perdido'] %}
+    {% set count = companies|selectattr('status','equalto',s)|list|length %}
+    <div class="kpi-card {{ status_colors[s] }}" style="cursor:pointer" onclick="window.location='?status={{ s }}'">
+        <div class="kpi-label">{{ status_labels[s] }}</div>
+        <div class="kpi-value">{{ count }}</div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- POST-VENTA -->
+<div style="font-size:11px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1.5px;margin:16px 0 8px">Post-venta</div>
 <div class="kpi-grid" style="margin-bottom:24px">
-    {% for s in status_list %}
+    {% for s in ['pago_recibido','welcome_enviado','en_implementacion','entregado','seguimiento'] %}
     {% set count = companies|selectattr('status','equalto',s)|list|length %}
     <div class="kpi-card {{ status_colors[s] }}" style="cursor:pointer" onclick="window.location='?status={{ s }}'">
         <div class="kpi-label">{{ status_labels[s] }}</div>
@@ -99,13 +177,27 @@
                 </div>
                 <div class="form-group"><label>Estado</label>
                     <select name="status">
-                        <option value="por_escribir" selected>Por escribir</option>
-                        <option value="contactada">Contactada</option>
-                        <option value="en_espera">En espera</option>
-                        <option value="han_contestado">Han contestado</option>
-                        <option value="no_responden">No responden</option>
-                        <option value="en_negociacion">En negociacion</option>
-                        <option value="cerrada">Cerrada</option>
+                        <optgroup label="Pre-venta">
+                            <option value="por_escribir" selected>Por escribir</option>
+                            <option value="contactada_sin_respuesta">Contactada – Sin respuesta</option>
+                            <option value="interesado">Interesado</option>
+                            <option value="llamada_agendada">Llamada agendada</option>
+                            <option value="demo_preparacion">Demo en preparación</option>
+                            <option value="demo_realizada">Demo realizada</option>
+                        </optgroup>
+                        <optgroup label="Negociación">
+                            <option value="propuesta_enviada">Propuesta enviada</option>
+                            <option value="negociacion">En negociación</option>
+                            <option value="cerrado_ganado">Cerrado (Ganado)</option>
+                            <option value="cerrado_perdido">Cerrado (Perdido)</option>
+                        </optgroup>
+                        <optgroup label="Post-venta">
+                            <option value="pago_recibido">Pago recibido</option>
+                            <option value="welcome_enviado">Welcome enviado</option>
+                            <option value="en_implementacion">En implementación</option>
+                            <option value="entregado">Entregado</option>
+                            <option value="seguimiento">Seguimiento</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="form-group"><label>Interes</label><input type="text" name="interest" placeholder="Que les podria interesar..."></div>
@@ -129,13 +221,27 @@
                 </div>
                 <div class="form-group"><label>Estado</label>
                     <select name="status">
-                        <option value="por_escribir">Por escribir</option>
-                        <option value="contactada">Contactada</option>
-                        <option value="en_espera">En espera</option>
-                        <option value="han_contestado">Han contestado</option>
-                        <option value="no_responden">No responden</option>
-                        <option value="en_negociacion">En negociacion</option>
-                        <option value="cerrada">Cerrada</option>
+                        <optgroup label="Pre-venta">
+                            <option value="por_escribir">Por escribir</option>
+                            <option value="contactada_sin_respuesta">Contactada – Sin respuesta</option>
+                            <option value="interesado">Interesado</option>
+                            <option value="llamada_agendada">Llamada agendada</option>
+                            <option value="demo_preparacion">Demo en preparación</option>
+                            <option value="demo_realizada">Demo realizada</option>
+                        </optgroup>
+                        <optgroup label="Negociación">
+                            <option value="propuesta_enviada">Propuesta enviada</option>
+                            <option value="negociacion">En negociación</option>
+                            <option value="cerrado_ganado">Cerrado (Ganado)</option>
+                            <option value="cerrado_perdido">Cerrado (Perdido)</option>
+                        </optgroup>
+                        <optgroup label="Post-venta">
+                            <option value="pago_recibido">Pago recibido</option>
+                            <option value="welcome_enviado">Welcome enviado</option>
+                            <option value="en_implementacion">En implementación</option>
+                            <option value="entregado">Entregado</option>
+                            <option value="seguimiento">Seguimiento</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="form-group"><label>Interes</label><input type="text" name="interest"></div>

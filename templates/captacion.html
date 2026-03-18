@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% block title %}Captación{% endblock %}
+{% block page_title %}Captación{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Proceso de Captación y Onboarding</h1>
+        <p class="page-subtitle">Guía completa del pipeline comercial de NODExAI</p>
+    </div>
+    <a href="{{ url_for('companies.index') }}" class="btn btn-secondary">Ver Pipeline Empresas →</a>
+</div>
+
+<!-- KPI Resumen -->
+<div class="kpi-grid" style="margin-bottom:30px">
+    <div class="kpi-card kpi-accent-blue">
+        <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </div>
+        <div class="kpi-label">Fases Pre-venta</div>
+        <div class="kpi-value">6</div>
+        <div class="kpi-subtitle">Primer contacto → Demo</div>
+    </div>
+    <div class="kpi-card kpi-accent-purple">
+        <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        </div>
+        <div class="kpi-label">Fases Cierre</div>
+        <div class="kpi-value">3</div>
+        <div class="kpi-subtitle">Propuesta → Pago</div>
+    </div>
+    <div class="kpi-card kpi-accent-green">
+        <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="kpi-label">Fases Post-venta</div>
+        <div class="kpi-value">3</div>
+        <div class="kpi-subtitle">Welcome → Seguimiento</div>
+    </div>
+</div>
+
+<!-- Timeline del proceso -->
+<div style="max-width:900px">
+    <!-- ═══ PRE-VENTA ═══ -->
+    <div style="margin-bottom:12px">
+        <span class="badge badge-info" style="font-size:12px;padding:6px 14px;letter-spacing:1px">PRE-VENTA</span>
+    </div>
+
+    <!-- Paso 1 -->
+    <div class="info-card" style="margin-bottom:16px;border-left:4px solid var(--brand-primary)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:var(--brand-primary-alpha, rgba(124,58,237,.12));display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;color:var(--brand-primary);font-size:16px">1</div>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary)">Primer Contacto</h3>
+                <span style="font-size:12px;color:var(--text-tertiary)">WhatsApp / Email · Objetivo: generar respuesta, no vender</span>
+            </div>
+        </div>
+        <div style="background:var(--bg-secondary);border-radius:10px;padding:16px;font-size:13px;color:var(--text-secondary);line-height:1.7;font-style:italic;border:1px solid var(--border-color)">
+            "Hola, he visto vuestro negocio y hay algo bastante claro: estáis perdiendo clientes en la atención (sobre todo fuera de horario o en picos).<br><br>
+            Estoy ayudando a negocios como el vuestro a automatizar esto con IA (respuestas, reservas, seguimiento).<br><br>
+            Si quieres, te enseño rápidamente cómo funcionaría en vuestro caso."
+        </div>
+    </div>
+
+    <!-- Paso 2 -->
+    <div class="info-card" style="margin-bottom:16px;border-left:4px solid var(--brand-primary)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:var(--brand-primary-alpha, rgba(124,58,237,.12));display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;color:var(--brand-primary);font-size:16px">2</div>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary)">Respuesta del Lead</h3>
+                <span style="font-size:12px;color:var(--text-tertiary)">Objetivo: llevar a llamada</span>
+            </div>
+        </div>
+        <div style="background:var(--bg-secondary);border-radius:10px;padding:16px;font-size:13px;color:var(--text-secondary);line-height:1.7;font-style:italic;border:1px solid var(--border-color)">
+            "Perfecto, en 10 minutos te enseño exactamente cómo lo aplicaríamos a vuestro negocio.<br><br>
+            ¿Te viene mejor hoy o mañana?"
+        </div>
+    </div>
+
+    <!-- Paso 3 -->
+    <div class="info-card" style="margin-bottom:16px;border-left:4px solid var(--brand-primary)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:var(--brand-primary-alpha, rgba(124,58,237,.12));display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;color:var(--brand-primary);font-size:16px">3</div>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary)">Agendar Llamada</h3>
+                <span style="font-size:12px;color:var(--text-tertiary)">Confirmación del día y hora</span>
+            </div>
+        </div>
+        <div style="background:var(--bg-secondary);border-radius:10px;padding:16px;font-size:13px;color:var(--text-secondary);line-height:1.7;font-style:italic;border:1px solid var(--border-color)">
+            "Genial, hablamos [día/hora].<br><br>
+            Voy a preparar algo para enseñarte cómo funcionaría en vuestro caso."
+        </div>
+    </div>
+
+    <!-- Paso 4 -->
+    <div class="info-card" style="margin-bottom:16px;border-left:4px solid var(--brand-primary)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:var(--brand-primary-alpha, rgba(124,58,237,.12));display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;color:var(--brand-primary);font-size:16px">4</div>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary)">Preparación de Demo</h3>
+                <span style="font-size:12px;color:var(--text-tertiary)">Solo para leads cualificados</span>
+            </div>
+        </div>
+        <ul style="margin:0;padding-left:20px;color:var(--text-secondary);font-size:13px;line-height:2">
+            <li>Crear una <strong style="color:var(--text-primary)">simulación real</strong> (ej: cliente solicitando servicio/reserva)</li>
+            <li>Mostrar <strong style="color:var(--text-primary)">automatización interna</strong> (gestión de datos, organización)</li>
+            <li>Adaptar el flujo al <strong style="color:var(--text-primary)">negocio del cliente</strong></li>
+        </ul>
+    </div>
+
+    <!-- Paso 5 -->
+    <div class="info-card" style="margin-bottom:16px;border-left:4px solid var(--brand-primary)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:var(--brand-primary-alpha, rgba(124,58,237,.12));display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;color:var(--brand-primary);font-size:16px">5</div>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary)">Llamada / Demo</h3>
+                <span style="font-size:12px;color:var(--text-tertiary)">Diagnóstico + Identificación de problemas + Demo en vivo</span>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+            <div style="background:var(--bg-secondary);border-radius:10px;padding:14px;border:1px solid var(--border-color)">
+                <div style="font-size:12px;font-weight:700;color:var(--brand-primary);margin-bottom:6px">5.1 Diagnóstico (2-3 min)</div>
+                <ul style="margin:0;padding-left:16px;font-size:12px;color:var(--text-secondary);line-height:1.8">
+                    <li>Cómo gestionan clientes</li>
+                    <li>Si pierden mensajes</li>
+                    <li>Volumen de consultas</li>
+                </ul>
+            </div>
+            <div style="background:var(--bg-secondary);border-radius:10px;padding:14px;border:1px solid var(--border-color)">
+                <div style="font-size:12px;font-weight:700;color:var(--brand-primary);margin-bottom:6px">5.2 Problemas</div>
+                <ul style="margin:0;padding-left:16px;font-size:12px;color:var(--text-secondary);line-height:1.8">
+                    <li>Clientes sin respuesta</li>
+                    <li>Tiempo operativo elevado</li>
+                    <li>Falta de organización</li>
+                </ul>
+            </div>
+            <div style="background:var(--bg-secondary);border-radius:10px;padding:14px;border:1px solid var(--border-color)">
+                <div style="font-size:12px;font-weight:700;color:var(--brand-primary);margin-bottom:6px">5.3 Demo</div>
+                <ul style="margin:0;padding-left:16px;font-size:12px;color:var(--text-secondary);line-height:1.8">
+                    <li>Sistema funcionando</li>
+                    <li>Aplicado a su negocio</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ CIERRE ═══ -->
+    <div style="margin:28px 0 12px">
+        <span class="badge badge-warning" style="font-size:12px;padding:6px 14px;letter-spacing:1px">CIERRE</span>
+    </div>
+
+    <!-- Paso 6 -->
+    <div class="info-card" style="margin-bottom:16px;border-left:4px solid #f59e0b">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:rgba(245,158,11,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;color:#f59e0b;font-size:16px">6</div>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary)">Propuesta</h3>
+                <span style="font-size:12px;color:var(--text-tertiary)">Condición: el cliente muestra interés tras la demo</span>
+            </div>
+        </div>
+        <div style="background:var(--bg-secondary);border-radius:10px;padding:16px;font-size:13px;color:var(--text-secondary);line-height:1.7;border:1px solid var(--border-color)">
+            <strong style="color:var(--text-primary)">Estructura:</strong>
+            <ul style="margin:8px 0 0;padding-left:16px;line-height:2">
+                <li>Qué incluye el sistema</li>
+                <li>Qué resultados va a conseguir</li>
+                <li>Precio</li>
+            </ul>
+            <div style="margin-top:12px;font-style:italic;padding:12px;background:var(--bg-primary);border-radius:8px;border:1px dashed var(--border-color)">
+                "Esto incluiría todo el sistema funcionando para vosotros: atención automática, gestión de clientes y automatizaciones internas. La inversión sería de [precio]."
+            </div>
+        </div>
+    </div>
+
+    <!-- Paso 7 -->
+    <div class="info-card" style="margin-bottom:16px;border-left:4px solid #f59e0b">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:rgba(245,158,11,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;color:#f59e0b;font-size:16px">7</div>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary)">Cierre</h3>
+                <span style="font-size:12px;color:var(--text-tertiary)">El cliente acepta la propuesta</span>
+            </div>
+        </div>
+        <div style="background:var(--bg-secondary);border-radius:10px;padding:16px;font-size:13px;color:var(--text-secondary);line-height:1.7;font-style:italic;border:1px solid var(--border-color)">
+            "Perfecto, empezamos con esto esta semana."
+        </div>
+    </div>
+
+    <!-- Paso 8 -->
+    <div class="info-card" style="margin-bottom:16px;border-left:4px solid #f59e0b">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:rgba(245,158,11,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;color:#f59e0b;font-size:16px">8</div>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary)">Pago</h3>
+                <span style="font-size:12px;color:var(--text-tertiary)">Envío de factura o enlace de pago</span>
+            </div>
+        </div>
+        <ul style="margin:0;padding-left:20px;color:var(--text-secondary);font-size:13px;line-height:2">
+            <li>Envío de factura o enlace de pago</li>
+            <li>Confirmación del pago recibido</li>
+        </ul>
+    </div>
+
+    <!-- ═══ POST-VENTA ═══ -->
+    <div style="margin:28px 0 12px">
+        <span class="badge badge-success" style="font-size:12px;padding:6px 14px;letter-spacing:1px">POST-VENTA</span>
+    </div>
+
+    <!-- Paso 9 -->
+    <div class="info-card" style="margin-bottom:16px;border-left:4px solid #22c55e">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:rgba(34,197,94,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;color:#22c55e;font-size:16px">9</div>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary)">Documento de Bienvenida (Welcome)</h3>
+                <span style="font-size:12px;color:var(--text-tertiary)">Enviar tras recibir el pago</span>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
+            {% set welcome_items = [
+                'Resumen del servicio contratado',
+                'Resultados esperados',
+                'Qué incluye el sistema',
+                'Accesos (panel, herramientas)',
+                'Próximos pasos',
+                'Tiempo estimado de implementación',
+                'Canal de soporte'
+            ] %}
+            {% for item in welcome_items %}
+            <div style="background:var(--bg-secondary);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text-secondary);border:1px solid var(--border-color);display:flex;align-items:center;gap:8px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                {{ item }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Paso 10 -->
+    <div class="info-card" style="margin-bottom:16px;border-left:4px solid #22c55e">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:rgba(34,197,94,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;color:#22c55e;font-size:16px">10</div>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary)">Implementación</h3>
+                <span style="font-size:12px;color:var(--text-tertiary)">Desarrollo y puesta en marcha del sistema</span>
+            </div>
+        </div>
+        <ul style="margin:0;padding-left:20px;color:var(--text-secondary);font-size:13px;line-height:2">
+            <li>Configuración del sistema</li>
+            <li>Integraciones necesarias</li>
+            <li>Pruebas internas</li>
+        </ul>
+    </div>
+
+    <!-- Paso 11 -->
+    <div class="info-card" style="margin-bottom:16px;border-left:4px solid #22c55e">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:rgba(34,197,94,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;color:#22c55e;font-size:16px">11</div>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary)">Entrega</h3>
+                <span style="font-size:12px;color:var(--text-tertiary)">Sistema operativo y listo</span>
+            </div>
+        </div>
+        <ul style="margin:0;padding-left:20px;color:var(--text-secondary);font-size:13px;line-height:2">
+            <li>Sistema operativo entregado</li>
+            <li>Explicación al cliente</li>
+            <li>Resolución de dudas</li>
+        </ul>
+    </div>
+
+    <!-- Paso 12 -->
+    <div class="info-card" style="margin-bottom:16px;border-left:4px solid #22c55e">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:rgba(34,197,94,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;color:#22c55e;font-size:16px">12</div>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary)">Seguimiento</h3>
+                <span style="font-size:12px;color:var(--text-tertiary)">Optimización continua</span>
+            </div>
+        </div>
+        <ul style="margin:0;padding-left:20px;color:var(--text-secondary);font-size:13px;line-height:2">
+            <li>Revisión inicial del funcionamiento</li>
+            <li>Optimización del sistema</li>
+            <li>Identificación de mejoras o ampliaciones</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ═══ PIPELINE DE ESTADOS ═══ -->
+<div style="margin-top:40px;max-width:900px">
+    <h2 style="color:var(--text-primary);margin-bottom:6px">Pipeline de Estados</h2>
+    <p style="color:var(--text-tertiary);font-size:13px;margin-bottom:20px">Referencia rápida de los estados del pipeline de empresas</p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
+        <!-- Pre-venta -->
+        <div class="info-card" style="padding:16px">
+            <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Pre-venta</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-por_escribir" style="font-size:10px">●</span> Por escribir</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-contactada_sin_respuesta" style="font-size:10px">●</span> Contactada sin respuesta</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-interesado" style="font-size:10px">●</span> Interesado</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-llamada_agendada" style="font-size:10px">●</span> Llamada agendada</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-demo_preparacion" style="font-size:10px">●</span> Demo en preparación</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-demo_realizada" style="font-size:10px">●</span> Demo realizada</div>
+            </div>
+        </div>
+
+        <!-- Negociación -->
+        <div class="info-card" style="padding:16px">
+            <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Negociación</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-propuesta_enviada" style="font-size:10px">●</span> Propuesta enviada</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-negociacion" style="font-size:10px">●</span> En negociación</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-cerrado_ganado" style="font-size:10px">●</span> Cerrado (Ganado) ✓</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-cerrado_perdido" style="font-size:10px">●</span> Cerrado (Perdido) ✗</div>
+            </div>
+        </div>
+
+        <!-- Post-venta -->
+        <div class="info-card" style="padding:16px">
+            <div style="font-size:11px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Post-venta (Clientes)</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-pago_recibido" style="font-size:10px">●</span> Pago recibido</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-welcome_enviado" style="font-size:10px">●</span> Welcome enviado</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-en_implementacion" style="font-size:10px">●</span> En implementación</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-entregado" style="font-size:10px">●</span> Entregado</div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"><span class="badge badge-seguimiento" style="font-size:10px">●</span> Seguimiento</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

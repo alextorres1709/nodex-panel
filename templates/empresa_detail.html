@@ -7,7 +7,7 @@
     <div>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
             <h1>{{ company.name }}</h1>
-            {% set status_labels = {'por_escribir':'Por escribir','contactada':'Contactada','en_espera':'En espera','han_contestado':'Han contestado','no_responden':'No responden','en_negociacion':'En negociacion','cerrada':'Cerrada'} %}
+            {% set status_labels = {'por_escribir':'Por escribir','contactada_sin_respuesta':'Sin respuesta','interesado':'Interesado','llamada_agendada':'Llamada agendada','demo_preparacion':'Demo prep.','demo_realizada':'Demo realizada','propuesta_enviada':'Propuesta','negociacion':'Negociación','cerrado_ganado':'Ganado ✓','cerrado_perdido':'Perdido ✗','pago_recibido':'Pago recibido','welcome_enviado':'Welcome','en_implementacion':'Implementando','entregado':'Entregado','seguimiento':'Seguimiento'} %}
             <span class="badge badge-{{ company.status }}">{{ status_labels.get(company.status, company.status|replace('_',' ')) }}</span>
         </div>
         <p class="page-subtitle">{{ company.industry or 'Sin industria' }}{% if company.website %} &middot; <a href="{{ company.website }}" target="_blank" style="color:var(--accent)">{{ company.website|truncate(40) }}</a>{% endif %}</p>

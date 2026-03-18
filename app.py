@@ -113,6 +113,7 @@ def create_app():
     from routes.automations import automations_bp
     from routes.ai_assistant import ai_bp
     from routes.resources import resources_bp
+    from routes.captacion import captacion_bp
 
     for bp in [auth_bp, dashboard_bp, payments_bp, incomes_bp, companies_bp, projects_bp,
                tools_bp, tasks_bp, ideas_bp, info_bp, activity_bp, users_bp,
@@ -120,7 +121,8 @@ def create_app():
                clients_bp,
                # Enterprise v2.0
                invoices_bp, balance_bp, timetracking_bp, calendar_bp,
-               documents_bp, reports_bp, automations_bp, ai_bp, resources_bp]:
+               documents_bp, reports_bp, automations_bp, ai_bp, resources_bp,
+               captacion_bp]:
         app.register_blueprint(bp)
 
     @app.before_request
