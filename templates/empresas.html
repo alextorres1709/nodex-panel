@@ -187,7 +187,7 @@
                 </td>
                 <td style="text-align:center;font-size:13px;color:var(--text-secondary)">{{ contact_counts.get(c.id, 0) }}</td>
                 <td style="text-align:right;white-space:nowrap" onclick="event.stopPropagation()">
-                    <button class="btn btn-sm btn-secondary" onclick="editCompany({{ c.id }}, '{{ c.name|e }}', '{{ c.industry|e }}', '{{ c.website|e }}', '{{ c.status }}', '{{ c.interest|e }}', '{{ (c.problem or '')|e }}', '{{ (c.solution or '')|e }}', '{{ (c.notes or '')|e }}')">Editar</button>
+                    <button class="btn btn-sm btn-secondary" onclick="editCompany(this)" data-company='{{ {"id": c.id, "name": c.name, "industry": c.industry, "website": c.website, "status": c.status, "interest": c.interest, "problem": c.problem or "", "solution": c.solution or "", "notes": c.notes or ""}|tojson|e }}'>Editar</button>
                     <form method="POST" action="{{ url_for('companies.delete', cid=c.id) }}" style="display:inline" onsubmit="return confirm('Eliminar empresa?')">
                         <button type="submit" class="btn btn-sm btn-danger">✕</button>
                     </form>
@@ -300,13 +300,13 @@
 
 {% block scripts %}
 <script>
-function editCompany(id, name, industry, website, status, interest, problem, solution, notes) {
-    document.getElementById('editForm').action = '/empresas/edit/' + id;
+function editCompany(btn) {
+    const data = JSON.parse(btn.getAttribute('data-company'));
+    document.getElementById('editForm').action = '/empresas/edit/' + data.id;
     const form = document.getElementById('editForm');
-    const vals = {name, industry, website, status, interest, problem, solution, notes};
-    Object.keys(vals).forEach(f => {
+    ['name', 'industry', 'website', 'status', 'interest', 'problem', 'solution', 'notes'].forEach(f => {
         const el = form.querySelector('[name="' + f + '"]');
-        if (el) el.value = vals[f] || '';
+        if (el) el.value = data[f] || '';
     });
     openModal('editModal');
 }

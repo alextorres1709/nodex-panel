@@ -1,5 +1,8 @@
 # Changelog
 
+## v3.5.1
+- **Fix**: El botón "Editar" en empresas dejaba de funcionar tras guardar cambios. Causa: los valores con saltos de línea o comillas (problema, solución, notas) rompían los argumentos inline de JavaScript. Solución: datos de empresa embebidos como atributo `data-company` con JSON seguro en vez de strings inline en `onclick`.
+
 ## v3.5.0
 - **Sync Contactos ↔ Clientes**: Se ha añadido un botón de "Promover a Cliente" en la vista de detalle de cada Empresa (`/empresas/<id>`) para agregar automáticamente prospectos a la cartera de Clientes con su rol, datos y asociación de empresa, activando `push_change` en la red.
 - **Asociación de Empresas a Proyectos**: Integración nativa habilitada; los Proyectos ahora muestran en su tabla y modal la empresa prospectada de origen.
