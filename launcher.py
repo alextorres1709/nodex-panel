@@ -157,19 +157,44 @@ def main():
         background_color='#0d1117',
     )
 
-    def _hide_titlebar_text():
-        """Hide title bar text but keep traffic-light buttons (close/minimize/maximize)."""
-        time.sleep(0.3)
-        try:
-            from AppKit import NSApp
-            for nswindow in NSApp.windows():
-                nswindow.setTitleVisibility_(1)           # NSWindowTitleHidden
+    def _configure_native_window():
+        """Configure native macOS window:
+        - Transparent titlebar with content extending underneath (compact look)
+        - Window stays 'present' even when unfocused for Discord detection
+        Retries up to 10 times because pywebview may not have created the
+        NSWindow yet at launch time.
+        """
+        for attempt in range(10):
+            time.sleep(0.5)
+            try:
+                from AppKit import NSApp
+                windows = NSApp.windows()
+                if not windows:
+                    continue
+                nswindow = windows[0]
+
+                # ── Compact titlebar ──
+                nswindow.setTitleVisibility_(1)              # NSWindowTitleHidden
                 nswindow.setTitlebarAppearsTransparent_(True)
                 mask = nswindow.styleMask()
-                nswindow.setStyleMask_(mask | (1 << 15))  # NSFullSizeContentViewWindowMask
+                nswindow.setStyleMask_(mask | (1 << 15))     # NSFullSizeContentViewWindowMask
+
+                # Remove the thin line separator under the titlebar
+                try:
+                    nswindow.setTitlebarSeparatorStyle_(0)    # NSWindowTitlebarSeparatorStyleNone
+                except Exception:
+                    pass
+
+                # ── Keep window visible to external monitors (Discord) ──
+                # CanJoinAllSpaces + MoveToActiveSpace = always present
+                behavior = nswindow.collectionBehavior()
+                behavior |= (1 << 0)   # NSWindowCollectionBehaviorCanJoinAllSpaces
+                behavior |= (1 << 4)   # NSWindowCollectionBehaviorMoveToActiveSpace
+                nswindow.setCollectionBehavior_(behavior)
+
                 break
-        except Exception:
-            pass
+            except Exception:
+                pass
 
     def _boot_flask_and_navigate(win):
         """Boot Flask (create_app + server) in background, then navigate when ready."""
@@ -208,7 +233,7 @@ def main():
                 time.sleep(0.1)
         win.load_url(url)
 
-    threading.Thread(target=_hide_titlebar_text, daemon=True).start()
+    threading.Thread(target=_configure_native_window, daemon=True).start()
     threading.Thread(target=_boot_flask_and_navigate, args=(window,), daemon=True).start()
 
     webview.start(private_mode=False)

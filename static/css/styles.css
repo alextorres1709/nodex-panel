@@ -123,6 +123,7 @@ a:hover {
     transition: transform 0.3s;
     display: flex;
     flex-direction: column;
+    padding-top: 28px; /* Space for macOS traffic-light buttons */
 }
 
 .sidebar-brand {
