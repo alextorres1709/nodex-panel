@@ -70,24 +70,52 @@ def _patch_media_permissions():
         logging.getLogger("launcher").warning(f"Could not patch media permissions: {e}")
 
 
-def _disable_app_nap():
-    """Prevent macOS App Nap from suspending the process.
-    When App Nap activates, macOS throttles timers and marks the process
-    as inactive. This causes Discord to lose activity detection and reset
-    its timer every ~30 seconds.
+def _keep_process_alive():
+    """Prevent macOS from suspending the process and keep it visible to
+    external process monitors like Discord.
+
+    Discord detects running apps by monitoring process activity. When
+    a pywebview window is minimized or unfocused, the rendering engine
+    goes idle and the whole process appears dormant — Discord then
+    reports the user as "stopped playing".
+
+    This function does two things:
+    1. Disables App Nap via NSProcessInfo so macOS never throttles us.
+    2. Starts a lightweight daemon thread that performs a tiny operation
+       every 10 seconds, ensuring the process always has recent CPU
+       activity visible to external monitors.
     """
+    # ── 1. Disable App Nap ──
     try:
         from Foundation import NSProcessInfo
-        # NSActivityUserInitiatedAllowingIdleSystemSleep = 0x00FFFFFF
         activity = NSProcessInfo.processInfo().beginActivityWithOptions_reason_(
-            0x00FFFFFF,
-            "NodexAI Panel must remain active for Discord presence and background sync"
+            0x00FFFFFF,  # NSActivityUserInitiatedAllowingIdleSystemSleep
+            "NodexAI Panel must remain active"
         )
-        # Store reference so it doesn't get garbage collected
-        _disable_app_nap._activity = activity
-    except Exception as e:
-        import logging
-        logging.getLogger("launcher").warning(f"Could not disable App Nap: {e}")
+        _keep_process_alive._activity = activity
+    except Exception:
+        pass
+
+    # ── 2. Ensure we are a regular (foreground) app, not background-only ──
+    try:
+        from AppKit import NSApplication, NSApplicationActivationPolicyRegular
+        NSApplication.sharedApplication().setActivationPolicy_(
+            NSApplicationActivationPolicyRegular
+        )
+    except Exception:
+        pass
+
+    # ── 3. Background heartbeat — keeps CPU activity visible to Discord ──
+    def _heartbeat():
+        import gc
+        while True:
+            time.sleep(10)
+            # Tiny work: touch the GC stats so the process registers
+            # recent CPU activity in the OS process table
+            gc.collect(0)
+
+    t = threading.Thread(target=_heartbeat, daemon=True)
+    t.start()
 
 
 def main():
@@ -96,8 +124,8 @@ def main():
 
     import webview
 
-    # Disable App Nap FIRST — prevents macOS from suspending us
-    _disable_app_nap()
+    # Keep process alive — prevents Discord from losing activity detection
+    _keep_process_alive()
 
     # Patch before creating any windows
     _patch_media_permissions()
