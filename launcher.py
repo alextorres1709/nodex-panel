@@ -70,11 +70,34 @@ def _patch_media_permissions():
         logging.getLogger("launcher").warning(f"Could not patch media permissions: {e}")
 
 
+def _disable_app_nap():
+    """Prevent macOS App Nap from suspending the process.
+    When App Nap activates, macOS throttles timers and marks the process
+    as inactive. This causes Discord to lose activity detection and reset
+    its timer every ~30 seconds.
+    """
+    try:
+        from Foundation import NSProcessInfo
+        # NSActivityUserInitiatedAllowingIdleSystemSleep = 0x00FFFFFF
+        activity = NSProcessInfo.processInfo().beginActivityWithOptions_reason_(
+            0x00FFFFFF,
+            "NodexAI Panel must remain active for Discord presence and background sync"
+        )
+        # Store reference so it doesn't get garbage collected
+        _disable_app_nap._activity = activity
+    except Exception as e:
+        import logging
+        logging.getLogger("launcher").warning(f"Could not disable App Nap: {e}")
+
+
 def main():
     if getattr(sys, "frozen", False):
         sys.path.insert(0, sys._MEIPASS)
 
     import webview
+
+    # Disable App Nap FIRST — prevents macOS from suspending us
+    _disable_app_nap()
 
     # Patch before creating any windows
     _patch_media_permissions()

@@ -32,7 +32,7 @@ def _get_local_db_path():
 BASE_DIR = _get_base_dir()
 LOCAL_DB_PATH = _get_local_db_path()
 
-APP_VERSION = "3.6.0"
+APP_VERSION = "3.7.0"
 
 # Remote Railway PostgreSQL — used ONLY for background sync, never for page loads
 REMOTE_DATABASE_URL = os.getenv(

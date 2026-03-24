@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.7.0
+- **UI**: Header reducido de 64px a 48px y sidebar-brand alineado con los botones de semaforo de macOS (rojo/amarillo/verde) para un diseño mas compacto
+- **Fix**: Discord ya no pierde el estado de actividad cada ~30s. Se ha desactivado macOS App Nap mediante `NSProcessInfo.beginActivityWithOptions` para que el proceso no entre en suspension cuando la ventana pierde el foco
+
 ## v3.5.1
 - **Fix**: El botón "Editar" en empresas dejaba de funcionar tras guardar cambios. Causa: los valores con saltos de línea o comillas (problema, solución, notas) rompían los argumentos inline de JavaScript. Solución: datos de empresa embebidos como atributo `data-company` con JSON seguro en vez de strings inline en `onclick`.
 
