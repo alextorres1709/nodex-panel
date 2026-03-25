@@ -157,13 +157,41 @@ def main():
         background_color='#0d1117',
     )
 
+    def _apply_native_window_config():
+        """Apply native window styling. MUST run on the main thread."""
+        try:
+            from AppKit import NSApp
+            windows = NSApp.windows()
+            if not windows:
+                return
+            nswindow = windows[0]
+
+            # ── Compact titlebar ──
+            nswindow.setTitleVisibility_(1)              # NSWindowTitleHidden
+            nswindow.setTitlebarAppearsTransparent_(True)
+            mask = nswindow.styleMask()
+            nswindow.setStyleMask_(mask | (1 << 15))     # NSFullSizeContentViewWindowMask
+
+            # Remove the thin line separator under the titlebar
+            try:
+                nswindow.setTitlebarSeparatorStyle_(0)    # NSWindowTitlebarSeparatorStyleNone
+            except Exception:
+                pass
+
+            # ── Keep window visible to external monitors (Discord) ──
+            behavior = nswindow.collectionBehavior()
+            behavior |= (1 << 0)   # NSWindowCollectionBehaviorCanJoinAllSpaces
+            behavior |= (1 << 4)   # NSWindowCollectionBehaviorMoveToActiveSpace
+            nswindow.setCollectionBehavior_(behavior)
+        except Exception:
+            pass
+
     def _configure_native_window():
-        """Configure native macOS window:
-        - Transparent titlebar with content extending underneath (compact look)
-        - Window stays 'present' even when unfocused for Discord detection
-        Retries up to 10 times because pywebview may not have created the
-        NSWindow yet at launch time.
+        """Wait for the NSWindow to exist, then dispatch config to main thread.
+        AppKit calls MUST happen on the main thread — calling from a background
+        thread causes EXC_BREAKPOINT (SIGTRAP) crashes on macOS.
         """
+        from PyObjCTools.AppHelper import callAfter
         for attempt in range(10):
             time.sleep(0.5)
             try:
@@ -171,28 +199,9 @@ def main():
                 windows = NSApp.windows()
                 if not windows:
                     continue
-                nswindow = windows[0]
-
-                # ── Compact titlebar ──
-                nswindow.setTitleVisibility_(1)              # NSWindowTitleHidden
-                nswindow.setTitlebarAppearsTransparent_(True)
-                mask = nswindow.styleMask()
-                nswindow.setStyleMask_(mask | (1 << 15))     # NSFullSizeContentViewWindowMask
-
-                # Remove the thin line separator under the titlebar
-                try:
-                    nswindow.setTitlebarSeparatorStyle_(0)    # NSWindowTitlebarSeparatorStyleNone
-                except Exception:
-                    pass
-
-                # ── Keep window visible to external monitors (Discord) ──
-                # CanJoinAllSpaces + MoveToActiveSpace = always present
-                behavior = nswindow.collectionBehavior()
-                behavior |= (1 << 0)   # NSWindowCollectionBehaviorCanJoinAllSpaces
-                behavior |= (1 << 4)   # NSWindowCollectionBehaviorMoveToActiveSpace
-                nswindow.setCollectionBehavior_(behavior)
-
-                break
+                # Window found — schedule config on the main thread
+                callAfter(_apply_native_window_config)
+                return
             except Exception:
                 pass
 
