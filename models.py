@@ -126,6 +126,17 @@ class Tool(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+REMINDER_CHOICES = [
+    (0, "Sin recordatorio"),
+    (30, "Cada 30 min"),
+    (60, "Cada hora"),
+    (120, "Cada 2 horas"),
+    (240, "Cada 4 horas"),
+    (480, "Cada 8 horas"),
+    (1440, "Cada dia"),
+]
+
+
 class Task(db.Model):
     __tablename__ = "tasks"
     id = db.Column(db.Integer, primary_key=True)
@@ -140,6 +151,8 @@ class Task(db.Model):
     estimated_minutes = db.Column(db.Integer, default=0)  # tiempo estimado
     kanban_order = db.Column(db.Integer, default=0)  # orden en columna kanban
     recurrence = db.Column(db.String(20), default="ninguna")  # ninguna, semanal, anual
+    reminder_minutes = db.Column(db.Integer, default=0)  # 0=off, 30/60/120/240/480/1440
+    last_notified_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     assignee = db.relationship("User", foreign_keys=[assigned_to])

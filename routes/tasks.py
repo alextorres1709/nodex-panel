@@ -1,7 +1,7 @@
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
 from sqlalchemy.orm import joinedload
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from models import db, Task, TaskAssignment, Subtask, User, Project
+from models import db, Task, TaskAssignment, Subtask, User, Project, REMINDER_CHOICES
 from routes.auth import login_required
 from services.activity import log_activity
 
@@ -45,7 +45,7 @@ def index():
 
     return render_template("tareas.html", tasks=tasks, kanban=kanban, users=users, projects=projects,
                            sel_status=status, sel_priority=priority, sel_assigned=assigned, view=view,
-                           today=date.today(),
+                           today=date.today(), reminder_choices=REMINDER_CHOICES,
                            stats={"total": total, "pending": pending, "in_progress": in_progress,
                                   "completed": completed, "overdue": overdue})
 
@@ -58,6 +58,7 @@ def create():
         pid = request.form.get("project_id", "").strip()
         em = request.form.get("estimated_minutes", "").strip()
         assigned_ids = request.form.getlist("assigned_to")
+        rm = request.form.get("reminder_minutes", "0").strip()
         t = Task(
             title=request.form.get("title", "").strip(),
             description=request.form.get("description", "").strip(),
@@ -67,6 +68,7 @@ def create():
             project_id=int(pid) if pid else None,
             estimated_minutes=int(em) if em else 0,
             recurrence=request.form.get("recurrence", "ninguna"),
+            reminder_minutes=int(rm) if rm else 0,
         )
         db.session.add(t)
         db.session.flush()
@@ -119,6 +121,9 @@ def edit(tid):
         em = request.form.get("estimated_minutes", "").strip()
         t.estimated_minutes = int(em) if em else 0
         t.recurrence = request.form.get("recurrence", t.recurrence or "ninguna")
+        rm = request.form.get("reminder_minutes", "").strip()
+        if rm != "":
+            t.reminder_minutes = int(rm)
 
         # Update assignees (replace all)
         assigned_ids = request.form.getlist("assigned_to")
@@ -236,4 +241,43 @@ def api_delete_subtask(sid):
     return jsonify({"ok": True})
 
 
+# ═══ TASK REMINDERS ═══
+
+@tasks_bp.route("/api/tasks/<int:tid>/reminder", methods=["POST"])
+@login_required
+def api_update_reminder(tid):
+    """Quick-update reminder interval for a task."""
+    t = db.session.get(Task, tid)
+    if not t:
+        return jsonify({"error": "not found"}), 404
+    data = request.get_json(force=True)
+    t.reminder_minutes = int(data.get("reminder_minutes", 0))
+    db.session.commit()
+    return jsonify({"ok": True, "reminder_minutes": t.reminder_minutes})
+
+
+@tasks_bp.route("/api/tasks/due-reminders")
+@login_required
+def api_due_reminders():
+    """Return pending/in-progress tasks whose reminder interval has elapsed.
+    Marks them as notified so they won't fire again until the next interval."""
+    now = datetime.now(timezone.utc)
+    tasks = Task.query.filter(
+        Task.status.in_(["pendiente", "en_progreso"]),
+        Task.reminder_minutes > 0,
+    ).all()
+
+    due = []
+    for t in tasks:
+        last = t.last_notified_at or t.created_at
+        if last and last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        if now - last >= timedelta(minutes=t.reminder_minutes):
+            due.append({"id": t.id, "title": t.title, "description": t.description or ""})
+            t.last_notified_at = now
+
+    if due:
+        db.session.commit()
+
+    return jsonify({"due": due})
 

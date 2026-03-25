@@ -178,10 +178,10 @@ def main():
             except Exception:
                 pass
 
-            # ── Keep window visible to external monitors (Discord) ──
+            # ── Window behavior for Mission Control + Fullscreen ──
             behavior = nswindow.collectionBehavior()
-            behavior |= (1 << 0)   # NSWindowCollectionBehaviorCanJoinAllSpaces
-            behavior |= (1 << 4)   # NSWindowCollectionBehaviorMoveToActiveSpace
+            behavior |= (1 << 2)   # NSWindowCollectionBehaviorManaged (proper Mission Control)
+            behavior |= (1 << 7)   # NSWindowCollectionBehaviorFullScreenPrimary
             nswindow.setCollectionBehavior_(behavior)
         except Exception:
             pass

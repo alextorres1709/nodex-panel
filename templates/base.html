@@ -872,16 +872,52 @@
         });
     </script>
 
+    <!-- ═══ TASK REMINDER NOTIFICATIONS (macOS native) ═══ -->
+    <script>
+        (function () {
+            // Request permission on load
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+
+            function sendOSNotification(title, body) {
+                if (!('Notification' in window)) return;
+                if (Notification.permission === 'granted') {
+                    new Notification(title, { body: body || '' });
+                } else if (Notification.permission === 'default') {
+                    Notification.requestPermission().then(function (p) {
+                        if (p === 'granted') new Notification(title, { body: body || '' });
+                    });
+                }
+            }
+
+            function checkTaskReminders() {
+                fetch('/api/tasks/due-reminders')
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.due && data.due.length > 0) {
+                            data.due.forEach(function (t) {
+                                sendOSNotification(
+                                    'Tarea pendiente: ' + t.title,
+                                    t.description || 'Tienes una tarea sin completar'
+                                );
+                            });
+                        }
+                    })
+                    .catch(function () { });
+            }
+
+            // Check immediately, then every 60 seconds
+            checkTaskReminders();
+            setInterval(checkTaskReminders, 60000);
+        })();
+    </script>
+
     <!-- PWA Service Worker -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/static/sw.js', { scope: '/' })
-                .then(function (reg) {
-                    // Request push permission if available
-                    if ('Notification' in window && Notification.permission === 'default') {
-                        Notification.requestPermission();
-                    }
-                });
+                .then(function (reg) { });
         }
     </script>
 

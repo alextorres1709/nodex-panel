@@ -162,7 +162,7 @@
                     {% endif %}
                 </div>
                 <div class="kanban-card-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.safe_due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
+                    <button class="btn btn-sm btn-secondary" onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.safe_due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}', '{{ t.reminder_minutes or 0 }}')">Editar</button>
                     {% if t.status != 'completada' %}
                     <form method="POST" action="{{ url_for('tasks.toggle', tid=t.id) }}" style="display:inline">
                         <button type="submit" class="btn btn-sm btn-success" title="Completar">
@@ -252,7 +252,7 @@
         </div>
         <div class="task-list-actions">
             <button class="btn btn-sm btn-secondary"
-                onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.safe_due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}')">Editar</button>
+                onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.safe_due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}', '{{ t.reminder_minutes or 0 }}')">Editar</button>
             <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline"
                 onsubmit="return confirm('Eliminar?')">
                 <button type="submit" class="btn btn-sm btn-danger">
@@ -310,6 +310,15 @@
                         </select></div>
                 </div>
                 <div class="form-group">
+                    <label>Recordatorio</label>
+                    <select name="reminder_minutes">
+                        {% for val, label in reminder_choices %}
+                        <option value="{{ val }}" {% if val == 60 %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <span style="font-size:11px;color:var(--text-tertiary)">Notificacion del sistema cada intervalo hasta completar</span>
+                </div>
+                <div class="form-group">
                     <label>Subtareas</label>
                     <div id="subtaskList"></div>
                     <button type="button" class="btn btn-sm btn-secondary" onclick="addSubtaskField()"
@@ -363,6 +372,13 @@
                         <option value="semanal">Semanal</option>
                         <option value="anual">Anual</option>
                     </select></div>
+                <div class="form-group"><label>Recordatorio</label><select name="reminder_minutes">
+                        {% for val, label in reminder_choices %}
+                        <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <span style="font-size:11px;color:var(--text-tertiary)">Notificacion del sistema cada intervalo hasta completar</span>
+                </div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary"
                     onclick="closeModal('editModal')">Cancelar</button><button type="submit"
@@ -376,7 +392,7 @@
 <script>
     var today = new Date().toISOString().split('T')[0];
 
-    function editTask(id, title, description, assignedIds, priority, status, due_date, project_id, estimated_minutes, recurrence) {
+    function editTask(id, title, description, assignedIds, priority, status, due_date, project_id, estimated_minutes, recurrence, reminder_minutes) {
         document.getElementById('editForm').action = '/tareas/edit/' + id;
         var f = document.getElementById('editForm');
         f.querySelector('[name=title]').value = title;
@@ -387,6 +403,7 @@
         f.querySelector('[name=project_id]').value = project_id;
         f.querySelector('[name=estimated_minutes]').value = estimated_minutes;
         f.querySelector('[name=recurrence]').value = recurrence || 'ninguna';
+        f.querySelector('[name=reminder_minutes]').value = reminder_minutes || '0';
         var sel = f.querySelector('[name=assigned_to]');
         Array.from(sel.options).forEach(function(opt) {
             opt.selected = assignedIds.indexOf(parseInt(opt.value)) !== -1;
