@@ -22,6 +22,8 @@ def _auto_migrate(app):
         ("tasks", "kanban_order", "INTEGER DEFAULT 0"),
         ("tasks", "company_id", "INTEGER"),
         ("tasks", "recurrence", "VARCHAR(20) DEFAULT 'ninguna'"),
+        ("tasks", "reminder_minutes", "INTEGER"),
+        ("tasks", "last_notified_at", "DATETIME"),
         ("ideas", "company_id", "INTEGER"),
         ("companies", "interest", "VARCHAR(300) DEFAULT ''"),
         ("companies", "problem", "TEXT DEFAULT ''"),
