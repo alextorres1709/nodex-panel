@@ -240,11 +240,36 @@ class SyncManager:
 
     def _merge_table_with_id(self, lconn, local_table, local_col_names,
                               rows, columns, table_name):
-        """Merge remote rows into local table using UPSERT strategy."""
-        # Get existing local IDs
-        local_ids = {
-            r[0] for r in lconn.execute(sa.select(local_table.c.id)).fetchall()
-        }
+        """Merge remote rows into local table using UPSERT strategy.
+        
+        - Remote rows are inserted if they don't exist locally.
+        - Remote rows only UPDATE local rows if the remote data is newer
+          (based on updated_at or created_at timestamps).
+        - Local-only rows are NEVER deleted on first pull.
+        - Remote deletions are only applied on subsequent pulls (when we can
+          confirm a row existed remotely before but is now gone).
+        """
+        # Get existing local rows with their IDs and timestamps
+        local_ids = set()
+        local_timestamps = {}
+        try:
+            has_updated_at = "updated_at" in local_col_names
+            has_created_at = "created_at" in local_col_names
+            
+            select_cols = [local_table.c.id]
+            if has_updated_at:
+                select_cols.append(local_table.c.updated_at)
+            elif has_created_at:
+                select_cols.append(local_table.c.created_at)
+            
+            for r in lconn.execute(sa.select(*select_cols)).fetchall():
+                local_ids.add(r[0])
+                if len(select_cols) > 1 and r[1] is not None:
+                    local_timestamps[r[0]] = r[1]
+        except Exception:
+            local_ids = {
+                r[0] for r in lconn.execute(sa.select(local_table.c.id)).fetchall()
+            }
 
         remote_ids = set()
 
@@ -261,6 +286,14 @@ class SyncManager:
                 remote_ids.add(row_id)
 
             if row_id in local_ids:
+                # Check if remote data is newer before overwriting
+                remote_ts = values.get("updated_at") or values.get("created_at")
+                local_ts = local_timestamps.get(row_id)
+                
+                if local_ts and remote_ts and local_ts > remote_ts:
+                    # Local is newer — don't overwrite, push local to remote instead
+                    continue
+                
                 # UPDATE existing row with remote data
                 update_vals = {k: v for k, v in values.items() if k != "id"}
                 if update_vals:
@@ -277,15 +310,10 @@ class SyncManager:
         prev_remote = self._known_remote_ids.get(table_name)
 
         if prev_remote is None:
-            # First pull for this table: clean up any local rows not on remote.
-            # Safe because the app just started — no user-created local-only data yet.
-            orphan_ids = local_ids - remote_ids
-            if orphan_ids:
-                for oid in orphan_ids:
-                    lconn.execute(
-                        sa.delete(local_table).where(local_table.c.id == oid)
-                    )
-                log.info(f"First sync cleanup: removed {len(orphan_ids)} stale rows from {table_name}")
+            # First pull: do NOT delete any local-only rows.
+            # We can't tell if they're "orphans" or new local data that
+            # hasn't been pushed yet. Better to keep them safe.
+            pass
         else:
             # Subsequent pulls: only delete rows confirmed deleted from remote
             # (they were on remote last time but are gone now)
