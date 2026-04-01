@@ -398,6 +398,7 @@ function completeTask(taskId, btn) {
 })();
 
 // ═══ REAL-TIME SYNC: auto-refresh dashboard KPIs when data changes ═══
+window._nodexCustomSync = true;
 (function() {
     var lastData = null;
 

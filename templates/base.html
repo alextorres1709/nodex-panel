@@ -917,6 +917,10 @@
                     return;
                 }
                 document.dispatchEvent(new CustomEvent('nodex-sync', { detail: data }));
+                // Global auto-reload for pages without custom sync handler
+                if (!window._nodexCustomSync) {
+                    window.location.reload();
+                }
             });
 
             es.addEventListener('notification', function(e) {

@@ -44,7 +44,7 @@ SYNC_TABLES = [
     "automations",
 ]
 
-SYNC_INTERVAL = 10  # seconds
+SYNC_INTERVAL = 3  # seconds
 _META_CACHE_TTL = 300  # 5 minutes
 
 
@@ -190,6 +190,7 @@ class SyncManager:
         - Remote deletions are detected by comparing with previously known remote IDs.
         - First pull for each table is aggressive (cleans up stale local data).
         """
+        any_changed = False
         with self._lock:
             local_meta, remote_meta = self._get_metadata(force_refresh=True)
 
@@ -217,10 +218,12 @@ class SyncManager:
                 try:
                     with self.local_engine.begin() as lconn:
                         if has_id:
-                            self._merge_table_with_id(
+                            changed = self._merge_table_with_id(
                                 lconn, local_table, local_col_names,
                                 rows, columns, table_name,
                             )
+                            if changed:
+                                any_changed = True
                         else:
                             # Tables without 'id': fall back to DELETE + INSERT
                             lconn.execute(sa.delete(local_table))
@@ -236,32 +239,36 @@ class SyncManager:
                     continue
 
         self.sync_version += 1
-        log.info(f"Synced {len(SYNC_TABLES)} tables from remote (v{self.sync_version})")
+
+        # Only notify clients via SSE if data actually changed
+        if any_changed:
+            log.info(f"Sync v{self.sync_version}: changes detected, notifying clients")
+            try:
+                from services.sse import sse_bus
+                sse_bus.publish("sync", {"version": self.sync_version})
+            except Exception:
+                pass
 
     def _merge_table_with_id(self, lconn, local_table, local_col_names,
                               rows, columns, table_name):
         """Merge remote rows into local table using UPSERT strategy.
-        
-        - Remote rows are inserted if they don't exist locally.
-        - Remote rows only UPDATE local rows if the remote data is newer
-          (based on updated_at or created_at timestamps).
-        - Local-only rows are NEVER deleted on first pull.
-        - Remote deletions are only applied on subsequent pulls (when we can
-          confirm a row existed remotely before but is now gone).
+
+        Returns True if any rows were inserted, updated, or deleted.
         """
+        changed = False
         # Get existing local rows with their IDs and timestamps
         local_ids = set()
         local_timestamps = {}
         try:
             has_updated_at = "updated_at" in local_col_names
             has_created_at = "created_at" in local_col_names
-            
+
             select_cols = [local_table.c.id]
             if has_updated_at:
                 select_cols.append(local_table.c.updated_at)
             elif has_created_at:
                 select_cols.append(local_table.c.created_at)
-            
+
             for r in lconn.execute(sa.select(*select_cols)).fetchall():
                 local_ids.add(r[0])
                 if len(select_cols) > 1 and r[1] is not None:
@@ -289,11 +296,11 @@ class SyncManager:
                 # Check if remote data is newer before overwriting
                 remote_ts = values.get("updated_at") or values.get("created_at")
                 local_ts = local_timestamps.get(row_id)
-                
+
                 if local_ts and remote_ts and local_ts > remote_ts:
                     # Local is newer — don't overwrite, push local to remote instead
                     continue
-                
+
                 # UPDATE existing row with remote data
                 update_vals = {k: v for k, v in values.items() if k != "id"}
                 if update_vals:
@@ -302,30 +309,29 @@ class SyncManager:
                         .where(local_table.c.id == row_id)
                         .values(**update_vals)
                     )
+                    changed = True
             else:
                 # INSERT new row from remote
                 lconn.execute(sa.insert(local_table).values(**values))
+                changed = True
 
         # --- Handle remote deletions ---
         prev_remote = self._known_remote_ids.get(table_name)
 
         if prev_remote is None:
-            # First pull: do NOT delete any local-only rows.
-            # We can't tell if they're "orphans" or new local data that
-            # hasn't been pushed yet. Better to keep them safe.
             pass
         else:
-            # Subsequent pulls: only delete rows confirmed deleted from remote
-            # (they were on remote last time but are gone now)
             deleted_remotely = prev_remote - remote_ids
             for did in deleted_remotely:
                 if did in local_ids:
                     lconn.execute(
                         sa.delete(local_table).where(local_table.c.id == did)
                     )
+                    changed = True
 
         # Update known remote IDs for next pull cycle
         self._known_remote_ids[table_name] = remote_ids
+        return changed
 
     def push_to_remote(self, table_name, row_id):
         """Push a single row from local to remote (called after local writes)."""

@@ -499,7 +499,28 @@
             if (!dragCard) return;
             var newStatus = col.getAttribute('data-status');
             var taskId = dragCard.getAttribute('data-task-id');
-            col.appendChild(dragCard);
+
+            // Remove empty state from target column before inserting
+            var emptyState = col.querySelector('.kanban-empty-state');
+            if (emptyState) emptyState.remove();
+
+            // Remember source column to restore empty state if needed
+            var sourceCol = dragCard.parentElement;
+
+            // Insert card at top of target column
+            if (col.firstChild) {
+                col.insertBefore(dragCard, col.firstChild);
+            } else {
+                col.appendChild(dragCard);
+            }
+
+            // If source column is now empty, add empty state back
+            if (sourceCol && sourceCol.querySelectorAll('.kanban-card').length === 0) {
+                var empty = document.createElement('div');
+                empty.className = 'kanban-empty-state';
+                empty.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;margin:0 auto 8px;opacity:0.2;display:block"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><p>Sin tareas</p>';
+                sourceCol.appendChild(empty);
+            }
 
             // Update counters
             document.querySelectorAll('.kanban-column').forEach(function(c) {
@@ -526,6 +547,7 @@
             knownTaskIds.add(i);
         });
 
+        window._nodexCustomSync = true;
         document.addEventListener('nodex-sync', function() {
             fetch('/api/tasks').then(function(r) { return r.json(); }).then(function(data) {
                 if (!data.tasks) return;
