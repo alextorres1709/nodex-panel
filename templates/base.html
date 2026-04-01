@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>NodexAI — {% block title %}Panel{% endblock %}</title>
     <!-- PWA -->
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
@@ -849,20 +849,6 @@
             });
         }
 
-        // Poll for new notifications every 10s
-        setInterval(function () {
-            fetch('/api/notifications/unread-count').then(function (r) { return r.json() }).then(function (data) {
-                var badge = document.getElementById('notifBadge');
-                if (data.count > 0) {
-                    badge.style.display = 'flex';
-                    badge.textContent = data.count;
-                } else {
-                    badge.style.display = 'none';
-                    badge.textContent = '';
-                }
-            }).catch(function () { });
-        }, 10000);
-
         // Close panel on outside click
         document.addEventListener('click', function (e) {
             var w = document.getElementById('notifWrapper');
@@ -870,47 +856,6 @@
                 document.getElementById('notifPanel').style.display = 'none';
             }
         });
-    </script>
-
-    <!-- ═══ TASK REMINDER NOTIFICATIONS (macOS native) ═══ -->
-    <script>
-        (function () {
-            // Request permission on load
-            if ('Notification' in window && Notification.permission === 'default') {
-                Notification.requestPermission();
-            }
-
-            function sendOSNotification(title, body) {
-                if (!('Notification' in window)) return;
-                if (Notification.permission === 'granted') {
-                    new Notification(title, { body: body || '' });
-                } else if (Notification.permission === 'default') {
-                    Notification.requestPermission().then(function (p) {
-                        if (p === 'granted') new Notification(title, { body: body || '' });
-                    });
-                }
-            }
-
-            function checkTaskReminders() {
-                fetch('/api/tasks/due-reminders')
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        if (data.due && data.due.length > 0) {
-                            data.due.forEach(function (t) {
-                                sendOSNotification(
-                                    'Tarea pendiente: ' + t.title,
-                                    t.description || 'Tienes una tarea sin completar'
-                                );
-                            });
-                        }
-                    })
-                    .catch(function () { });
-            }
-
-            // Check immediately, then every 60 seconds
-            checkTaskReminders();
-            setInterval(checkTaskReminders, 60000);
-        })();
     </script>
 
     <!-- PWA Service Worker -->
@@ -921,31 +866,122 @@
         }
     </script>
 
-    <!-- ═══ GLOBAL SYNC POLLING (real-time data refresh) ═══ -->
+    <!-- ═══ REAL-TIME SSE + NATIVE NOTIFICATIONS ═══ -->
     <script>
     (function() {
-        var lastSyncVersion = -1;
-
-        function checkSyncVersion() {
-            fetch('/api/sync/version').then(function(r) { return r.json(); }).then(function(data) {
-                var v = data.version;
-                if (lastSyncVersion === -1) {
-                    // First check — just store the version, don't trigger refresh
-                    lastSyncVersion = v;
-                    return;
-                }
-                if (v !== lastSyncVersion) {
-                    lastSyncVersion = v;
-                    // Dispatch event so each page can react to new data
-                    document.dispatchEvent(new CustomEvent('nodex-sync', { detail: { version: v } }));
-                }
+        // ── Native OS notification via server-side osascript ──
+        function sendNativeNotification(title, body) {
+            fetch('/api/notify/native', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: title, body: body || '' })
             }).catch(function() {});
         }
 
-        // Poll every 10s (aligned with sync interval)
-        setInterval(checkSyncVersion, 10000);
-        // Initial check after 3s
-        setTimeout(checkSyncVersion, 3000);
+        function updateNotifBadge(count) {
+            var badge = document.getElementById('notifBadge');
+            if (!badge) return;
+            if (count > 0) {
+                badge.style.display = 'flex';
+                badge.textContent = count;
+            } else {
+                badge.style.display = 'none';
+                badge.textContent = '';
+            }
+        }
+
+        // ── Initial data loads ──
+        fetch('/api/notifications/unread-count').then(function(r) { return r.json(); }).then(function(data) {
+            updateNotifBadge(data.count);
+        }).catch(function() {});
+
+        // Check task reminders on load
+        fetch('/api/tasks/due-reminders').then(function(r) { return r.json(); }).then(function(data) {
+            if (data.due && data.due.length > 0) {
+                data.due.forEach(function(t) {
+                    sendNativeNotification('Tarea pendiente: ' + t.title, t.description || 'Tienes una tarea sin completar');
+                });
+            }
+        }).catch(function() {});
+
+        // ── SSE connection (replaces 3 separate polling intervals) ──
+        var firstSync = true;
+
+        function connectSSE() {
+            var es = new EventSource('/api/events');
+
+            es.addEventListener('sync', function(e) {
+                var data = JSON.parse(e.data);
+                if (firstSync) {
+                    firstSync = false;
+                    return;
+                }
+                document.dispatchEvent(new CustomEvent('nodex-sync', { detail: data }));
+            });
+
+            es.addEventListener('notification', function(e) {
+                var data = JSON.parse(e.data);
+                updateNotifBadge(data.count);
+                if (data.title) {
+                    sendNativeNotification(data.title, data.body || '');
+                }
+            });
+
+            es.addEventListener('task-reminder', function(e) {
+                var data = JSON.parse(e.data);
+                if (data.tasks) {
+                    data.tasks.forEach(function(t) {
+                        sendNativeNotification('Tarea pendiente: ' + t.title, t.description || 'Tienes una tarea sin completar');
+                    });
+                }
+            });
+
+            es.addEventListener('presence', function(e) {
+                var data = JSON.parse(e.data);
+                document.dispatchEvent(new CustomEvent('nodex-presence', { detail: data }));
+            });
+
+            es.addEventListener('reconnect', function() {
+                es.close();
+                setTimeout(connectSSE, 1000);
+            });
+
+            es.onerror = function() {
+                es.close();
+                setTimeout(connectSSE, 5000);
+            };
+        }
+
+        connectSSE();
+    })();
+    </script>
+
+    <!-- ═══ PRESENCE HEARTBEAT ═══ -->
+    <script>
+    (function() {
+        function sendHeartbeat() {
+            var isTracking = !!localStorage.getItem('nodex_timer_start');
+            var trackingStarted = localStorage.getItem('nodex_timer_start') || null;
+            fetch('/api/presence/heartbeat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    is_tracking: isTracking,
+                    tracking_started: trackingStarted
+                })
+            }).catch(function() {});
+        }
+
+        // Send immediately on page load, then every 30s
+        sendHeartbeat();
+        setInterval(sendHeartbeat, 30000);
+
+        // Send offline signal on page unload
+        window.addEventListener('beforeunload', function() {
+            navigator.sendBeacon('/api/presence/heartbeat',
+                new Blob([JSON.stringify({ is_tracking: false, offline: true })],
+                    { type: 'application/json' }));
+        });
     })();
     </script>
 

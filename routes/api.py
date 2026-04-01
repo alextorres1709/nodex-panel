@@ -3,15 +3,18 @@ REST API v2 — Full JSON API for APK/mobile app and external integrations.
 All endpoints require Bearer token or active session.
 """
 import json
+import sys
+import time
+import subprocess
 from datetime import datetime, date, timedelta, timezone
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, request, g, Response
 from sqlalchemy.orm import joinedload
 from models import (
     db, User, Project, Task, Subtask, Client, Invoice, Payment,
     Income, TimeEntry, Notification, Idea, Automation, Document,
 )
 from config import APP_VERSION
-from routes.auth import api_token_required
+from routes.auth import api_token_required, login_required
 
 api_bp = Blueprint("api", __name__)
 
@@ -23,6 +26,7 @@ DOWNLOAD_URL = "https://github.com/alextorres1709/nodex-panel/releases/latest/do
 # ═══════════════════════════════════════
 
 @api_bp.route("/api/search")
+@login_required
 def api_search():
     """Global search across tasks, projects, clients, and pages."""
     q = (request.args.get("q") or "").strip().lower()
@@ -126,6 +130,80 @@ def api_sync_version():
     from services.sync import sync_manager
     version = sync_manager.sync_version if sync_manager else 0
     return jsonify({"version": version})
+
+
+@api_bp.route("/api/events")
+def api_events():
+    """SSE endpoint — replaces polling for sync, notifications, and task reminders."""
+    from services.sse import sse_bus
+
+    def generate():
+        q = sse_bus.subscribe()
+        try:
+            start_time = time.time()
+            max_duration = 300  # 5 min, then client auto-reconnects
+
+            while True:
+                if time.time() - start_time > max_duration:
+                    yield "event: reconnect\ndata: {}\n\n"
+                    return
+
+                try:
+                    msg = q.get(timeout=5)
+                    event = msg["event"]
+                    data = json.dumps(msg["data"])
+                    yield f"event: {event}\ndata: {data}\n\n"
+                except Exception:
+                    # Timeout — send heartbeat to keep connection alive
+                    yield ": heartbeat\n\n"
+        finally:
+            sse_bus.unsubscribe(q)
+
+    return Response(generate(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@api_bp.route("/api/presence/heartbeat", methods=["POST"])
+@login_required
+def api_presence_heartbeat():
+    """Client sends heartbeat every 30s with tracking state."""
+    from services.presence import heartbeat, mark_offline
+    user = g.user
+    data = request.get_json(force=True) if request.is_json else {}
+    if data.get("offline"):
+        mark_offline(user.id)
+    else:
+        heartbeat(
+            user_id=user.id,
+            name=user.name,
+            is_tracking=bool(data.get("is_tracking")),
+            tracking_started=data.get("tracking_started"),
+        )
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/api/presence")
+@login_required
+def api_presence():
+    """Return currently online users."""
+    from services.presence import get_online_users
+    return jsonify({"users": get_online_users()})
+
+
+@api_bp.route("/api/notify/native", methods=["POST"])
+def api_native_notify():
+    """Trigger a native OS notification via PyObjC (attributed to the app)."""
+    data = request.get_json(force=True)
+    title = data.get("title", "NodexAI Panel") or "NodexAI Panel"
+    body = data.get("body", "") or ""
+
+    try:
+        from services.native_notify import send_native_notification
+        send_native_notification(title, body)
+    except Exception as e:
+        import logging
+        logging.getLogger("api").warning(f"Native notification error: {e}")
+    return jsonify({"ok": True})
 
 
 def _do_install():
