@@ -1,5 +1,28 @@
 # Changelog
 
+## v4.3.0
+- **Calendario interactivo**: Rediseño completo estilo Google Calendar — toolbar con navegacion por flechas, boton "Hoy", dia actual con circulo verde, eventos con dots de color por tipo
+- **Reuniones y eventos**: Nuevo modelo `CalendarEvent` con tipos reunion/evento/recordatorio, CRUD completo via AJAX, modal con chips de tipo, hora, ubicacion y color
+- **Popover de dia**: Click en "+N mas" muestra popover con todos los eventos del dia
+- **Loading screen**: Nueva pantalla de carga con logo NodexAI, texto animado y barra de progreso verde
+- **Presencia en tiempo real**: Ver quien esta online y rastreando tiempo (`services/presence.py`)
+- **SSE bus**: Notificaciones en tiempo real via Server-Sent Events (`services/sse.py`)
+- **Notificaciones nativas macOS**: Alertas del sistema para tareas asignadas (`services/native_notify.py`)
+- **Sync mejorado**: Intervalo reducido a 3s, auto-reload del navegador al detectar cambios
+- **Dashboard**: Nuevos KPIs (clientes totales, facturas pendientes, balance), asignaciones M2M
+- **Fix**: Railway deploy — archivos faltantes (config HOSTED_MODE, SSE, notificaciones nativas)
+- **Fix**: Sync proteccion de timestamp — no borra datos locales al reiniciar
+
+## v4.2.0
+- **Fix**: Crash al iniciar — columnas `reminder_minutes` y `last_notified_at` faltantes en migracion
+
+## v4.1.0
+- Release intermedia con correcciones de estabilidad
+
+## v4.0.0
+- **UI**: Titlebar transparente con padding para semaforo de macOS + window collection behavior
+- **Fix**: Proceso se mantiene activo para deteccion de actividad de Discord
+
 ## v3.7.0
 - **UI**: Header reducido de 64px a 48px y sidebar-brand alineado con los botones de semaforo de macOS (rojo/amarillo/verde) para un diseño mas compacto
 - **Fix**: Discord ya no pierde el estado de actividad cada ~30s. Se ha desactivado macOS App Nap mediante `NSProcessInfo.beginActivityWithOptions` para que el proceso no entre en suspension cuando la ventana pierde el foco
