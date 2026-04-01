@@ -429,6 +429,32 @@ class Automation(db.Model):
 
 
 # ═══════════════════════════════════════
+# CALENDAR EVENTS
+# ═══════════════════════════════════════
+
+class CalendarEvent(db.Model):
+    __tablename__ = "calendar_events"
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, default="")
+    event_type = db.Column(db.String(20), default="evento")  # reunion, evento, recordatorio
+    date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.String(5), nullable=True)  # "HH:MM"
+    end_time = db.Column(db.String(5), nullable=True)    # "HH:MM"
+    location = db.Column(db.String(300), default="")
+    color = db.Column(db.String(7), default="#6366f1")
+    all_day = db.Column(db.Boolean, default=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
+
+    creator = db.relationship("User", foreign_keys=[created_by])
+    assignee = db.relationship("User", foreign_keys=[assigned_to])
+
+
+# ═══════════════════════════════════════
 # PERMISSIONS (v2.0)
 # ═══════════════════════════════════════
 

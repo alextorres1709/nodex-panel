@@ -2,44 +2,93 @@ import os
 import logging
 from datetime import datetime, timezone, date, timedelta
 from flask import Flask, g
-from config import Config, BASE_DIR, REMOTE_DATABASE_URL, APP_VERSION
-from models import db, User, Payment, Project, Tool, Task, Idea, Credential, CompanyInfo
+from config import Config, BASE_DIR, REMOTE_DATABASE_URL, APP_VERSION, HOSTED_MODE
+from models import db, User, Payment, Project, Tool, Task, Idea, Credential, CompanyInfo, CalendarEvent
 
 logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 log = logging.getLogger("app")
 
 
+MIGRATIONS = [
+    ("users", "api_token", "VARCHAR(64)"),
+    ("tasks", "estimated_minutes", "INTEGER DEFAULT 0"),
+    ("tasks", "kanban_order", "INTEGER DEFAULT 0"),
+    ("tasks", "company_id", "INTEGER"),
+    ("tasks", "recurrence", "VARCHAR(20) DEFAULT 'ninguna'"),
+    ("tasks", "reminder_minutes", "INTEGER"),
+    ("tasks", "last_notified_at", "TIMESTAMP"),
+    ("ideas", "company_id", "INTEGER"),
+    ("companies", "interest", "VARCHAR(300) DEFAULT ''"),
+    ("companies", "problem", "TEXT DEFAULT ''"),
+    ("companies", "solution", "TEXT DEFAULT ''"),
+    ("projects", "company_id", "INTEGER"),
+]
+
+
 def _auto_migrate(app):
     """Add missing columns to existing SQLite tables (safe, idempotent)."""
-    import sqlite3
+    import sqlite3, re
+    _ident_re = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
     db_path = app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
 
-    migrations = [
-        ("users", "api_token", "VARCHAR(64)"),
-        ("tasks", "estimated_minutes", "INTEGER DEFAULT 0"),
-        ("tasks", "kanban_order", "INTEGER DEFAULT 0"),
-        ("tasks", "company_id", "INTEGER"),
-        ("tasks", "recurrence", "VARCHAR(20) DEFAULT 'ninguna'"),
-        ("tasks", "reminder_minutes", "INTEGER"),
-        ("tasks", "last_notified_at", "DATETIME"),
-        ("ideas", "company_id", "INTEGER"),
-        ("companies", "interest", "VARCHAR(300) DEFAULT ''"),
-        ("companies", "problem", "TEXT DEFAULT ''"),
-        ("companies", "solution", "TEXT DEFAULT ''"),
-        ("projects", "company_id", "INTEGER"),
-    ]
-
-    for table, column, col_type in migrations:
-        c.execute(f"PRAGMA table_info({table})")
+    for table, column, col_type in MIGRATIONS:
+        if not (_ident_re.match(table) and _ident_re.match(column)):
+            log.warning(f"Skipping invalid migration identifier: {table}.{column}")
+            continue
+        c.execute(f'PRAGMA table_info("{table}")')
         existing = [row[1] for row in c.fetchall()]
         if column not in existing:
-            c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+            c.execute(f'ALTER TABLE "{table}" ADD COLUMN "{column}" {col_type}')
             log.info(f"Migration: added {table}.{column}")
 
     conn.commit()
     conn.close()
+
+
+def _auto_migrate_pg():
+    """Add missing columns and fix sequences in PostgreSQL (safe, idempotent)."""
+    from sqlalchemy import text
+    import re
+
+    # Whitelist pattern: only allow safe identifier characters
+    _ident_re = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+
+    conn = db.engine.connect()
+    # 1. Add missing columns
+    for table, column, col_type in MIGRATIONS:
+        if not (_ident_re.match(table) and _ident_re.match(column)):
+            log.warning(f"Skipping invalid migration identifier: {table}.{column}")
+            continue
+        try:
+            conn.execute(text(
+                f'ALTER TABLE "{table}" ADD COLUMN IF NOT EXISTS "{column}" {col_type}'
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+    # 2. Fix auto-increment sequences (sync inserts rows with explicit IDs,
+    #    leaving the sequence behind, causing duplicate key errors on INSERT)
+    try:
+        tables = conn.execute(text(
+            "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+        )).fetchall()
+        for (tbl,) in tables:
+            if not _ident_re.match(tbl):
+                continue
+            try:
+                conn.execute(text(
+                    f'SELECT setval(pg_get_serial_sequence(\'{tbl}\', \'id\'), '
+                    f'COALESCE((SELECT MAX(id) FROM "{tbl}"), 1))'
+                ))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+    except Exception:
+        conn.rollback()
+    conn.close()
+    log.info("PostgreSQL migration + sequence fix complete")
 
 
 def _migrate_task_assignments():
@@ -64,29 +113,32 @@ def create_app():
     db.init_app(app)
 
     with app.app_context():
-        # Create local SQLite tables (instant, ~5ms)
         db.create_all()
 
-        # Auto-migrate: add missing columns to existing tables
-        _auto_migrate(app)
+        if HOSTED_MODE:
+            log.info("Hosted mode — using PostgreSQL directly, sync disabled")
+            _auto_migrate_pg()
+        else:
+            # Auto-migrate: add missing columns to existing SQLite tables
+            _auto_migrate(app)
 
-        # Migrate legacy assigned_to → task_assignments (one-time)
-        _migrate_task_assignments()
+            # Migrate legacy assigned_to → task_assignments (one-time)
+            _migrate_task_assignments()
 
-        # Start background sync from Railway PostgreSQL
-        from services.sync import SyncManager, sync_manager
-        import services.sync as sync_mod
-        mgr = SyncManager(
-            local_url=Config.SQLALCHEMY_DATABASE_URI,
-            remote_url=REMOTE_DATABASE_URL,
-        )
-        sync_mod.sync_manager = mgr
-        mgr.start()
+            # Start background sync from Railway PostgreSQL
+            from services.sync import SyncManager, sync_manager
+            import services.sync as sync_mod
+            mgr = SyncManager(
+                local_url=Config.SQLALCHEMY_DATABASE_URI,
+                remote_url=REMOTE_DATABASE_URL,
+            )
+            sync_mod.sync_manager = mgr
+            mgr.start()
 
-        # If local DB is empty, wait briefly for first sync to populate it
-        if not User.query.first():
-            logging.getLogger("app").info("Local DB empty — waiting for first sync...")
-            mgr.wait_first_sync(timeout=10)
+            # If local DB is empty, wait briefly for first sync to populate it
+            if not User.query.first():
+                log.info("Local DB empty — waiting for first sync...")
+                mgr.wait_first_sync(timeout=10)
 
     # Blueprints
     from routes.auth import auth_bp, _load_current_user
@@ -132,6 +184,15 @@ def create_app():
     @app.before_request
     def before_request():
         _load_current_user()
+
+    @app.after_request
+    def set_security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        if HOSTED_MODE:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
 
     @app.context_processor
     def inject_globals():

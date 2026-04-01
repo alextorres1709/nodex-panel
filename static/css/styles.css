@@ -3641,21 +3641,23 @@ a:hover {
 
 .calendar-cell {
     background: var(--bg-card);
-    min-height: 100px;
-    padding: 8px;
+    min-height: 110px;
+    padding: 6px 8px;
     position: relative;
+    transition: background 0.15s ease;
+}
+.calendar-cell:hover {
+    background: var(--bg-secondary);
 }
 
-.calendar-cell.other-month {
-    opacity: 0.4;
-}
+.calendar-cell.other-month { opacity: 0.35; }
 
-.calendar-cell.today {
-    background: rgba(124, 58, 237, 0.04);
+.calendar-cell.cal-today {
+    background: rgba(124, 58, 237, 0.06);
+    box-shadow: inset 0 0 0 2px var(--brand-primary);
 }
-
-[data-theme="dark"] .calendar-cell.today {
-    background: rgba(76, 205, 92, 0.04);
+[data-theme="dark"] .calendar-cell.cal-today {
+    background: rgba(99, 102, 241, 0.08);
 }
 
 .calendar-day-num {
@@ -3664,13 +3666,13 @@ a:hover {
     color: var(--text-primary);
     margin-bottom: 4px;
 }
-
-.calendar-cell.today .calendar-day-num {
+.calendar-cell.cal-today .calendar-day-num {
     color: var(--brand-primary);
     font-weight: 800;
 }
 
 .calendar-event {
+    display: block;
     font-size: 11px;
     padding: 2px 6px;
     border-radius: 4px;
@@ -3678,13 +3680,34 @@ a:hover {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    cursor: default;
+    cursor: pointer;
+    text-decoration: none;
+    transition: filter 0.15s ease;
+    border-left: 3px solid transparent;
+}
+.calendar-event:hover { filter: brightness(0.92); }
+
+/* Event type colors */
+.calendar-event.evt-task     { background: rgba(59,130,246,0.12); color: #2563eb; border-left-color: #3b82f6; }
+.calendar-event.evt-payment  { background: rgba(239,68,68,0.12); color: #dc2626; border-left-color: #ef4444; }
+.calendar-event.evt-invoice  { background: rgba(5,150,105,0.12); color: #059669; border-left-color: #059669; }
+.calendar-event.evt-deadline { background: rgba(245,158,11,0.12); color: #d97706; border-left-color: #f59e0b; }
+.calendar-event.evt-reunion  { background: rgba(99,102,241,0.12); color: #6366f1; border-left-color: #6366f1; }
+.calendar-event.evt-evento   { background: rgba(6,182,212,0.12); color: #0891b2; border-left-color: #06b6d4; }
+.calendar-event.evt-recordatorio { background: rgba(245,158,11,0.12); color: #d97706; border-left-color: #f59e0b; }
+
+.evt-time {
+    font-weight: 700;
+    margin-right: 3px;
+    font-size: 10px;
 }
 
-.calendar-event.task { background: rgba(59, 130, 246, 0.1); color: #2563eb; }
-.calendar-event.payment { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
-.calendar-event.invoice { background: rgba(5, 150, 105, 0.1); color: #059669; }
-.calendar-event.deadline { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+.cal-more {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    padding-left: 6px;
+    cursor: pointer;
+}
 
 .calendar-nav {
     display: flex;
@@ -3692,10 +3715,29 @@ a:hover {
     justify-content: space-between;
     margin-bottom: 20px;
 }
-
 .calendar-nav h2 {
     font-size: 20px;
     font-weight: 700;
+}
+
+.cal-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+.cal-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.cal-legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
 }
 
 /* ═══ DOCUMENTS ═══ */

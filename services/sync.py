@@ -42,6 +42,7 @@ SYNC_TABLES = [
     "documents",
     "resources",
     "automations",
+    "calendar_events",
 ]
 
 SYNC_INTERVAL = 3  # seconds
