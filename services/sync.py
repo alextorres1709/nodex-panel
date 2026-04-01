@@ -43,6 +43,7 @@ SYNC_TABLES = [
     "resources",
     "automations",
     "calendar_events",
+    "push_tokens",
 ]
 
 SYNC_INTERVAL = 3  # seconds

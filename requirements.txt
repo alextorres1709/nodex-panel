@@ -5,3 +5,4 @@ python-dotenv==1.0.1
 psycopg2-binary==2.9.9
 gunicorn==22.0.0
 cryptography==44.0.0
+firebase-admin==6.6.0

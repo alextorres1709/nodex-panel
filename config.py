@@ -45,6 +45,9 @@ if REMOTE_DATABASE_URL.startswith("postgres://"):
 
 HOSTED_MODE = os.getenv("HOSTED_MODE", "").lower() in ("true", "1", "yes")
 
+# Firebase Cloud Messaging — base64-encoded service account JSON
+FIREBASE_CREDENTIALS_B64 = os.getenv("FIREBASE_CREDENTIALS_B64", "")
+
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "nodex-panel-secret-key-2024")

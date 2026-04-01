@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone, date, timedelta
 from flask import Flask, g
 from config import Config, BASE_DIR, REMOTE_DATABASE_URL, APP_VERSION, HOSTED_MODE
-from models import db, User, Payment, Project, Tool, Task, Idea, Credential, CompanyInfo, CalendarEvent
+from models import db, User, Payment, Project, Tool, Task, Idea, Credential, CompanyInfo, CalendarEvent, PushToken
 
 logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 log = logging.getLogger("app")
@@ -139,6 +139,10 @@ def create_app():
             if not User.query.first():
                 log.info("Local DB empty — waiting for first sync...")
                 mgr.wait_first_sync(timeout=10)
+
+    # Initialize FCM for push notifications
+    from services.push import init_fcm
+    init_fcm()
 
     # Blueprints
     from routes.auth import auth_bp, _load_current_user

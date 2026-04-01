@@ -455,6 +455,21 @@ class CalendarEvent(db.Model):
 
 
 # ═══════════════════════════════════════
+# PUSH TOKENS (FCM)
+# ═══════════════════════════════════════
+
+class PushToken(db.Model):
+    __tablename__ = "push_tokens"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    token = db.Column(db.Text, nullable=False, unique=True)
+    platform = db.Column(db.String(20), default="android")  # android, ios, web
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User", foreign_keys=[user_id])
+
+
+# ═══════════════════════════════════════
 # PERMISSIONS (v2.0)
 # ═══════════════════════════════════════
 

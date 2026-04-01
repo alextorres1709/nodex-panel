@@ -769,6 +769,51 @@ def api_mark_notifications_read():
 
 
 # ═══════════════════════════════════════
+# PUSH TOKENS (FCM)
+# ═══════════════════════════════════════
+
+@api_bp.route("/api/push/register", methods=["POST"])
+@api_token_required
+def api_push_register():
+    """Register an FCM device token for push notifications."""
+    from models import PushToken
+
+    data = request.get_json(force=True)
+    token = (data.get("token") or "").strip()
+    platform = data.get("platform", "android")
+
+    if not token:
+        return jsonify({"error": "token required"}), 400
+
+    existing = PushToken.query.filter_by(token=token).first()
+    if existing:
+        existing.user_id = g.api_user.id
+        existing.platform = platform
+    else:
+        db.session.add(PushToken(
+            user_id=g.api_user.id,
+            token=token,
+            platform=platform,
+        ))
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/api/push/unregister", methods=["POST"])
+@api_token_required
+def api_push_unregister():
+    """Remove an FCM device token (e.g. on logout)."""
+    from models import PushToken
+
+    data = request.get_json(force=True)
+    token = (data.get("token") or "").strip()
+    if token:
+        PushToken.query.filter_by(token=token).delete()
+        db.session.commit()
+    return jsonify({"ok": True})
+
+
+# ═══════════════════════════════════════
 # IDEAS
 # ═══════════════════════════════════════
 

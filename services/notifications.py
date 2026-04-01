@@ -1,12 +1,21 @@
 """
 Notification service — creates notifications for users.
-Used by messages, tasks, payments, and future APK push.
+Also sends FCM push notifications to Android/iOS devices.
 """
 from models import db, Notification
 
 
+def _push(user_id, title, body, link):
+    """Send FCM push (non-blocking). Silently ignores if FCM is not configured."""
+    try:
+        from services.push import send_push
+        send_push(user_id, title, body, link)
+    except Exception:
+        pass
+
+
 def notify(user_id, type, title, body="", link=""):
-    """Create a notification for a user."""
+    """Create a notification for a user and send FCM push."""
     n = Notification(
         user_id=user_id,
         type=type,
@@ -16,11 +25,12 @@ def notify(user_id, type, title, body="", link=""):
     )
     db.session.add(n)
     db.session.commit()
+    _push(user_id, title, body, link)
     return n
 
 
 def notify_all_except(sender_id, type, title, body="", link=""):
-    """Create a notification for ALL users except the sender."""
+    """Create a notification for ALL users except the sender + FCM push."""
     from models import User
     users = User.query.filter(User.id != sender_id, User.active == True).all()
     for u in users:
@@ -29,6 +39,8 @@ def notify_all_except(sender_id, type, title, body="", link=""):
         )
         db.session.add(n)
     db.session.commit()
+    for u in users:
+        _push(u.id, title, body, link)
 
 
 def get_unread_count(user_id):
