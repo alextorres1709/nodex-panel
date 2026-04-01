@@ -43,8 +43,18 @@ if REMOTE_DATABASE_URL.startswith("postgres://"):
     REMOTE_DATABASE_URL = REMOTE_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 
+HOSTED_MODE = os.getenv("HOSTED_MODE", "").lower() in ("true", "1", "yes")
+
+
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "nodex-panel-secret-key-2024")
-    SQLALCHEMY_DATABASE_URI = f"sqlite:///{LOCAL_DB_PATH}"
+    if HOSTED_MODE:
+        SQLALCHEMY_DATABASE_URI = REMOTE_DATABASE_URL
+    else:
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{LOCAL_DB_PATH}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = timedelta(days=30)
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    if HOSTED_MODE:
+        SESSION_COOKIE_SECURE = True

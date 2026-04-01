@@ -54,6 +54,8 @@ def edit(uid):
             u.set_password(pw)
         log_activity("update", "user", u.id, f"Editado: {u.name}")
         db.session.commit()
+        from services.sync import push_change
+        push_change("users", u.id)
         flash("Usuario actualizado", "success")
     except Exception as e:
         db.session.rollback()

@@ -2,7 +2,7 @@ import logging
 from datetime import date, datetime, timedelta
 from sqlalchemy.orm import joinedload
 from flask import Blueprint, render_template, g
-from models import db, Payment, Project, Task, Idea, Income, ActivityLog, Client, Invoice, TimeEntry
+from models import db, Payment, Project, Task, TaskAssignment, Idea, Income, ActivityLog, Client, Invoice, TimeEntry
 from routes.auth import login_required
 
 log = logging.getLogger("dashboard")
@@ -61,9 +61,12 @@ def index():
         db.extract("year", Invoice.paid_date) == now_year,
     ).scalar()))
 
-    # ── My tasks (assigned to current user) ──
+    # ── My tasks (assigned to current user via legacy field OR task_assignments) ──
+    assigned_via_m2m = db.session.query(TaskAssignment.task_id).filter(
+        TaskAssignment.user_id == user.id
+    ).subquery()
     my_tasks = _safe(lambda: Task.query.options(joinedload(Task.project)).filter(
-        Task.assigned_to == user.id,
+        db.or_(Task.assigned_to == user.id, Task.id.in_(assigned_via_m2m)),
         Task.status.in_(["pendiente", "en_progreso"]),
     ).order_by(
         Task.due_date.asc().nullslast(),
@@ -126,16 +129,6 @@ def index():
         income_6m.append(inc)
         expense_6m.append(monthly_cost)  # flat monthly cost estimate
 
-    # ── Activity heatmap (last 12 weeks = 84 days) ──
-    heatmap_data = []
-    for i in range(83, -1, -1):
-        d = today - timedelta(days=i)
-        count = _safe(lambda d=d: ActivityLog.query.filter(
-            db.func.date(ActivityLog.created_at) == d
-        ).count())
-        level = 0 if count == 0 else 1 if count <= 2 else 2 if count <= 5 else 3 if count <= 10 else 4
-        heatmap_data.append({"date": d.strftime("%d/%m"), "level": level, "count": count})
-
     # ── Personal stats (this week) ──
     week_start = today - timedelta(days=today.weekday())
     week_hours = _safe(lambda: sum(
@@ -159,6 +152,13 @@ def index():
     # ── Revenue goal (monthly, default 5000€) ──
     revenue_goal = 5000
     revenue_pct = min(100, int((monthly_income / revenue_goal) * 100)) if revenue_goal > 0 else 0
+
+    # ── Extra stats for dashboard ──
+    total_clients = _safe(lambda: Client.query.count())
+    pending_invoices = _safe(lambda: Invoice.query.filter(
+        Invoice.status.in_(["borrador", "enviada"])
+    ).count())
+    balance = monthly_income - monthly_cost
 
     return render_template(
         "dashboard.html",
@@ -185,13 +185,15 @@ def index():
         month_labels=month_labels,
         income_6m=income_6m,
         expense_6m=expense_6m,
-        # NEW: Heatmap
-        heatmap_data=heatmap_data,
-        # NEW: Personal stats
+        # Personal stats
         week_hours=round(week_hours, 1),
         week_tasks=week_tasks,
         week_revenue=week_revenue,
         # NEW: Revenue goal
         revenue_goal=revenue_goal,
         revenue_pct=revenue_pct,
+        # Extra stats
+        total_clients=total_clients,
+        pending_invoices=pending_invoices,
+        balance=balance,
     )

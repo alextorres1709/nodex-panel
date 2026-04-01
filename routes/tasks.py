@@ -95,6 +95,21 @@ def create():
             push_change("task_assignments", ta.id)
         for st in Subtask.query.filter_by(task_id=t.id).all():
             push_change("subtasks", st.id)
+        # Notify assigned users about the new task
+        from services.notifications import notify
+        from flask import g as _g
+        for uid in assigned_ids:
+            uid = uid.strip()
+            if uid and int(uid) != _g.user.id:
+                notify(int(uid), "task", f"Nueva tarea asignada: {t.title}",
+                       body=f"Prioridad: {t.priority}" + (f" — Fecha: {t.due_date.strftime('%d/%m/%Y')}" if t.due_date else ""),
+                       link="/tareas")
+        # Native macOS notification
+        try:
+            from services.native_notify import send_native_notification
+            send_native_notification("NodexAI Panel", f"Tarea creada: {t.title}")
+        except Exception:
+            pass
         flash("Tarea creada", "success")
     except Exception as e:
         db.session.rollback()
