@@ -103,8 +103,21 @@ document.addEventListener('click', function(e) {
 // Mobile sidebar
 function toggleSidebar() {
     const s = document.querySelector('.sidebar');
+    const o = document.querySelector('.sidebar-overlay');
     if (s) s.classList.toggle('open');
+    if (o) o.classList.toggle('open');
 }
+// Auto-close sidebar on nav link click (mobile)
+document.querySelectorAll('.sidebar-nav a').forEach(function(link) {
+    link.addEventListener('click', function() {
+        if (window.innerWidth <= 768) {
+            const s = document.querySelector('.sidebar');
+            const o = document.querySelector('.sidebar-overlay');
+            if (s) s.classList.remove('open');
+            if (o) o.classList.remove('open');
+        }
+    });
+});
 
 // Edit modal population
 function populateEditModal(data, formId) {

@@ -299,20 +299,35 @@ a:hover {
     -webkit-app-region: drag;
 }
 
-/* Android WebView: remove macOS-specific titlebar padding */
+/* ═══ ANDROID WEBVIEW ═══ */
 .android-webview .header {
     height: var(--header-height);
     padding-top: 0;
+    top: 0;
+}
+.android-webview .header::before {
+    display: none;
 }
 .android-webview .main-content {
-    padding-top: calc(var(--header-height) + 12px);
+    padding-top: calc(var(--header-height) + 8px);
 }
 .android-webview .sidebar {
     top: 0;
-    padding-top: 8px;
+    padding-top: env(safe-area-inset-top, 8px);
 }
 .android-webview .sidebar-brand {
     -webkit-app-region: no-drag;
+}
+.android-webview * {
+    -webkit-tap-highlight-color: transparent;
+}
+.android-webview body {
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+}
+.android-webview .header-actions .theme-toggle-mac,
+.android-webview .traffic-light-spacer {
+    display: none;
 }
 
 .header-actions, .header-actions * {
@@ -706,7 +721,7 @@ a:hover {
 
 .two-col-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 20px;
 }
 
@@ -880,7 +895,7 @@ a:hover {
 /* ═══ CHART CARDS ═══ */
 .charts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 24px;
     margin-bottom: 32px;
 }
@@ -1952,10 +1967,21 @@ a:hover {
 }
 
 @media (max-width: 768px) {
+    /* Prevent horizontal page scroll */
+    html, body {
+        overflow-x: hidden;
+        max-width: 100vw;
+    }
+
     .mobile-toggle {
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+
+    /* Android WebView: adjust toggle position (no macOS titlebar) */
+    .android-webview .mobile-toggle {
+        top: 10px;
     }
 
     .sidebar {
@@ -1971,6 +1997,8 @@ a:hover {
     .main-content {
         margin-left: 0;
         padding: calc(var(--header-height) + 16px) 14px 90px;
+        max-width: 100vw;
+        overflow-x: hidden;
     }
 
     .header {
@@ -1993,6 +2021,7 @@ a:hover {
     .kpi-grid {
         grid-template-columns: 1fr 1fr;
         gap: 10px;
+        max-width: 100%;
     }
 
     .kpi-card {
@@ -2033,8 +2062,23 @@ a:hover {
     }
 
     .tools-grid,
-    .ideas-grid {
+    .ideas-grid,
+    .project-grid {
         grid-template-columns: 1fr;
+    }
+
+    /* Table card header — stack on mobile */
+    .table-card-header {
+        flex-wrap: wrap;
+    }
+    .table-card-header h3 {
+        font-size: 14px;
+    }
+
+    /* Charts — prevent overflow */
+    .chart-card canvas,
+    .table-card canvas {
+        max-width: 100%;
     }
 
     /* Tables: horizontal scroll + smaller text */
@@ -2042,6 +2086,7 @@ a:hover {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         border-radius: var(--radius-sm);
+        max-width: 100%;
     }
 
     .data-table thead th,
@@ -2094,10 +2139,21 @@ a:hover {
         font-size: 15px;
     }
 
+    /* Summary row — full width items */
+    .summary-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .summary-item {
+        width: 100%;
+    }
+
     /* Cards & sections */
     .card, .table-card, .chart-card {
         border-radius: var(--radius-sm);
         padding: 14px;
+        max-width: 100%;
+        overflow: hidden;
     }
 
     /* Two-column grids stack on mobile */
@@ -2134,13 +2190,50 @@ a:hover {
     /* Sidebar overlay when open */
     .sidebar-overlay {
         display: none;
-    }
-    .sidebar.open ~ .sidebar-overlay {
-        display: block;
         position: fixed;
         inset: 0;
         background: rgba(0,0,0,0.5);
         z-index: 199;
+    }
+    .sidebar-overlay.open {
+        display: block;
+    }
+
+    /* Sidebar nav items — better tap targets */
+    .sidebar-nav a {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+
+    /* Notification panel — fit mobile screen */
+    .notif-panel {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-height: 70vh;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    /* Modal — near fullscreen on mobile */
+    .modal {
+        width: 96%;
+        max-width: 96vw;
+        max-height: 92vh;
+        border-radius: var(--radius-md);
+    }
+    .modal-header {
+        position: sticky;
+        top: 0;
+        background: var(--bg-card);
+        z-index: 1;
+        padding: 16px;
+    }
+    .modal-body {
+        padding: 16px;
     }
 }
 
@@ -4487,32 +4580,3 @@ a:hover {
     border-radius: var(--radius-md);
 }
 
-/* ═══ ANDROID WEBVIEW MOBILE ═══ */
-.android-webview .sidebar {
-    top: 0;
-    padding-top: env(safe-area-inset-top, 8px);
-}
-.android-webview .header {
-    top: 0;
-}
-.android-webview .header::before {
-    display: none;
-}
-.android-webview .main-content {
-    padding-top: calc(var(--header-height) + 12px);
-}
-.android-webview * {
-    -webkit-tap-highlight-color: transparent;
-}
-.android-webview body {
-    overscroll-behavior: none;
-    -webkit-text-size-adjust: 100%;
-}
-.android-webview .sidebar-brand {
-    -webkit-app-region: no-drag;
-}
-/* Hide macOS-only elements in Android */
-.android-webview .header-actions .theme-toggle-mac,
-.android-webview .traffic-light-spacer {
-    display: none;
-}
