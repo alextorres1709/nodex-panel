@@ -799,6 +799,15 @@ def api_push_register():
     return jsonify({"ok": True})
 
 
+@api_bp.route("/api/push/test", methods=["POST"])
+@api_token_required
+def api_push_test():
+    """Send a test push notification to the current user."""
+    from services.push import send_push
+    send_push(g.api_user.id, "Test NodexAI", "Las notificaciones push funcionan!", "/dashboard")
+    return jsonify({"ok": True, "msg": "Push sent"})
+
+
 @api_bp.route("/api/push/unregister", methods=["POST"])
 @api_token_required
 def api_push_unregister():
