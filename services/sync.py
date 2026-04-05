@@ -44,6 +44,7 @@ SYNC_TABLES = [
     "automations",
     "calendar_events",
     "push_tokens",
+    "objectives",
 ]
 
 SYNC_INTERVAL = 3  # seconds
@@ -415,18 +416,17 @@ def _push_worker():
 
 
 def push_change(table_name, row_id):
-    """Queue a push for background processing (replaces thread-per-push)."""
-    global _push_thread
+    """Push a change to remote synchronously.
+
+    Direct push ensures deletes reach remote before the next sync pull
+    can bring stale data back. Fast enough (~50-200ms) for user actions.
+    """
     if not sync_manager:
         return
-    # Ensure the worker thread is alive
-    with _push_thread_lock:
-        if _push_thread is None or not _push_thread.is_alive():
-            _push_thread = threading.Thread(
-                target=_push_worker, daemon=True, name="push-worker"
-            )
-            _push_thread.start()
-    _push_queue.put((table_name, row_id))
+    try:
+        sync_manager.push_to_remote(table_name, row_id)
+    except Exception as e:
+        log.warning(f"Synchronous push failed ({table_name} #{row_id}): {e}")
 
 
 def pull_now():
