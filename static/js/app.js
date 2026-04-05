@@ -92,11 +92,19 @@ function openModal(id) {
 function closeModal(id) {
     const m = document.getElementById(id);
     if (m) m.classList.remove('active');
+    if (window._nodexPendingReload) {
+        window._nodexPendingReload = false;
+        window.location.reload();
+    }
 }
 
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('modal-overlay')) {
         e.target.classList.remove('active');
+        if (window._nodexPendingReload) {
+            window._nodexPendingReload = false;
+            window.location.reload();
+        }
     }
 });
 
@@ -118,6 +126,17 @@ document.querySelectorAll('.sidebar-nav a').forEach(function(link) {
         }
     });
 });
+
+// macOS fullscreen detection — remove titlebar padding when in native fullscreen
+(function() {
+    if (document.documentElement.classList.contains('android-webview')) return;
+    function checkMacFullscreen() {
+        var fs = Math.abs(window.innerHeight - screen.height) < 10;
+        document.documentElement.classList.toggle('macos-fullscreen', fs);
+    }
+    window.addEventListener('resize', checkMacFullscreen);
+    checkMacFullscreen();
+})();
 
 // Edit modal population
 function populateEditModal(data, formId) {

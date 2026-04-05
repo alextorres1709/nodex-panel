@@ -123,6 +123,15 @@
                         </svg>
                         Tareas
                     </a></li>
+                <li><a href="{{ url_for('objetivos.index') }}"
+                        class="{{ 'active' if request.endpoint and request.endpoint.startswith('objetivos.') }}">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <circle cx="12" cy="12" r="6" />
+                            <circle cx="12" cy="12" r="2" />
+                        </svg>
+                        Objetivos
+                    </a></li>
                 <li><a href="{{ url_for('timetracking.index') }}"
                         class="{{ 'active' if request.endpoint and request.endpoint.startswith('timetracking.') }}">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -919,8 +928,14 @@
                 }
                 document.dispatchEvent(new CustomEvent('nodex-sync', { detail: data }));
                 // Global auto-reload for pages without custom sync handler
+                // Skip reload if a modal is open (user is editing/creating)
                 if (!window._nodexCustomSync) {
-                    window.location.reload();
+                    var modalOpen = document.querySelector('.modal-overlay.active');
+                    if (modalOpen) {
+                        window._nodexPendingReload = true;
+                    } else {
+                        window.location.reload();
+                    }
                 }
             });
 

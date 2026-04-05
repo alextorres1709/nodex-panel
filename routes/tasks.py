@@ -97,6 +97,7 @@ def create():
             push_change("subtasks", st.id)
         # Notify assigned users about the new task
         from services.notifications import notify
+        from services.push import send_push
         from flask import g as _g
         for uid in assigned_ids:
             uid = uid.strip()
@@ -104,6 +105,8 @@ def create():
                 notify(int(uid), "task", f"Nueva tarea asignada: {t.title}",
                        body=f"Prioridad: {t.priority}" + (f" — Fecha: {t.due_date.strftime('%d/%m/%Y')}" if t.due_date else ""),
                        link="/tareas")
+                send_push(int(uid), f"Nueva tarea: {t.title}",
+                          body=f"Prioridad: {t.priority}", link="/tareas")
         # Native macOS notification
         try:
             from services.native_notify import send_native_notification

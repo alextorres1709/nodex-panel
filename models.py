@@ -203,6 +203,26 @@ class Idea(db.Model):
     company = db.relationship("Company", foreign_keys=[company_id])
 
 
+class Objective(db.Model):
+    __tablename__ = "objectives"
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(300), nullable=False)
+    description = db.Column(db.Text, default="")
+    status = db.Column(db.String(20), default="nuevo")  # nuevo, en_progreso, completado, archivado
+    priority = db.Column(db.String(10), default="media")  # alta, media, baja
+    progress = db.Column(db.Integer, default=0)  # 0-100
+    target_date = db.Column(db.Date, nullable=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    notes = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    assignee = db.relationship("User", foreign_keys=[assigned_to])
+    author = db.relationship("User", foreign_keys=[created_by])
+    project = db.relationship("Project", foreign_keys=[project_id])
+
+
 class Income(db.Model):
     __tablename__ = "incomes"
     id = db.Column(db.Integer, primary_key=True)
@@ -478,6 +498,7 @@ MODULES = [
     "tareas", "herramientas", "ideas", "cowork", "credenciales",
     "facturas", "timetracking", "calendario", "documentos",
     "reportes", "automatizaciones", "usuarios", "configuracion",
+    "objetivos",
 ]
 
 # Roles: admin has all, editor has most, viewer is read-only

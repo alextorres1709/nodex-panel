@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Objetivos{% endblock %}
+{% block page_title %}Objetivos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Objetivos</h1>
+        <p class="page-subtitle">Metas estrategicas a largo plazo</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('createModal')">+ Nuevo objetivo</button>
+</div>
+
+<form class="filter-bar" method="GET">
+    <select name="status">
+        <option value="">Todos los estados</option>
+        {% for s in ['nuevo','en_progreso','completado','archivado'] %}
+        <option value="{{ s }}" {{ 'selected' if sel_status == s }}>{{ s|replace('_',' ')|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <select name="priority">
+        <option value="">Todas las prioridades</option>
+        {% for p in ['alta','media','baja'] %}
+        <option value="{{ p }}" {{ 'selected' if sel_priority == p }}>{{ p|capitalize }}</option>
+        {% endfor %}
+    </select>
+    <select name="assigned_to">
+        <option value="">Todos los usuarios</option>
+        {% for u in users %}
+        <option value="{{ u.id }}" {{ 'selected' if sel_assigned == u.id|string }}>{{ u.name }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
+    {% if sel_status or sel_priority or sel_assigned %}
+    <a href="{{ url_for('objetivos.index') }}" class="btn btn-sm btn-secondary">Limpiar</a>
+    {% endif %}
+</form>
+
+<div class="ideas-grid">
+    {% for obj in objectives %}
+    <div class="idea-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px">
+            <div class="idea-card-title">{{ obj.title }}</div>
+            <span class="badge badge-{{ obj.priority }}">{{ obj.priority }}</span>
+        </div>
+        <div class="idea-card-desc">{{ obj.description or 'Sin descripcion' }}</div>
+
+        {% if obj.progress > 0 %}
+        <div style="background:var(--bg-secondary);border-radius:6px;height:6px;margin:8px 0;overflow:hidden">
+            <div style="height:100%;border-radius:6px;background:{% if obj.progress >= 100 %}var(--color-success){% elif obj.progress >= 50 %}var(--color-info){% else %}var(--color-warning){% endif %};width:{{ obj.progress }}%;transition:width .3s"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:8px">{{ obj.progress }}% completado</div>
+        {% endif %}
+
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+            <span class="badge badge-{{ obj.status }}">{{ obj.status|replace('_',' ') }}</span>
+            {% if obj.target_date %}
+            <span class="badge">{{ obj.target_date.strftime('%d/%m/%Y') }}</span>
+            {% endif %}
+            {% if obj.project %}
+            <span class="badge badge-proyecto">{{ obj.project.name }}</span>
+            {% endif %}
+        </div>
+        <div class="idea-card-footer">
+            <span style="font-size:11px;color:var(--text-tertiary)">
+                {% if obj.assignee %}{{ obj.assignee.name }}{% else %}Sin asignar{% endif %}
+                &middot; {{ obj.created_at.strftime('%d/%m/%Y') }}
+            </span>
+            <div style="display:flex;gap:4px">
+                <button class="btn btn-sm btn-secondary" onclick="editObj({{ obj.id }}, '{{ obj.title|e }}', `{{ obj.description|e }}`, '{{ obj.priority }}', '{{ obj.status }}', {{ obj.progress }}, '{{ obj.target_date or '' }}', '{{ obj.project_id or '' }}', '{{ obj.assigned_to or '' }}', `{{ obj.notes|e }}`)">Editar</button>
+                <form method="POST" action="{{ url_for('objetivos.delete', oid=obj.id) }}" style="display:inline" onsubmit="return confirm('Eliminar este objetivo?')">
+                    <button type="submit" class="btn btn-sm btn-danger">X</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not objectives %}
+<div class="empty-state"><p>No hay objetivos todavia. Crea el primero!</p></div>
+{% endif %}
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Nuevo objetivo</h3><button class="modal-close" onclick="closeModal('createModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('objetivos.create') }}">
+            <div class="modal-body">
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="3"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Prioridad</label>
+                        <select name="priority"><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha objetivo</label>
+                        <input type="date" name="target_date">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Asignar a</label>
+                        <select name="assigned_to"><option value="">Sin asignar</option>{% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
+                    </div>
+                    <div class="form-group">
+                        <label>Proyecto (opcional)</label>
+                        <select name="project_id"><option value="">General</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Editar objetivo</h3><button class="modal-close" onclick="closeModal('editModal')">&times;</button></div>
+        <form method="POST" id="editForm" action="">
+            <div class="modal-body">
+                <div class="form-group"><label>Titulo</label><input type="text" name="title" required></div>
+                <div class="form-group"><label>Descripcion</label><textarea name="description" rows="3"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Prioridad</label>
+                        <select name="priority"><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select name="status"><option value="nuevo">Nuevo</option><option value="en_progreso">En progreso</option><option value="completado">Completado</option><option value="archivado">Archivado</option></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Progreso (%)</label>
+                        <input type="number" name="progress" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha objetivo</label>
+                        <input type="date" name="target_date">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Asignar a</label>
+                        <select name="assigned_to"><option value="">Sin asignar</option>{% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
+                    </div>
+                    <div class="form-group">
+                        <label>Proyecto</label>
+                        <select name="project_id"><option value="">General</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editObj(id, title, description, priority, status, progress, target_date, project_id, assigned_to, notes) {
+    document.getElementById('editForm').action = '/objetivos/edit/' + id;
+    populateEditModal({title, description, priority, status, progress, target_date, project_id, assigned_to, notes}, 'editForm');
+    openModal('editModal');
+}
+</script>
+{% endblock %}
