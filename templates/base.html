@@ -586,6 +586,13 @@
             <div class="flash-message flash-{{ category }}">{{ msg }}</div>
             {% endfor %}
             {% endwith %}
+            <script>
+            document.querySelectorAll('.flash-message').forEach(function(el){
+                setTimeout(function(){ el.style.transition='opacity .4s'; el.style.opacity='0';
+                    setTimeout(function(){ el.remove(); }, 400);
+                }, 3500);
+            });
+            </script>
             {% block content %}{% endblock %}
         </main>
     </div>
