@@ -48,6 +48,10 @@ HOSTED_MODE = os.getenv("HOSTED_MODE", "").lower() in ("true", "1", "yes")
 # Firebase Cloud Messaging — base64-encoded service account JSON
 FIREBASE_CREDENTIALS_B64 = os.getenv("FIREBASE_CREDENTIALS_B64", "")
 
+# Google Drive — base64-encoded service account JSON + shared folder ID
+GOOGLE_DRIVE_CREDENTIALS_B64 = os.getenv("GOOGLE_DRIVE_CREDENTIALS_B64", "")
+GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID", "")
+
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "nodex-panel-secret-key-2024")

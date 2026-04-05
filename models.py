@@ -401,6 +401,7 @@ class Document(db.Model):
     name = db.Column(db.String(300), nullable=False)
     filename = db.Column(db.String(500), default="")
     file_path = db.Column(db.String(500), default="")
+    drive_file_id = db.Column(db.String(100), default="")
     file_size = db.Column(db.Integer, default=0)  # bytes
     mime_type = db.Column(db.String(100), default="")
     category = db.Column(db.String(50), default="otro")  # contrato, factura, propuesta, informe, plantilla, otro

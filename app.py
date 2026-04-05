@@ -22,6 +22,7 @@ MIGRATIONS = [
     ("companies", "problem", "TEXT DEFAULT ''"),
     ("companies", "solution", "TEXT DEFAULT ''"),
     ("projects", "company_id", "INTEGER"),
+    ("documents", "drive_file_id", "VARCHAR(100) DEFAULT ''"),
 ]
 
 
@@ -143,6 +144,9 @@ def create_app():
     # Initialize FCM for push notifications
     from services.push import init_fcm
     init_fcm()
+
+    from services.gdrive import init_gdrive
+    init_gdrive()
 
     # Blueprints
     from routes.auth import auth_bp, _load_current_user
