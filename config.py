@@ -4,7 +4,14 @@ from datetime import timedelta
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    # In packaged app, also check ~/Library/Application Support/NodexAI/.env
+    if getattr(sys, "frozen", False):
+        _app_data = os.path.join(os.path.expanduser("~"), "Library",
+                                 "Application Support", "NodexAI")
+        _env_path = os.path.join(_app_data, ".env")
+        if os.path.exists(_env_path):
+            load_dotenv(_env_path)
+    load_dotenv()  # Also check CWD / project dir
 except ImportError:
     pass
 
