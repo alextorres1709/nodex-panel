@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">NodexAI Panel</string>
+    <string name="loading">Cargando…</string>
+    <string name="no_connection">Sin conexión a internet</string>
+    <string name="retry">Reintentar</string>
+</resources>

@@ -1,0 +1,40 @@
+NODEXAI PANEL — Instalacion en iPhone
+======================================
+
+1. Abre SAFARI en tu iPhone (tiene que ser Safari, no Chrome ni otro navegador)
+
+2. Entra a esta direccion:
+   https://web-production-fcc14.up.railway.app
+
+3. Inicia sesion con tu usuario y contrasena
+
+4. Pulsa el boton de COMPARTIR (el cuadrado con la flecha hacia arriba,
+   esta abajo en la barra de Safari)
+
+5. Desliza hacia abajo y pulsa "Anadir a pantalla de inicio"
+
+6. Pon de nombre: NodexAI (o el que quieras) y pulsa "Anadir"
+
+7. Ya tienes el icono en tu pantalla de inicio. Abrelo desde ahi
+   y se vera como una app normal (sin barra de Safari)
+
+
+ACTIVAR NOTIFICACIONES
+======================
+
+1. Abre la app desde el icono de la pantalla de inicio (NO desde Safari)
+
+2. Si te sale un aviso pidiendo permiso para notificaciones, acepta
+
+3. Si no te sale, ve a:
+   Ajustes del iPhone > Notificaciones > NodexAI > Activar notificaciones
+
+4. Listo! Recibiras notificaciones de tareas, pagos, etc.
+
+
+NOTAS
+=====
+- La app se actualiza sola (es la web, no hay que instalar nada nuevo)
+- Si algo no funciona, cierra la app y vuelve a abrirla
+- Necesitas iOS 16.4 o superior para las notificaciones
+- Para comprobar tu version: Ajustes > General > Informacion > Version

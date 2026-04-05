@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.4.0
+*Implementado por Alex*
+- **Google Drive compartido**: Documentos almacenados en Google Drive (1TB) via service account — upload, download y delete con fallback local. Ambos socios acceden a los mismos archivos
+- **Objetivos**: Nueva seccion de objetivos a largo plazo asignables a usuarios — CRUD completo con progreso, prioridad, fecha limite y notas
+- **Time Tracking editable**: Editar descripcion y proyecto en registros de tiempo existentes (timer y manuales)
+- **Push notifications**: Notificaciones FCM nativas en Android al asignar tareas y objetivos
+- **Fix**: SSE sync ya no cierra modales abiertos — reload diferido hasta cerrar el modal
+- **Fix**: Barra gris de titlebar en macOS eliminada definitivamente
+
 ## v4.3.0
 - **Calendario interactivo**: Rediseño completo estilo Google Calendar — toolbar con navegacion por flechas, boton "Hoy", dia actual con circulo verde, eventos con dots de color por tipo
 - **Reuniones y eventos**: Nuevo modelo `CalendarEvent` con tipos reunion/evento/recordatorio, CRUD completo via AJAX, modal con chips de tipo, hora, ubicacion y color

@@ -1,0 +1,16 @@
+<resources>
+    <style name="Theme.NodexAI" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="android:statusBarColor">#0d1117</item>
+        <item name="android:navigationBarColor">#0d1117</item>
+        <item name="android:windowBackground">#0d1117</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="colorPrimary">#7c3aed</item>
+        <item name="colorPrimaryVariant">#6d28d9</item>
+        <item name="colorOnPrimary">#ffffff</item>
+        <item name="colorSecondary">#3b82f6</item>
+    </style>
+
+    <style name="Theme.NodexAI.Splash">
+        <item name="android:windowBackground">@drawable/splash_bg</item>
+    </style>
+</resources>

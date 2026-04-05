@@ -152,7 +152,8 @@
                 <td>{{ e.project.name if e.project else 'General' }}</td>
                 <td>{{ e.task.title if e.task else '-' }}</td>
                 <td><strong>{{ e.minutes // 60 }}h {{ e.minutes % 60 }}m</strong></td>
-                <td>
+                <td style="white-space:nowrap">
+                    <button class="btn btn-sm btn-secondary" onclick="openEditTime({{ e.id }}, '{{ e.description|e }}', '{{ e.project_id or '' }}')">✎</button>
                     <form method="POST" action="{{ url_for('timetracking.delete', eid=e.id) }}" style="display:inline"
                         onsubmit="return confirm('Eliminar?')">
                         <button type="submit" class="btn btn-sm btn-danger">X</button>
@@ -197,6 +198,27 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editTimeModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Editar registro</h3><button class="modal-close" onclick="closeModal('editTimeModal')">&times;</button>
+        </div>
+        <form method="POST" id="editTimeForm">
+            <div class="modal-body">
+                <div class="form-group"><label>Descripción</label><input type="text" name="description" id="editTimeDesc"></div>
+                <div class="form-group"><label>Proyecto</label><select name="project_id" id="editTimeProject">
+                        <option value="">General</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}
+                        </option>{% endfor %}
+                    </select></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editTimeModal')">Cancelar</button>
                 <button type="submit" class="btn btn-primary">Guardar</button>
             </div>
         </form>
@@ -274,6 +296,13 @@
             row.style.display = activeUsers.has(rid) ? '' : 'none';
         });
     }
+    function openEditTime(eid, desc, projectId) {
+        document.getElementById('editTimeForm').action = '/timetracking/' + eid + '/edit';
+        document.getElementById('editTimeDesc').value = desc;
+        document.getElementById('editTimeProject').value = projectId;
+        openModal('editTimeModal');
+    }
+
     var timerInterval = null;
 
     function pad(n) { return n < 10 ? '0' + n : n; }

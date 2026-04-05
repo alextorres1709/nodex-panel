@@ -164,6 +164,9 @@ def _patch_easy_drag():
         pass
 
 
+_fullscreen_observers = []  # prevent GC of NSNotification observers
+
+
 def _configure_native_window_macos():
     """Apply macOS-specific native window styling (transparent titlebar, fullscreen)."""
     if sys.platform != "darwin":
@@ -204,15 +207,41 @@ def _configure_native_window_macos():
                 )
             )
 
-            # Recursively hide visual effects and non-essential titlebar views
-            def _hide_effects(view):
+            # Aggressively hide ALL titlebar background/decoration views,
+            # keeping only the traffic-light buttons visible.
+            def _nuke_titlebar_bg(view, depth=0):
                 cls_name = str(view.className())
-                if "NSVisualEffectView" in cls_name:
-                    view.setHidden_(True)
+                # Keep traffic-light button container and its children
+                if "WindowButtonContainer" in cls_name or \
+                   "_NSThemeCloseWidget" in cls_name or \
+                   "_NSThemeZoomWidget" in cls_name or \
+                   "_NSThemeFullScreenButton" in cls_name or \
+                   "NSThemeWidget" in cls_name:
                     return
+                # Hide visual effects, decorations, separators
+                if any(k in cls_name for k in (
+                    "NSVisualEffectView", "DecorationView",
+                    "SeparatorView", "NSTitlebarAccessory",
+                    "ToolbarItemViewer", "NSToolbar",
+                )):
+                    view.setHidden_(True)
+                    try:
+                        view.setAlphaValue_(0)
+                    except Exception:
+                        pass
+                    return
+                # Clear layer background on containers
+                try:
+                    view.setWantsLayer_(True)
+                    layer = view.layer()
+                    if layer:
+                        layer.setBackgroundColor_(None)
+                except Exception:
+                    pass
+                # Recurse into children
                 try:
                     for child in view.subviews():
-                        _hide_effects(child)
+                        _nuke_titlebar_bg(child, depth + 1)
                 except Exception:
                     pass
 
@@ -221,24 +250,11 @@ def _configure_native_window_macos():
                 for subview in theme_frame.subviews():
                     cls_name = str(subview.className())
                     if "NSTitlebarContainerView" in cls_name:
-                        _hide_effects(subview)
-                        # Hide all right-side titlebar buttons/accessories
-                        try:
-                            for titlebar_child in subview.subviews():
-                                tc_name = str(titlebar_child.className())
-                                for accessory in titlebar_child.subviews():
-                                    acc_name = str(accessory.className())
-                                    # Keep only the window button container (traffic lights)
-                                    if "WindowButtonContainer" not in acc_name and \
-                                       "Button" in acc_name:
-                                        accessory.setHidden_(True)
-                                    # Hide toolbar items and accessories on the right
-                                    if "ToolbarItemViewer" in acc_name or \
-                                       "NSTitlebarAccessory" in acc_name or \
-                                       "NSToolbar" in acc_name:
-                                        accessory.setHidden_(True)
-                        except Exception:
-                            pass
+                        # Clear the container's own background
+                        subview.setWantsLayer_(True)
+                        if subview.layer():
+                            subview.layer().setBackgroundColor_(None)
+                        _nuke_titlebar_bg(subview)
             except Exception:
                 pass
 
@@ -253,6 +269,54 @@ def _configure_native_window_macos():
             behavior = nswindow.collectionBehavior()
             behavior |= (1 << 2) | (1 << 7)
             nswindow.setCollectionBehavior_(behavior)
+
+            # Observe fullscreen enter/exit to toggle CSS class
+            try:
+                from Foundation import NSNotificationCenter, NSOperationQueue
+
+                def _find_wkwebview():
+                    try:
+                        cv = nswindow.contentView()
+                        for sv in cv.subviews():
+                            if "WKWebView" in str(sv.className()):
+                                return sv
+                    except Exception:
+                        pass
+                    return None
+
+                def _on_enter_fs(notif):
+                    wk = _find_wkwebview()
+                    if wk:
+                        wk.evaluateJavaScript_completionHandler_(
+                            "document.documentElement.classList.add('macos-fullscreen');",
+                            None,
+                        )
+
+                def _on_exit_fs(notif):
+                    wk = _find_wkwebview()
+                    if wk:
+                        wk.evaluateJavaScript_completionHandler_(
+                            "document.documentElement.classList.remove('macos-fullscreen');",
+                            None,
+                        )
+
+                nc = NSNotificationCenter.defaultCenter()
+                main_q = NSOperationQueue.mainQueue()
+                # Store observers to prevent garbage collection
+                _fullscreen_observers.append(
+                    nc.addObserverForName_object_queue_usingBlock_(
+                        "NSWindowDidEnterFullScreenNotification",
+                        nswindow, main_q, _on_enter_fs,
+                    )
+                )
+                _fullscreen_observers.append(
+                    nc.addObserverForName_object_queue_usingBlock_(
+                        "NSWindowDidExitFullScreenNotification",
+                        nswindow, main_q, _on_exit_fs,
+                    )
+                )
+            except Exception:
+                pass
 
             nswindow.display()
         except Exception:

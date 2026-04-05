@@ -1,0 +1,8 @@
+<resources>
+    <color name="bg_primary">#0d1117</color>
+    <color name="bg_card">#161b22</color>
+    <color name="accent_purple">#7c3aed</color>
+    <color name="accent_blue">#3b82f6</color>
+    <color name="text_primary">#ffffff</color>
+    <color name="text_secondary">#8b949e</color>
+</resources>

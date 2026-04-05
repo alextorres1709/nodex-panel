@@ -124,6 +124,28 @@ def create():
     return redirect(url_for("timetracking.index"))
 
 
+@timetracking_bp.route("/timetracking/<int:eid>/edit", methods=["POST"])
+@login_required
+def edit(eid):
+    entry = db.session.get(TimeEntry, eid)
+    if not entry:
+        flash("Entrada no encontrada", "error")
+        return redirect(url_for("timetracking.index"))
+    try:
+        entry.description = request.form.get("description", "").strip()
+        pid = request.form.get("project_id", "").strip()
+        entry.project_id = int(pid) if pid else None
+        log_activity("update", "time_entry", eid, f"Editado: {entry.minutes}min")
+        db.session.commit()
+        from services.sync import push_change
+        push_change("time_entries", eid)
+        flash("Entrada actualizada", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {e}", "error")
+    return redirect(url_for("timetracking.index"))
+
+
 @timetracking_bp.route("/timetracking/<int:eid>/delete", methods=["POST"])
 @login_required
 def delete(eid):
