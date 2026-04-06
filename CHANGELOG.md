@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.4.2
+*Implementado por Alex*
+- **Fix**: Google Drive seguia sin subir archivos desde el DMG — `googleapiclient` necesita 594 ficheros JSON de discovery cache que PyInstaller no incluia. Ahora se usa `collect_all` para empaquetar datos, hidden imports y binarios de googleapiclient, google.auth, google.oauth2, firebase_admin y google.api_core.
+- **Fix**: Mismas notificaciones de tareas saltaban cada ~10 segundos en macOS — `last_notified_at` se actualizaba localmente pero el sync pull lo sobreescribia con el valor de remote (Task no tiene `updated_at`, asi que el merge siempre considera remote como autoritativo). Ahora se hace push inmediato dentro del lock del sync.
+
 ## v4.4.1
 *Implementado por Alex*
 - **Fix**: Google Drive no subia archivos desde el DMG — faltaban `services.gdrive` y `googleapiclient` en el spec de PyInstaller

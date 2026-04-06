@@ -1,13 +1,23 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_submodules
 
 block_cipher = None
 base_dir = '/Users/alex/Documents/nodex/nodex-panel'
 
+# Collect everything needed for Google API client (discovery cache JSON files
+# and dynamic submodules) and Firebase Admin SDK so init_gdrive() and
+# init_fcm() actually work inside the PyInstaller bundle.
+googleapi_datas, googleapi_binaries, googleapi_imports = collect_all('googleapiclient')
+google_auth_datas, google_auth_binaries, google_auth_imports = collect_all('google.auth')
+google_oauth2_datas, google_oauth2_binaries, google_oauth2_imports = collect_all('google.oauth2')
+firebase_datas, firebase_binaries, firebase_imports = collect_all('firebase_admin')
+google_api_core_datas, google_api_core_binaries, google_api_core_imports = collect_all('google.api_core')
+
 a = Analysis(
     [os.path.join(base_dir, 'launcher_universal.py')],
     pathex=[base_dir],
-    binaries=[],
+    binaries=googleapi_binaries + google_auth_binaries + google_oauth2_binaries + firebase_binaries + google_api_core_binaries,
     datas=[
         (os.path.join(base_dir, 'templates'), 'templates'),
         (os.path.join(base_dir, 'static'), 'static'),
@@ -16,8 +26,8 @@ a = Analysis(
         (os.path.join(base_dir, 'app.py'), '.'),
         (os.path.join(base_dir, 'config.py'), '.'),
         (os.path.join(base_dir, 'models.py'), '.'),
-    ],
-    hiddenimports=[
+    ] + googleapi_datas + google_auth_datas + google_oauth2_datas + firebase_datas + google_api_core_datas,
+    hiddenimports=googleapi_imports + google_auth_imports + google_oauth2_imports + firebase_imports + google_api_core_imports + [
         'flask',
         'flask_sqlalchemy',
         'sqlalchemy',

@@ -278,24 +278,35 @@ def api_update_reminder(tid):
 @login_required
 def api_due_reminders():
     """Return pending/in-progress tasks whose reminder interval has elapsed.
-    Marks them as notified so they won't fire again until the next interval."""
+    Marks them as notified so they won't fire again until the next interval.
+
+    The local last_notified_at update is pushed to remote immediately, and the
+    whole operation runs under the sync lock so the background sync pull can't
+    overwrite the update with stale remote data (Task has no updated_at column,
+    so the merge would otherwise treat remote as newer)."""
+    from services.sync import push_change, sync_locked
+
     now = datetime.now(timezone.utc)
-    tasks = Task.query.filter(
-        Task.status.in_(["pendiente", "en_progreso"]),
-        Task.reminder_minutes > 0,
-    ).all()
 
-    due = []
-    for t in tasks:
-        last = t.last_notified_at or t.created_at
-        if last and last.tzinfo is None:
-            last = last.replace(tzinfo=timezone.utc)
-        if now - last >= timedelta(minutes=t.reminder_minutes):
-            due.append({"id": t.id, "title": t.title, "description": t.description or ""})
-            t.last_notified_at = now
+    with sync_locked():
+        tasks = Task.query.filter(
+            Task.status.in_(["pendiente", "en_progreso"]),
+            Task.reminder_minutes > 0,
+        ).all()
 
-    if due:
-        db.session.commit()
+        due = []
+        for t in tasks:
+            last = t.last_notified_at or t.created_at
+            if last and last.tzinfo is None:
+                last = last.replace(tzinfo=timezone.utc)
+            if now - last >= timedelta(minutes=t.reminder_minutes):
+                due.append({"id": t.id, "title": t.title, "description": t.description or ""})
+                t.last_notified_at = now
+
+        if due:
+            db.session.commit()
+            for d in due:
+                push_change("tasks", d["id"])
 
     return jsonify({"due": due})
 
