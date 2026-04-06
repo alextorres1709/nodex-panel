@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.4.1
+*Implementado por Alex*
+- **Fix**: Google Drive no subia archivos desde el DMG — faltaban `services.gdrive` y `googleapiclient` en el spec de PyInstaller
+- **Fix**: Documentos eliminados volvian a aparecer — race condition entre delete local y sync pull, ahora se sostiene el lock del sync durante delete + push
+- **Fix**: Delete de documentos tardaba mucho — limpieza de Drive y filesystem movida a background thread
+- **Fix**: Modal de subir archivo no se cerraba y permitia subir el mismo archivo varias veces — boton se deshabilita al enviar, modal se cierra y muestra overlay de carga
+- **Fix**: Notificaciones push FCM no llegaban cuando la app Android estaba en background — canal de notificaciones se crea ahora en `MainActivity.onCreate` antes que cualquier notificacion, icono `ic_notification` invalido eliminado
+- **Fix**: Toasts/flash messages aparecian en el WebView de Android — ahora se ocultan segun User-Agent
+
 ## v4.4.0
 *Implementado por Alex*
 - **Google Drive compartido**: Documentos almacenados en Google Drive (1TB) via service account — upload, download y delete con fallback local. Ambos socios acceden a los mismos archivos

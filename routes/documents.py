@@ -1,5 +1,6 @@
 import os
 import io
+import threading
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, session
 from werkzeug.utils import secure_filename
@@ -7,7 +8,7 @@ from models import db, Document, Project, Client
 from routes.auth import login_required
 from services.activity import log_activity
 from config import BASE_DIR
-from services.sync import push_change
+from services.sync import push_change, sync_locked
 from services import gdrive
 
 documents_bp = Blueprint("documents", __name__)
@@ -150,14 +151,32 @@ def download(did):
 def delete(did):
     doc = db.session.get(Document, did)
     if doc:
-        if doc.drive_file_id:
-            gdrive.delete_file(doc.drive_file_id)
-        if doc.file_path and os.path.exists(doc.file_path):
-            os.remove(doc.file_path)
+        # Grab storage references before deleting the row
+        drive_file_id = doc.drive_file_id
+        local_path = doc.file_path
         doc_id = doc.id
-        log_activity("delete", "document", doc.id, f"Eliminado: {doc.name}")
-        db.session.delete(doc)
-        db.session.commit()
-        push_change("documents", doc_id)
+
+        # Hold the sync lock across the local delete + remote push so the
+        # background sync thread can't pull and re-insert the row mid-flight.
+        with sync_locked():
+            log_activity("delete", "document", doc.id, f"Eliminado: {doc.name}")
+            db.session.delete(doc)
+            db.session.commit()
+            push_change("documents", doc_id)
+
+        # Clean up remote storage in background so the request returns fast
+        def _cleanup_storage():
+            try:
+                if drive_file_id:
+                    gdrive.delete_file(drive_file_id)
+            except Exception:
+                pass
+            try:
+                if local_path and os.path.exists(local_path):
+                    os.remove(local_path)
+            except Exception:
+                pass
+        threading.Thread(target=_cleanup_storage, daemon=True).start()
+
         flash("Documento eliminado", "success")
     return redirect(url_for("documents.index"))

@@ -60,7 +60,7 @@
 <div class="modal-overlay" id="uploadModal">
     <div class="modal">
         <div class="modal-header"><h3>Subir documento</h3><button class="modal-close" onclick="closeModal('uploadModal')">&times;</button></div>
-        <form method="POST" action="{{ url_for('documents.upload') }}" enctype="multipart/form-data">
+        <form id="uploadForm" method="POST" action="{{ url_for('documents.upload') }}" enctype="multipart/form-data" onsubmit="return handleUploadSubmit(this);">
             <div class="modal-body">
                 <div class="form-group"><label>Archivo</label><input type="file" name="file" required style="padding:8px"></div>
                 <div class="form-group"><label>Nombre</label><input type="text" name="name" placeholder="Nombre descriptivo"></div>
@@ -86,9 +86,44 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('uploadModal')">Cancelar</button>
-                <button type="submit" class="btn btn-primary">Subir</button>
+                <button type="submit" id="uploadSubmitBtn" class="btn btn-primary">Subir</button>
             </div>
         </form>
     </div>
 </div>
+
+<!-- Global upload overlay -->
+<div id="uploadOverlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;flex-direction:column;gap:16px;color:#fff;font-family:inherit;">
+    <div style="border:3px solid rgba(255,255,255,.2);border-top-color:#4ccd5c;border-radius:50%;width:44px;height:44px;animation:spin 1s linear infinite;"></div>
+    <div style="font-size:15px;font-weight:500;">Subiendo archivo...</div>
+</div>
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+
+<script>
+function handleUploadSubmit(form) {
+    var btn = document.getElementById('uploadSubmitBtn');
+    if (btn.dataset.submitting === '1') return false;  // prevent double submit
+    btn.dataset.submitting = '1';
+    btn.disabled = true;
+    btn.textContent = 'Subiendo...';
+    // Close modal and show global overlay
+    try { closeModal('uploadModal'); } catch(e) {}
+    var ov = document.getElementById('uploadOverlay');
+    if (ov) ov.style.display = 'flex';
+    return true;  // allow native form submit
+}
+
+// Prevent double delete clicks
+document.querySelectorAll('form[action*="/documentos/"][action$="/delete"]').forEach(function(form){
+    form.addEventListener('submit', function(e){
+        var btn = form.querySelector('button[type="submit"]');
+        if (btn && btn.dataset.submitting === '1') { e.preventDefault(); return false; }
+        if (btn) {
+            btn.dataset.submitting = '1';
+            btn.disabled = true;
+            btn.textContent = 'Eliminando...';
+        }
+    });
+});
+</script>
 {% endblock %}

@@ -16,6 +16,21 @@
         <span class="badge badge-activo" style="font-size: 13px;">Version Actual</span>
     </div>
     <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
+        <li><strong style="color: var(--text-primary);">FIX GOOGLE DRIVE:</strong> Los archivos no subian a Drive desde el DMG — faltaban las dependencias de Google API en el bundle de PyInstaller. Ahora los documentos se suben correctamente al Drive compartido.</li>
+        <li><strong style="color: var(--text-primary);">FIX DELETE DOCUMENTOS:</strong> Los documentos eliminados volvian a aparecer tras unos segundos — race condition entre el delete local y el sync pull. Ahora se sostiene el lock del sync durante toda la operacion.</li>
+        <li><strong style="color: var(--text-primary);">FIX DELETE LENTO:</strong> Eliminar documentos tardaba muchisimo — la limpieza de Drive se ha movido a un thread en background.</li>
+        <li><strong style="color: var(--text-primary);">FIX UPLOAD MODAL:</strong> El modal de subir archivo no se cerraba y permitia subir el mismo archivo varias veces al hacer doble-click — ahora el boton se deshabilita, el modal se cierra y aparece un overlay de carga.</li>
+        <li><strong style="color: var(--text-primary);">FIX PUSH ANDROID:</strong> Las notificaciones FCM no llegaban cuando la app Android estaba en background — canal de notificaciones creado en MainActivity.onCreate, icono invalido eliminado.</li>
+        <li><strong style="color: var(--text-primary);">FIX TOASTS ANDROID:</strong> Los flash messages del servidor ya no aparecen en la app Android — detectados por User-Agent.</li>
+    </ul>
+    <div style="margin-top: 16px; font-size: 12px; color: var(--text-tertiary);">Implementado por Alex — 06/04/2026</div>
+</div>
+
+<div class="info-card" style="margin-bottom: 24px; max-width: 800px;">
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin:0; color: var(--brand-primary);">v4.4.0</h2>
+    </div>
+    <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
         <li><strong style="color: var(--text-primary);">GOOGLE DRIVE COMPARTIDO:</strong> Los documentos ahora se almacenan en Google Drive (1TB) via service account. Upload, download y delete con fallback local. Ambos socios acceden a los mismos archivos.</li>
         <li><strong style="color: var(--text-primary);">OBJETIVOS:</strong> Nueva sección de objetivos a largo plazo asignables a usuarios — CRUD completo con progreso, prioridad, fecha límite y notas.</li>
         <li><strong style="color: var(--text-primary);">TIME TRACKING EDITABLE:</strong> Ahora puedes editar la descripción y el proyecto en registros de tiempo existentes (timer y manuales).</li>

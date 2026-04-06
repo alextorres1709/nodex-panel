@@ -65,7 +65,9 @@ class SyncManager:
         self._stop = threading.Event()
         self._thread = None
         self._first_sync_done = threading.Event()
-        self._lock = threading.Lock()
+        # RLock so Flask routes can hold the lock while also calling
+        # push_change() (which re-acquires the lock in the same thread).
+        self._lock = threading.RLock()
 
         # Metadata cache (avoid reflecting tables on every push)
         self._cached_local_meta = None
@@ -427,6 +429,26 @@ def push_change(table_name, row_id):
         sync_manager.push_to_remote(table_name, row_id)
     except Exception as e:
         log.warning(f"Synchronous push failed ({table_name} #{row_id}): {e}")
+
+
+class _NullContext:
+    def __enter__(self):
+        return self
+    def __exit__(self, *a):
+        return False
+
+
+def sync_locked():
+    """Context manager that holds the sync lock, preventing the background
+    sync thread from running a pull while the caller performs a critical
+    local mutation + push.
+
+    Use this around delete operations to prevent the sync pull from
+    re-inserting the row between the local delete and the remote push.
+    """
+    if sync_manager:
+        return sync_manager._lock
+    return _NullContext()
 
 
 def pull_now():
