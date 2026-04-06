@@ -33,6 +33,39 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val BASE_URL = "https://web-production-fcc14.up.railway.app"
+
+        // Bulletproof CSS+JS injection that suppresses every Flask flash
+        // message inside the WebView, regardless of server-side User-Agent
+        // checks. Hides the elements via CSS first (so they never render)
+        // and then strips them from the DOM and overrides DOM mutators so
+        // any later-injected toast also gets killed.
+        const val HIDE_FLASHES_JS = """
+            (function() {
+                try {
+                    var STYLE_ID = '__nodex_no_flash__';
+                    if (!document.getElementById(STYLE_ID)) {
+                        var s = document.createElement('style');
+                        s.id = STYLE_ID;
+                        s.textContent = '.flash-message,[class*="flash-message"]{display:none !important;visibility:hidden !important;opacity:0 !important;height:0 !important;margin:0 !important;padding:0 !important;overflow:hidden !important}';
+                        (document.head || document.documentElement).appendChild(s);
+                    }
+                    function strip() {
+                        var els = document.querySelectorAll('.flash-message');
+                        for (var i = 0; i < els.length; i++) {
+                            try { els[i].parentNode && els[i].parentNode.removeChild(els[i]); } catch(e){}
+                        }
+                    }
+                    strip();
+                    if (!window.__nodex_flash_observer__) {
+                        try {
+                            var obs = new MutationObserver(strip);
+                            obs.observe(document.documentElement, {childList: true, subtree: true});
+                            window.__nodex_flash_observer__ = obs;
+                        } catch(e) {}
+                    }
+                } catch(e) {}
+            })();
+        """
     }
 
     private lateinit var webView: WebView
@@ -128,6 +161,9 @@ class MainActivity : AppCompatActivity() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 swipeRefresh.isRefreshing = true
+                // Inject CSS as early as possible to suppress flash toasts
+                // before they have a chance to render on screen.
+                view?.evaluateJavascript(HIDE_FLASHES_JS, null)
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -135,7 +171,8 @@ class MainActivity : AppCompatActivity() {
                 swipeRefresh.isRefreshing = false
                 offlineOverlay.visibility = View.GONE
 
-                // Inject viewport meta if missing and mark as Android
+                // Inject viewport meta if missing, mark as Android, and
+                // bulletproof-hide any server-rendered flash messages.
                 view?.evaluateJavascript("""
                     (function() {
                         if (!document.querySelector('meta[name="viewport"]')) {
@@ -147,6 +184,7 @@ class MainActivity : AppCompatActivity() {
                         document.documentElement.classList.add('android-webview');
                     })();
                 """.trimIndent(), null)
+                view?.evaluateJavascript(HIDE_FLASHES_JS, null)
 
                 // Register FCM token & save session cookie
                 if (url?.startsWith(BASE_URL) == true) {

@@ -16,6 +16,19 @@
         <span class="badge badge-activo" style="font-size: 13px;">Version Actual</span>
     </div>
     <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
+        <li><strong style="color: var(--text-primary);">FIX TOASTS ANDROID (DEFINITIVO):</strong> Los flash messages seguian apareciendo en la app Android porque el filtro server-side por User-Agent no cubria login.html ni paginas con UA modificada. Ahora MainActivity inyecta CSS+JS en cada pageStarted/pageFinished con un MutationObserver que oculta y elimina cualquier .flash-message aunque se inserte mas tarde.</li>
+        <li><strong style="color: var(--text-primary);">FIX PUSH ANDROID EN RELEASE:</strong> Las notificaciones FCM no funcionaban en builds release porque R8 minificaba las clases del SDK de Firebase. Añadidas reglas ProGuard para mantener com.google.firebase.** y los servicios de mensajeria.</li>
+        <li><strong style="color: var(--text-primary);">CANAL FCM PRE-CREADO:</strong> Nueva clase NodexApp : Application que crea el canal de notificaciones en el onCreate del proceso, antes que cualquier Activity o Service. Asi las notificaciones background siempre tienen un canal valido aunque MainActivity nunca se haya abierto.</li>
+        <li><strong style="color: var(--text-primary);">BUILD ANDROID:</strong> El release ahora se firma automaticamente con el debug keystore via signingConfigs.release. assembleRelease produce un APK instalable directamente. versionCode 1→2, versionName 1.0.0→1.0.1.</li>
+    </ul>
+    <div style="margin-top: 16px; font-size: 12px; color: var(--text-tertiary);">Implementado por Alex — 07/04/2026</div>
+</div>
+
+<div class="info-card" style="margin-bottom: 24px; max-width: 800px;">
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin:0; color: var(--brand-primary);">v4.4.2</h2>
+    </div>
+    <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
         <li><strong style="color: var(--text-primary);">FIX GOOGLE DRIVE (DEFINITIVO):</strong> El bundle del DMG no incluia los 594 ficheros JSON de discovery cache que necesita googleapiclient. Ahora se usa `collect_all` en el spec de PyInstaller para empaquetar todos los datos de googleapiclient, google.auth, google.oauth2, firebase_admin y google.api_core.</li>
         <li><strong style="color: var(--text-primary);">FIX NOTIFICACIONES REPETIDAS:</strong> Las notificaciones nativas de macOS de tareas pendientes saltaban cada 10 segundos — el `last_notified_at` se actualizaba localmente pero el sync pull lo sobreescribia con el valor antiguo del remote. Ahora se hace push inmediato dentro del lock del sync.</li>
     </ul>

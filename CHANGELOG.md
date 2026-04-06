@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.4.3
+*Implementado por Alex*
+- **Fix**: Toasts/flash messages seguian apareciendo en la app Android — el filtro server-side por User-Agent no cubria `login.html` ni paginas con UA WebView modificada. Ahora `MainActivity` inyecta CSS+JS en cada `onPageStarted` y `onPageFinished` con un MutationObserver que oculta y elimina cualquier `.flash-message` aunque se inserte mas tarde.
+- **Fix**: Notificaciones push Android no funcionaban en release builds — faltaban reglas ProGuard para `firebase_admin` (R8 minificaba las clases del FCM SDK). Ahora `proguard-rules.pro` mantiene `com.google.firebase.**` y los servicios de mensajeria.
+- **Fix**: Canal de notificaciones FCM podia no existir si el usuario aun no habia abierto `MainActivity` — nueva clase `NodexApp : Application` que crea el canal en el `onCreate` del proceso, antes que cualquier Activity o Service.
+- **Build**: `app/build.gradle.kts` ahora firma el release con el debug keystore (`signingConfigs.release`) para que `assembleRelease` produzca un APK instalable directamente, sin pasos manuales de `apksigner`.
+- **Android**: `versionCode` 1 → 2, `versionName` 1.0.0 → 1.0.1.
+
 ## v4.4.2
 *Implementado por Alex*
 - **Fix**: Google Drive seguia sin subir archivos desde el DMG — `googleapiclient` necesita 594 ficheros JSON de discovery cache que PyInstaller no incluia. Ahora se usa `collect_all` para empaquetar datos, hidden imports y binarios de googleapiclient, google.auth, google.oauth2, firebase_admin y google.api_core.
