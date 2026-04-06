@@ -81,7 +81,6 @@ def _send_push_sync(user_id, title, body, link):
                         android=messaging.AndroidConfig(
                             priority="high",
                             notification=messaging.AndroidNotification(
-                                icon="ic_notification",
                                 color="#4ccd5c",
                                 channel_id="nodexai_notifications",
                             ),

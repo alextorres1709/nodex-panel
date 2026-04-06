@@ -581,6 +581,8 @@
         </script>
 
         <main class="main-content">
+            {% set _ua = request.headers.get('User-Agent', '') %}
+            {% if 'Android' not in _ua %}
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% for category, msg in messages %}
             <div class="flash-message flash-{{ category }}">{{ msg }}</div>
@@ -593,6 +595,7 @@
                 }, 3500);
             });
             </script>
+            {% endif %}
             {% block content %}{% endblock %}
         </main>
     </div>

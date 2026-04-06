@@ -1,6 +1,8 @@
 package es.nodexai.panel
 
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.ConnectivityManager
@@ -97,6 +99,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Create notification channel early so background FCM notifications work on Android 8+
+        createNotificationChannel()
+
         // Load the app (or navigate to notification deep link)
         val notifLink = intent?.getStringExtra("link")
         webView.loadUrl(if (notifLink != null) "$BASE_URL$notifLink" else BASE_URL)
@@ -184,6 +189,21 @@ class MainActivity : AppCompatActivity() {
                 fileChooserLauncher.launch(intent)
                 return true
             }
+        }
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                NodexFirebaseService.CHANNEL_ID,
+                NodexFirebaseService.CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notificaciones de NodexAI Panel"
+                enableVibration(true)
+            }
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
         }
     }
 
