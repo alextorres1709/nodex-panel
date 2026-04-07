@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import db, Objective, Project, User
 from routes.auth import login_required
 from services.activity import log_activity
-from services.sync import push_change
+from services.sync import push_change, push_change_now, sync_locked
 
 objetivos_bp = Blueprint("objetivos", __name__)
 
@@ -116,9 +116,10 @@ def delete(oid):
     obj = db.session.get(Objective, oid)
     if obj:
         obj_id = obj.id
-        log_activity("delete", "objective", obj.id, f"Eliminado: {obj.title}")
-        db.session.delete(obj)
-        db.session.commit()
-        push_change("objectives", obj_id)
+        with sync_locked():
+            log_activity("delete", "objective", obj.id, f"Eliminado: {obj.title}")
+            db.session.delete(obj)
+            db.session.commit()
+            push_change_now("objectives", obj_id)
         flash("Objetivo eliminado", "success")
     return redirect(url_for("objetivos.index"))

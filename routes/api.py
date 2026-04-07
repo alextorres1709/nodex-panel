@@ -15,6 +15,7 @@ from models import (
 )
 from config import APP_VERSION
 from routes.auth import api_token_required, login_required
+from services.sync import push_change_now, sync_locked
 
 api_bp = Blueprint("api", __name__)
 
@@ -448,8 +449,10 @@ def api_project_delete(pid):
     p = db.session.get(Project, pid)
     if not p:
         return jsonify({"error": "not found"}), 404
-    db.session.delete(p)
-    db.session.commit()
+    with sync_locked():
+        db.session.delete(p)
+        db.session.commit()
+        push_change_now("projects", pid)
     return jsonify({"ok": True})
 
 
@@ -535,8 +538,10 @@ def api_task_delete(tid):
     t = db.session.get(Task, tid)
     if not t:
         return jsonify({"error": "not found"}), 404
-    db.session.delete(t)
-    db.session.commit()
+    with sync_locked():
+        db.session.delete(t)
+        db.session.commit()
+        push_change_now("tasks", tid)
     return jsonify({"ok": True})
 
 
@@ -605,8 +610,10 @@ def api_client_delete(cid):
     c = db.session.get(Client, cid)
     if not c:
         return jsonify({"error": "not found"}), 404
-    db.session.delete(c)
-    db.session.commit()
+    with sync_locked():
+        db.session.delete(c)
+        db.session.commit()
+        push_change_now("clients", cid)
     return jsonify({"ok": True})
 
 
@@ -720,8 +727,10 @@ def api_time_entry_delete(eid):
     e = db.session.get(TimeEntry, eid)
     if not e:
         return jsonify({"error": "not found"}), 404
-    db.session.delete(e)
-    db.session.commit()
+    with sync_locked():
+        db.session.delete(e)
+        db.session.commit()
+        push_change_now("time_entries", eid)
     return jsonify({"ok": True})
 
 

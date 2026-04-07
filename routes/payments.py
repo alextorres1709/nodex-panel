@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from models import db, Payment
 from routes.auth import login_required
 from services.activity import log_activity
-from services.sync import push_change
+from services.sync import push_change, push_change_now, sync_locked
 
 payments_bp = Blueprint("payments", __name__)
 
@@ -96,9 +96,10 @@ def delete(pid):
     p = db.session.get(Payment, pid)
     if p:
         pid = p.id
-        log_activity("delete", "payment", p.id, f"Eliminado: {p.name}")
-        db.session.delete(p)
-        db.session.commit()
-        push_change("payments", pid)
+        with sync_locked():
+            log_activity("delete", "payment", p.id, f"Eliminado: {p.name}")
+            db.session.delete(p)
+            db.session.commit()
+            push_change_now("payments", pid)
         flash("Pago eliminado", "success")
     return redirect(url_for("payments.index"))

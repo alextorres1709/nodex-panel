@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import db, Idea, Project
 from routes.auth import login_required
 from services.activity import log_activity
-from services.sync import push_change
+from services.sync import push_change, push_change_now, sync_locked
 
 ideas_bp = Blueprint("ideas", __name__)
 
@@ -91,9 +91,10 @@ def delete(iid):
     idea = db.session.get(Idea, iid)
     if idea:
         idea_id = idea.id
-        log_activity("delete", "idea", idea.id, f"Eliminada: {idea.title}")
-        db.session.delete(idea)
-        db.session.commit()
-        push_change("ideas", idea_id)
+        with sync_locked():
+            log_activity("delete", "idea", idea.id, f"Eliminada: {idea.title}")
+            db.session.delete(idea)
+            db.session.commit()
+            push_change_now("ideas", idea_id)
         flash("Idea eliminada", "success")
     return redirect(url_for("ideas.index"))

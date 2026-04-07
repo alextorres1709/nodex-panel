@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import db, User
 from routes.auth import admin_required
 from services.activity import log_activity
+from services.sync import push_change_now, sync_locked
 
 users_bp = Blueprint("users", __name__)
 
@@ -71,10 +72,10 @@ def delete(uid):
         return redirect(url_for("users.index"))
     u = db.session.get(User, uid)
     if u:
-        log_activity("delete", "user", u.id, f"Eliminado: {u.name}")
-        db.session.delete(u)
-        db.session.commit()
-        from services.sync import push_change
-        push_change("users", uid)
+        with sync_locked():
+            log_activity("delete", "user", u.id, f"Eliminado: {u.name}")
+            db.session.delete(u)
+            db.session.commit()
+            push_change_now("users", uid)
         flash("Usuario eliminado", "success")
     return redirect(url_for("users.index"))

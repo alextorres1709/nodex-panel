@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import db, Automation
 from routes.auth import login_required
 from services.activity import log_activity
-from services.sync import push_change
+from services.sync import push_change, push_change_now, sync_locked
 
 automations_bp = Blueprint("automations", __name__)
 
@@ -67,10 +67,11 @@ def delete(aid):
     auto = db.session.get(Automation, aid)
     if auto:
         auto_id = auto.id
-        log_activity("delete", "automation", auto.id, f"Eliminada: {auto.name}")
-        db.session.delete(auto)
-        db.session.commit()
-        push_change("automations", auto_id)
+        with sync_locked():
+            log_activity("delete", "automation", auto.id, f"Eliminada: {auto.name}")
+            db.session.delete(auto)
+            db.session.commit()
+            push_change_now("automations", auto_id)
         flash("Automatización eliminada", "success")
     return redirect(url_for("automations.index"))
 

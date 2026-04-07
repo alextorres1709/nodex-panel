@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from models import db, Tool
 from routes.auth import login_required
 from services.activity import log_activity
-from services.sync import push_change
+from services.sync import push_change, push_change_now, sync_locked
 
 tools_bp = Blueprint("tools", __name__)
 
@@ -72,9 +72,10 @@ def delete(tid):
     t = db.session.get(Tool, tid)
     if t:
         tid_val = t.id
-        log_activity("delete", "tool", t.id, f"Eliminada: {t.name}")
-        db.session.delete(t)
-        db.session.commit()
-        push_change("tools", tid_val)
+        with sync_locked():
+            log_activity("delete", "tool", t.id, f"Eliminada: {t.name}")
+            db.session.delete(t)
+            db.session.commit()
+            push_change_now("tools", tid_val)
         flash("Herramienta eliminada", "success")
     return redirect(url_for("tools.index"))

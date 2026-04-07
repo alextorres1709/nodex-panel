@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import db, Task, TaskAssignment, Subtask, User, Project, REMINDER_CHOICES
 from routes.auth import login_required
 from services.activity import log_activity
+from services.sync import push_change, push_change_now, sync_locked
 
 tasks_bp = Blueprint("tasks", __name__)
 
@@ -182,11 +183,14 @@ def toggle(tid):
 def delete(tid):
     t = db.session.get(Task, tid)
     if t:
-        log_activity("delete", "task", t.id, f"Eliminada: {t.title}")
-        db.session.delete(t)
-        db.session.commit()
-        from services.sync import push_change
-        push_change("tasks", t.id)
+        tid_val = t.id
+        # Hold the sync lock so the background pull thread can't re-insert
+        # the row between our local delete and the remote push.
+        with sync_locked():
+            log_activity("delete", "task", t.id, f"Eliminada: {t.title}")
+            db.session.delete(t)
+            db.session.commit()
+            push_change_now("tasks", tid_val)
         flash("Tarea eliminada", "success")
     return redirect(url_for("tasks.index"))
 
@@ -252,10 +256,10 @@ def api_delete_subtask(sid):
     st = db.session.get(Subtask, sid)
     if not st:
         return jsonify({"error": "not found"}), 404
-    db.session.delete(st)
-    db.session.commit()
-    from services.sync import push_change
-    push_change("subtasks", sid)
+    with sync_locked():
+        db.session.delete(st)
+        db.session.commit()
+        push_change_now("subtasks", sid)
     return jsonify({"ok": True})
 
 

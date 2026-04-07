@@ -4,6 +4,7 @@ from sqlalchemy.orm import joinedload
 from models import db, TimeEntry, Task, Project, User
 from routes.auth import login_required
 from services.activity import log_activity
+from services.sync import push_change_now, sync_locked
 
 timetracking_bp = Blueprint("timetracking", __name__)
 
@@ -152,11 +153,11 @@ def delete(eid):
     entry = db.session.get(TimeEntry, eid)
     if entry:
         eid_copy = entry.id
-        log_activity("delete", "time_entry", entry.id, f"{entry.minutes}min eliminados")
-        db.session.delete(entry)
-        db.session.commit()
-        from services.sync import push_change
-        push_change("time_entries", eid_copy)
+        with sync_locked():
+            log_activity("delete", "time_entry", entry.id, f"{entry.minutes}min eliminados")
+            db.session.delete(entry)
+            db.session.commit()
+            push_change_now("time_entries", eid_copy)
         flash("Entrada eliminada", "success")
     return redirect(url_for("timetracking.index"))
 

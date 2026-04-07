@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import db, Client, Project, Income, Invoice
 from routes.auth import login_required
 from services.activity import log_activity
-from services.sync import push_change
+from services.sync import push_change, push_change_now, sync_locked
 
 clients_bp = Blueprint("clients", __name__)
 
@@ -111,10 +111,11 @@ def edit(cid):
 def delete(cid):
     c = Client.query.get_or_404(cid)
     name = c.name
-    db.session.delete(c)
-    db.session.commit()
-    push_change("clients", cid)
-    log_activity("delete", "client", cid, f"Cliente eliminado: {name}")
+    with sync_locked():
+        log_activity("delete", "client", cid, f"Cliente eliminado: {name}")
+        db.session.delete(c)
+        db.session.commit()
+        push_change_now("clients", cid)
     flash("Cliente eliminado", "success")
     return redirect(url_for("clients.index"))
 

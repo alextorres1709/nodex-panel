@@ -3,7 +3,7 @@ from models import db, Credential
 from routes.auth import login_required
 from services.activity import log_activity
 from services.crypto import encrypt, decrypt
-from services.sync import push_change
+from services.sync import push_change, push_change_now, sync_locked
 
 credentials_bp = Blueprint("credentials", __name__)
 
@@ -80,9 +80,10 @@ def delete(cid):
     c = db.session.get(Credential, cid)
     if c:
         cid_val = c.id
-        log_activity("delete", "credential", c.id, f"Eliminada: {c.service}")
-        db.session.delete(c)
-        db.session.commit()
-        push_change("credentials", cid_val)
+        with sync_locked():
+            log_activity("delete", "credential", c.id, f"Eliminada: {c.service}")
+            db.session.delete(c)
+            db.session.commit()
+            push_change_now("credentials", cid_val)
         flash("Credencial eliminada", "success")
     return redirect(url_for("credentials.index"))

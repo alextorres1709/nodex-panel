@@ -6,7 +6,7 @@ from models import db, Resource
 from routes.auth import login_required
 from services.activity import log_activity
 from config import BASE_DIR
-from services.sync import push_change
+from services.sync import push_change, push_change_now, sync_locked
 
 resources_bp = Blueprint("resources", __name__)
 
@@ -93,9 +93,10 @@ def delete(rid):
         if res.file_path and os.path.exists(res.file_path):
             os.remove(res.file_path)
         res_id = res.id
-        log_activity("delete", "resource", res.id, f"Eliminado: {res.name}")
-        db.session.delete(res)
-        db.session.commit()
-        push_change("resources", res_id)
+        with sync_locked():
+            log_activity("delete", "resource", res.id, f"Eliminado: {res.name}")
+            db.session.delete(res)
+            db.session.commit()
+            push_change_now("resources", res_id)
         flash("Recurso eliminado", "success")
     return redirect(url_for("resources.index"))

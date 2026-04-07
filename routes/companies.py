@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 from models import db, Company, CompanyContact, Project, Task, TaskAssignment, User, Idea
 from routes.auth import login_required
 from services.activity import log_activity
-from services.sync import push_change
+from services.sync import push_change, push_change_now, sync_locked
 
 companies_bp = Blueprint("companies", __name__)
 
@@ -109,10 +109,11 @@ def delete(cid):
     c = db.session.get(Company, cid)
     if c:
         cid_val = c.id
-        log_activity("delete", "company", c.id, f"Eliminada: {c.name}")
-        db.session.delete(c)
-        db.session.commit()
-        push_change("companies", cid_val)
+        with sync_locked():
+            log_activity("delete", "company", c.id, f"Eliminada: {c.name}")
+            db.session.delete(c)
+            db.session.commit()
+            push_change_now("companies", cid_val)
         flash("Empresa eliminada", "success")
     return redirect(url_for("companies.index"))
 
@@ -173,9 +174,10 @@ def delete_contact(cid, ctid):
     ct = db.session.get(CompanyContact, ctid)
     if ct and ct.company_id == cid:
         ctid_val = ct.id
-        db.session.delete(ct)
-        db.session.commit()
-        push_change("company_contacts", ctid_val)
+        with sync_locked():
+            db.session.delete(ct)
+            db.session.commit()
+            push_change_now("company_contacts", ctid_val)
         flash("Contacto eliminado", "success")
     return redirect(url_for("companies.view", cid=cid))
 
@@ -321,9 +323,10 @@ def delete_idea(cid, iid):
     idea = db.session.get(Idea, iid)
     if idea and idea.company_id == cid:
         idea_id = idea.id
-        db.session.delete(idea)
-        db.session.commit()
-        push_change("ideas", idea_id)
+        with sync_locked():
+            db.session.delete(idea)
+            db.session.commit()
+            push_change_now("ideas", idea_id)
         flash("Idea eliminada", "success")
     return redirect(url_for("companies.view", cid=cid))
 

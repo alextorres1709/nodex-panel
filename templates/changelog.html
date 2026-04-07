@@ -16,6 +16,18 @@
         <span class="badge badge-activo" style="font-size: 13px;">Version Actual</span>
     </div>
     <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
+        <li><strong style="color: var(--text-primary);">FIX CRITICO RACE CONDITION AL BORRAR:</strong> Algunos elementos volvian a aparecer despues de borrarlos (tareas, time tracking, objetivos, proyectos, empresas, clientes, ideas, recursos, herramientas, automatizaciones, facturas, credenciales, pagos, ingresos, eventos de calendario, usuarios). Causa: el delete handler hacia commit local y luego encolaba un push asincrono — pero el thread de sync pull tenia su propia ventana de 1-3s donde leia el remoto (que aun tenia la fila) y la re-insertaba en local antes de que el push llegara al remoto. Resultado: la fila desaparecia un instante y volvia a aparecer despues del siguiente pull cycle.</li>
+        <li><strong style="color: var(--text-primary);">FIX:</strong> Cada delete ahora se envuelve en sync_locked() y usa push_change_now() (sincrono) en lugar de push_change(). El lock impide que el background pull arranque a la vez que el delete, garantizando que el remoto se actualice antes de cualquier merge. Mismo patron que ya estabamos usando para borrar documentos en v4.4.4.</li>
+        <li><strong style="color: var(--text-primary);">FIX BONUS MOBILE API:</strong> Los endpoints DELETE de routes/api.py (proyectos, tareas, clientes, time entries) no llamaban a push_change en absoluto — los borrados desde el APK Android nunca llegaban al remoto, asi que volvian a aparecer en cuanto el panel mac hacia un pull. Ahora todos pushean sincronamente con el lock.</li>
+    </ul>
+    <div style="margin-top: 16px; font-size: 12px; color: var(--text-tertiary);">Implementado por Alex — 07/04/2026</div>
+</div>
+
+<div class="info-card" style="margin-bottom: 24px; max-width: 800px;">
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin:0; color: var(--brand-primary);">v4.4.5</h2>
+    </div>
+    <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
         <li><strong style="color: var(--text-primary);">FIX CRITICO GOOGLE DRIVE:</strong> Los archivos no se subian a Drive — los metadatos llegaban a Railway pero los bytes nunca salian del Mac. Causa: los Service Accounts de Google tienen cero cuota de almacenamiento en Drive, asi que cada upload fallaba con storageQuotaExceeded y el codigo hacia fallback silencioso a disco local. Google One solo da cuota a la cuenta personal, no al Service Account.</li>
         <li><strong style="color: var(--text-primary);">MIGRACION A OAUTH:</strong> services/gdrive.py reescrito para usar el flujo "Installed App" — cada socio autoriza una vez en el navegador y el refresh token se guarda en ~/Library/Application Support/NodexAI/gdrive_token.json. Los archivos se suben a la cuenta personal del usuario (con su cuota real, ej. Google One 5TB) y se comparte la carpeta con el socio. Ya no depende de Service Accounts.</li>
         <li><strong style="color: var(--text-primary);">UI:</strong> Nuevo banner en /documentos — muestra "Conectar con Google Drive" cuando no hay token o "Drive conectado · Desconectar" cuando si lo hay. El boton abre el navegador del sistema, levanta un webserver local en un puerto libre y captura el redirect automaticamente.</li>

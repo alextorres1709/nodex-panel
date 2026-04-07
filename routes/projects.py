@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 from models import db, Project, ProjectContact, Task, TaskAssignment, Subtask, TimeEntry, Document, Invoice, Income, Idea, User, Client, Company
 from routes.auth import login_required
 from services.activity import log_activity
-from services.sync import push_change
+from services.sync import push_change, push_change_now, sync_locked
 
 projects_bp = Blueprint("projects", __name__)
 
@@ -132,10 +132,11 @@ def delete(pid):
     p = db.session.get(Project, pid)
     if p:
         pid_val = p.id
-        log_activity("delete", "project", p.id, f"Eliminado: {p.name}")
-        db.session.delete(p)
-        db.session.commit()
-        push_change("projects", pid_val)
+        with sync_locked():
+            log_activity("delete", "project", p.id, f"Eliminado: {p.name}")
+            db.session.delete(p)
+            db.session.commit()
+            push_change_now("projects", pid_val)
         flash("Proyecto eliminado", "success")
     return redirect(url_for("projects.index"))
 
@@ -226,9 +227,10 @@ def delete_contact(pid, cid):
     c = db.session.get(ProjectContact, cid)
     if c and c.project_id == pid:
         cid_val = c.id
-        db.session.delete(c)
-        db.session.commit()
-        push_change("project_contacts", cid_val)
+        with sync_locked():
+            db.session.delete(c)
+            db.session.commit()
+            push_change_now("project_contacts", cid_val)
         flash("Contacto eliminado", "success")
     return redirect(url_for("projects.view", pid=pid))
 
@@ -329,9 +331,10 @@ def delete_idea(pid, iid):
     idea = db.session.get(Idea, iid)
     if idea and idea.project_id == pid:
         idea_id = idea.id
-        db.session.delete(idea)
-        db.session.commit()
-        push_change("ideas", idea_id)
+        with sync_locked():
+            db.session.delete(idea)
+            db.session.commit()
+            push_change_now("ideas", idea_id)
         flash("Idea eliminada", "success")
     return redirect(url_for("projects.view", pid=pid))
 

@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import db, Invoice, Client, Project, CompanyInfo
 from routes.auth import login_required
 from services.activity import log_activity
-from services.sync import push_change
+from services.sync import push_change, push_change_now, sync_locked
 
 invoices_bp = Blueprint("invoices", __name__)
 
@@ -147,10 +147,11 @@ def delete(iid):
     inv = db.session.get(Invoice, iid)
     if inv:
         inv_id = inv.id
-        log_activity("delete", "invoice", inv.id, f"Eliminada: {inv.number}")
-        db.session.delete(inv)
-        db.session.commit()
-        push_change("invoices", inv_id)
+        with sync_locked():
+            log_activity("delete", "invoice", inv.id, f"Eliminada: {inv.number}")
+            db.session.delete(inv)
+            db.session.commit()
+            push_change_now("invoices", inv_id)
         flash("Factura eliminada", "success")
     return redirect(url_for("invoices.index"))
 

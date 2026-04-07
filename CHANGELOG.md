@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.4.6
+*Implementado por Alex*
+- **Fix critico race condition al borrar:** Algunos elementos volvian a aparecer despues de borrarlos (tareas, time tracking, objetivos, proyectos, empresas, clientes, ideas, recursos, herramientas, automatizaciones, facturas, credenciales, pagos, ingresos, eventos de calendario, usuarios). Causa: el delete handler hacia commit local y luego encolaba un push asincrono — pero el thread de sync pull tenia su propia ventana de 1-3s donde leia el remoto (que aun tenia la fila) y la re-insertaba en local antes de que el push llegara al remoto. Resultado: la fila desaparecia un instante y volvia a aparecer despues del siguiente pull cycle.
+- **Fix:** Cada delete ahora se envuelve en `sync_locked()` y usa `push_change_now()` (sincrono) en lugar de `push_change()`. El lock impide que el background pull arranque a la vez que el delete, garantizando que el remoto se actualice antes de cualquier merge. Mismo patron que ya estabamos usando para borrar documentos en v4.4.4.
+- **Fix bonus mobile API:** Los endpoints DELETE de `routes/api.py` (proyectos, tareas, clientes, time entries) no llamaban a `push_change` en absoluto — los borrados desde el APK Android nunca llegaban al remoto, asi que volvian a aparecer en cuanto el panel mac hacia un pull. Ahora todos pushean sincronamente con el lock.
+
 ## v4.4.5
 *Implementado por Alex*
 - **Fix critico de Google Drive**: Los archivos no se subian a Drive — los metadatos llegaban a Railway pero los bytes nunca salian del Mac. Causa: los Service Accounts de Google tienen cero cuota de almacenamiento en Drive, asi que cada upload fallaba con `storageQuotaExceeded` y el codigo hacia fallback silencioso a disco local. Google One (incluso el plan de 5TB) solo da cuota a la cuenta personal, no al Service Account.

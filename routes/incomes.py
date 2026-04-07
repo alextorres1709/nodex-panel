@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from models import db, Income, Project
 from routes.auth import login_required
 from services.activity import log_activity
-from services.sync import push_change
+from services.sync import push_change, push_change_now, sync_locked
 
 incomes_bp = Blueprint("incomes", __name__)
 
@@ -112,9 +112,10 @@ def delete(iid):
     i = db.session.get(Income, iid)
     if i:
         iid_val = i.id
-        log_activity("delete", "income", i.id, f"Eliminado: {i.name}")
-        db.session.delete(i)
-        db.session.commit()
-        push_change("incomes", iid_val)
+        with sync_locked():
+            log_activity("delete", "income", i.id, f"Eliminado: {i.name}")
+            db.session.delete(i)
+            db.session.commit()
+            push_change_now("incomes", iid_val)
         flash("Ingreso eliminado", "success")
     return redirect(url_for("incomes.index"))

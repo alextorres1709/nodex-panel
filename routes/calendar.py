@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, g, jsonify
 from models import db, Task, Payment, Invoice, Project, CalendarEvent, User
 from routes.auth import login_required
+from services.sync import push_change_now, sync_locked
 
 log = logging.getLogger("calendar")
 calendar_bp = Blueprint("calendar", __name__)
@@ -243,16 +244,12 @@ def delete_event(eid):
         return jsonify({"error": "No encontrado"}), 404
 
     title = ev.title
-    db.session.delete(ev)
-    db.session.commit()
-
     from services.activity import log_activity
-    log_activity("elimino", "evento", eid, title)
-    try:
-        from services.sync import push_change
-        push_change("calendar_events", eid)
-    except Exception:
-        pass
+    with sync_locked():
+        log_activity("elimino", "evento", eid, title)
+        db.session.delete(ev)
+        db.session.commit()
+        push_change_now("calendar_events", eid)
 
     return jsonify({"ok": True})
 
