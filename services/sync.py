@@ -127,6 +127,12 @@ class SyncManager:
         if self._stop.is_set():
             return
         log.info("Stopping sync — flushing pending pushes...")
+        # Wait briefly for any pushes the worker is currently processing
+        # (they hold the RLock, so we can't grab it while they're in-flight).
+        try:
+            _push_queue.join()
+        except Exception:
+            pass
         self._flush_push_queue()
         self._stop.set()
         if self._thread:
@@ -399,7 +405,11 @@ class SyncManager:
 # Global sync manager instance (set in app.py)
 sync_manager = None
 
-# Push queue — processes pushes sequentially in a single worker thread
+# Push queue — processes pushes sequentially in a single worker thread so
+# that Flask request handlers can return immediately instead of blocking
+# on the sync lock (which the background pull thread holds for 1-3 s per
+# cycle). Without this, a form submit during a pull freezes the pywebview
+# WebView for seconds and users end up triple-submitting.
 _push_queue = queue.Queue()
 _push_thread = None
 _push_thread_lock = threading.Lock()
@@ -409,19 +419,58 @@ def _push_worker():
     """Process push requests sequentially (single thread, no races)."""
     while True:
         try:
-            table_name, row_id = _push_queue.get(timeout=10)
-        except queue.Empty:
+            item = _push_queue.get()
+        except Exception:
             continue
-        if sync_manager:
-            sync_manager.push_to_remote(table_name, row_id)
-        _push_queue.task_done()
+        if item is None:  # poison pill (not currently used)
+            _push_queue.task_done()
+            break
+        table_name, row_id = item
+        try:
+            if sync_manager:
+                sync_manager.push_to_remote(table_name, row_id)
+        except Exception as e:
+            log.warning(f"Async push failed ({table_name} #{row_id}): {e}")
+        finally:
+            _push_queue.task_done()
+
+
+def _ensure_push_worker():
+    """Lazily start the push worker thread on first use."""
+    global _push_thread
+    with _push_thread_lock:
+        if _push_thread is None or not _push_thread.is_alive():
+            _push_thread = threading.Thread(
+                target=_push_worker, daemon=True, name="sync-push",
+            )
+            _push_thread.start()
 
 
 def push_change(table_name, row_id):
-    """Push a change to remote synchronously.
+    """Enqueue a push to remote. Returns immediately.
 
-    Direct push ensures deletes reach remote before the next sync pull
-    can bring stale data back. Fast enough (~50-200ms) for user actions.
+    The push runs in a dedicated worker thread so the Flask request can
+    return a redirect to the WebView without waiting on the remote
+    database. Ordering is preserved per-table via the FIFO queue, and the
+    background sync thread flushes the queue before every pull, so no
+    local change is ever lost.
+
+    For operations where the push MUST complete before the HTTP response
+    (e.g. deletes that race against a concurrent pull), use
+    push_change_now() inside a sync_locked() block instead.
+    """
+    if not sync_manager:
+        return
+    _ensure_push_worker()
+    _push_queue.put((table_name, row_id))
+
+
+def push_change_now(table_name, row_id):
+    """Push synchronously in the current thread.
+
+    Only use this inside a sync_locked() block when you need the push to
+    complete before the HTTP response returns (e.g. the delete path where
+    the next sync pull could otherwise re-insert the row).
     """
     if not sync_manager:
         return

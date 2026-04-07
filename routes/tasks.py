@@ -284,7 +284,7 @@ def api_due_reminders():
     whole operation runs under the sync lock so the background sync pull can't
     overwrite the update with stale remote data (Task has no updated_at column,
     so the merge would otherwise treat remote as newer)."""
-    from services.sync import push_change, sync_locked
+    from services.sync import push_change_now, sync_locked
 
     now = datetime.now(timezone.utc)
 
@@ -306,7 +306,7 @@ def api_due_reminders():
         if due:
             db.session.commit()
             for d in due:
-                push_change("tasks", d["id"])
+                push_change_now("tasks", d["id"])
 
     return jsonify({"due": due})
 

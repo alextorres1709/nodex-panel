@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.4.4
+*Implementado por Alex*
+- **Fix critico de UI bloqueada**: el panel macOS se congelaba al crear/editar/borrar cualquier registro (time tracking, tareas, etc) y un triple-click acababa creando 3 filas duplicadas. Causa: `push_change()` corria sincrono dentro del request handler y competia por el `RLock` del sync con el thread de pull (que lo retiene 1-3s cada 3s). Cuando coincidian, el redirect tardaba 2-5s, el WebView se quedaba mudo y el usuario clicaba otra vez.
+- **Fix**: `push_change()` ahora encola en una FIFO procesada por un worker thread dedicado (`sync-push`). Los handlers retornan instantaneamente. Para casos donde el push DEBE completarse antes del response (delete de documentos, marcado de notificaciones), se usa `push_change_now()` dentro de `sync_locked()`. El thread de pull sigue flusheando la cola antes de cada pull, asi que ningun cambio local se pierde.
+- **Fix**: doble-submit protection global en `base.html` — cualquier `<form>` deshabilita su boton submit en cuanto se envia (con spinner inline) y se restaura via bfcache al volver atras. Backup defensivo aunque el bloqueo del WebView ya no deberia pasar.
+
 ## v4.4.3
 *Implementado por Alex*
 - **Fix**: Toasts/flash messages seguian apareciendo en la app Android — el filtro server-side por User-Agent no cubria `login.html` ni paginas con UA WebView modificada. Ahora `MainActivity` inyecta CSS+JS en cada `onPageStarted` y `onPageFinished` con un MutationObserver que oculta y elimina cualquier `.flash-message` aunque se inserte mas tarde.

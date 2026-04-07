@@ -8,7 +8,7 @@ from models import db, Document, Project, Client
 from routes.auth import login_required
 from services.activity import log_activity
 from config import BASE_DIR
-from services.sync import push_change, sync_locked
+from services.sync import push_change, push_change_now, sync_locked
 from services import gdrive
 
 documents_bp = Blueprint("documents", __name__)
@@ -158,11 +158,14 @@ def delete(did):
 
         # Hold the sync lock across the local delete + remote push so the
         # background sync thread can't pull and re-insert the row mid-flight.
+        # Use push_change_now (synchronous) here because we already hold
+        # the lock and need the remote delete to complete before we
+        # release it.
         with sync_locked():
             log_activity("delete", "document", doc.id, f"Eliminado: {doc.name}")
             db.session.delete(doc)
             db.session.commit()
-            push_change("documents", doc_id)
+            push_change_now("documents", doc_id)
 
         # Clean up remote storage in background so the request returns fast
         def _cleanup_storage():

@@ -732,6 +732,56 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <!-- ═══ GLOBAL DOUBLE-SUBMIT PROTECTION ═══
+         Prevents users from triple-clicking submit buttons (which on the
+         pywebview macOS panel was causing rows to be created 3 times when
+         the WebView momentarily froze on a slow request). Disables every
+         <form>'s submit button as soon as the form is submitted, and
+         re-enables it when the page is restored from bfcache. -->
+    <script>
+    (function() {
+        document.addEventListener('submit', function(e) {
+            var form = e.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            if (form.dataset.noBlock === '1') return;
+            if (form.dataset.submitting === '1') {
+                e.preventDefault();
+                return;
+            }
+            form.dataset.submitting = '1';
+            var btns = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+            btns.forEach(function(b) {
+                b.disabled = true;
+                b.dataset.origText = b.dataset.origText || (b.tagName === 'BUTTON' ? b.innerHTML : b.value);
+                if (b.tagName === 'BUTTON') {
+                    b.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:nx-spin .8s linear infinite;vertical-align:middle"></span>';
+                }
+                b.style.opacity = '0.7';
+                b.style.cursor = 'wait';
+            });
+        }, true);
+
+        // Restore on bfcache (back/forward navigation)
+        window.addEventListener('pageshow', function(e) {
+            if (!e.persisted) return;
+            document.querySelectorAll('form[data-submitting="1"]').forEach(function(form) {
+                form.dataset.submitting = '';
+                form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function(b) {
+                    b.disabled = false;
+                    if (b.dataset.origText) {
+                        if (b.tagName === 'BUTTON') b.innerHTML = b.dataset.origText;
+                        else b.value = b.dataset.origText;
+                    }
+                    b.style.opacity = '';
+                    b.style.cursor = '';
+                });
+            });
+        });
+    })();
+    </script>
+    <style>
+    @keyframes nx-spin { to { transform: rotate(360deg); } }
+    </style>
     <script>
         // Global voice call persistence via localStorage
         var _voiceExpanded = true;

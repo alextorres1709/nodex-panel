@@ -16,6 +16,18 @@
         <span class="badge badge-activo" style="font-size: 13px;">Version Actual</span>
     </div>
     <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
+        <li><strong style="color: var(--text-primary);">FIX UI BLOQUEADA EN macOS:</strong> Crear/editar/borrar registros congelaba el panel y un triple-click creaba 3 duplicados. Causa: push_change() corria sincrono y competia con el thread de sync por el RLock (que lo retiene 1-3s cada pull). Cuando coincidian, el WebView se quedaba mudo 2-5s. Ahora push_change() encola en un worker thread dedicado y los handlers retornan al instante.</li>
+        <li><strong style="color: var(--text-primary);">push_change_now():</strong> Nueva funcion sincrona explicita para los pocos casos donde el push DEBE completar antes del response (delete de documentos, marcado de notificaciones de tareas). Se usa dentro de sync_locked() para preservar el ordering critico.</li>
+        <li><strong style="color: var(--text-primary);">DOUBLE-SUBMIT PROTECTION:</strong> Cualquier form en el panel ahora deshabilita su boton submit en cuanto se envia (con spinner inline). Restaurado automaticamente al volver atras via bfcache. Backup defensivo aunque el bloqueo de WebView ya no deberia ocurrir.</li>
+    </ul>
+    <div style="margin-top: 16px; font-size: 12px; color: var(--text-tertiary);">Implementado por Alex — 07/04/2026</div>
+</div>
+
+<div class="info-card" style="margin-bottom: 24px; max-width: 800px;">
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin:0; color: var(--brand-primary);">v4.4.3</h2>
+    </div>
+    <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
         <li><strong style="color: var(--text-primary);">FIX TOASTS ANDROID (DEFINITIVO):</strong> Los flash messages seguian apareciendo en la app Android porque el filtro server-side por User-Agent no cubria login.html ni paginas con UA modificada. Ahora MainActivity inyecta CSS+JS en cada pageStarted/pageFinished con un MutationObserver que oculta y elimina cualquier .flash-message aunque se inserte mas tarde.</li>
         <li><strong style="color: var(--text-primary);">FIX PUSH ANDROID EN RELEASE:</strong> Las notificaciones FCM no funcionaban en builds release porque R8 minificaba las clases del SDK de Firebase. Añadidas reglas ProGuard para mantener com.google.firebase.** y los servicios de mensajeria.</li>
         <li><strong style="color: var(--text-primary);">CANAL FCM PRE-CREADO:</strong> Nueva clase NodexApp : Application que crea el canal de notificaciones en el onCreate del proceso, antes que cualquier Activity o Service. Asi las notificaciones background siempre tienen un canal valido aunque MainActivity nunca se haya abierto.</li>
