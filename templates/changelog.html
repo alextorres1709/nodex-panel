@@ -16,6 +16,20 @@
         <span class="badge badge-activo" style="font-size: 13px;">Version Actual</span>
     </div>
     <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
+        <li><strong style="color: var(--text-primary);">FIX CRITICO GOOGLE DRIVE:</strong> Los archivos no se subian a Drive — los metadatos llegaban a Railway pero los bytes nunca salian del Mac. Causa: los Service Accounts de Google tienen cero cuota de almacenamiento en Drive, asi que cada upload fallaba con storageQuotaExceeded y el codigo hacia fallback silencioso a disco local. Google One solo da cuota a la cuenta personal, no al Service Account.</li>
+        <li><strong style="color: var(--text-primary);">MIGRACION A OAUTH:</strong> services/gdrive.py reescrito para usar el flujo "Installed App" — cada socio autoriza una vez en el navegador y el refresh token se guarda en ~/Library/Application Support/NodexAI/gdrive_token.json. Los archivos se suben a la cuenta personal del usuario (con su cuota real, ej. Google One 5TB) y se comparte la carpeta con el socio. Ya no depende de Service Accounts.</li>
+        <li><strong style="color: var(--text-primary);">UI:</strong> Nuevo banner en /documentos — muestra "Conectar con Google Drive" cuando no hay token o "Drive conectado · Desconectar" cuando si lo hay. El boton abre el navegador del sistema, levanta un webserver local en un puerto libre y captura el redirect automaticamente.</li>
+        <li><strong style="color: var(--text-primary);">FALLBACK LOCAL:</strong> Si el usuario no autoriza, los archivos siguen guardandose en uploads/ como antes — nada se rompe. init_gdrive() es non-fatal.</li>
+        <li><strong style="color: var(--text-primary);">BUILD:</strong> google-auth-oauthlib anadido a requirements.txt y al spec de PyInstaller (hidden imports + collect_all) para que el flow funcione dentro del DMG.</li>
+    </ul>
+    <div style="margin-top: 16px; font-size: 12px; color: var(--text-tertiary);">Implementado por Alex — 07/04/2026</div>
+</div>
+
+<div class="info-card" style="margin-bottom: 24px; max-width: 800px;">
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin:0; color: var(--brand-primary);">v4.4.4</h2>
+    </div>
+    <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
         <li><strong style="color: var(--text-primary);">FIX UI BLOQUEADA EN macOS:</strong> Crear/editar/borrar registros congelaba el panel y un triple-click creaba 3 duplicados. Causa: push_change() corria sincrono y competia con el thread de sync por el RLock (que lo retiene 1-3s cada pull). Cuando coincidian, el WebView se quedaba mudo 2-5s. Ahora push_change() encola en un worker thread dedicado y los handlers retornan al instante.</li>
         <li><strong style="color: var(--text-primary);">push_change_now():</strong> Nueva funcion sincrona explicita para los pocos casos donde el push DEBE completar antes del response (delete de documentos, marcado de notificaciones de tareas). Se usa dentro de sync_locked() para preservar el ordering critico.</li>
         <li><strong style="color: var(--text-primary);">DOUBLE-SUBMIT PROTECTION:</strong> Cualquier form en el panel ahora deshabilita su boton submit en cuanto se envia (con spinner inline). Restaurado automaticamente al volver atras via bfcache. Backup defensivo aunque el bloqueo de WebView ya no deberia ocurrir.</li>

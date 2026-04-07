@@ -47,8 +47,16 @@ def index():
     projects = Project.query.order_by(Project.name).all()
     clients = Client.query.order_by(Client.name).all()
 
-    return render_template("documentos.html", docs=docs, projects=projects, clients=clients,
-                           sel_category=cat, sel_project=pid)
+    return render_template(
+        "documentos.html",
+        docs=docs,
+        projects=projects,
+        clients=clients,
+        sel_category=cat,
+        sel_project=pid,
+        gdrive_connected=gdrive.is_available(),
+        gdrive_needs_auth=gdrive.needs_authorization(),
+    )
 
 
 @documents_bp.route("/documentos/upload", methods=["POST"])
@@ -143,6 +151,25 @@ def download(did):
         return send_file(doc.file_path, as_attachment=True, download_name=doc.filename)
 
     flash("Archivo no encontrado", "error")
+    return redirect(url_for("documents.index"))
+
+
+@documents_bp.route("/documentos/gdrive/authorize", methods=["POST"])
+@login_required
+def gdrive_authorize():
+    """Kick off the OAuth consent flow. Blocks the request until the user
+    finishes the browser prompt (~20-60s). Runs inside a user-initiated
+    click so the pywebview session can surface the system browser."""
+    ok, msg = gdrive.authorize()
+    flash(msg, "success" if ok else "error")
+    return redirect(url_for("documents.index"))
+
+
+@documents_bp.route("/documentos/gdrive/disconnect", methods=["POST"])
+@login_required
+def gdrive_disconnect():
+    gdrive.disconnect()
+    flash("Google Drive desconectado", "success")
     return redirect(url_for("documents.index"))
 
 

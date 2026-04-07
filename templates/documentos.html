@@ -11,6 +11,33 @@
     <button class="btn btn-primary" onclick="openModal('uploadModal')">+ Subir archivo</button>
 </div>
 
+{% if gdrive_needs_auth %}
+<div style="background:#fff8e1;border:1px solid #f0c36d;border-radius:8px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:flex-start;gap:12px;flex:1;min-width:260px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#b8860b" stroke-width="2" style="width:22px;height:22px;flex-shrink:0;margin-top:2px;">
+            <path d="M12 2L2 22h20L12 2z"/><line x1="12" y1="9" x2="12" y2="14"/><circle cx="12" cy="18" r="0.8" fill="#b8860b"/>
+        </svg>
+        <div>
+            <div style="font-weight:600;color:#6b4a00;margin-bottom:2px;">Google Drive no conectado</div>
+            <div style="font-size:13px;color:#7a5a00;">Los archivos se guardan solo en este equipo. Conecta tu Google Drive para compartirlos con tu socio.</div>
+        </div>
+    </div>
+    <form method="POST" action="{{ url_for('documents.gdrive_authorize') }}" style="margin:0;" onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='Abriendo navegador...';return true;">
+        <button type="submit" class="btn btn-primary">Conectar con Google Drive</button>
+    </form>
+</div>
+{% elif gdrive_connected %}
+<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;">
+    <div style="display:flex;align-items:center;gap:8px;color:#256029;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="20 6 9 17 4 12"/></svg>
+        Google Drive conectado — los archivos se sincronizan con tu carpeta compartida.
+    </div>
+    <form method="POST" action="{{ url_for('documents.gdrive_disconnect') }}" style="margin:0;" onsubmit="return confirm('Desconectar Google Drive? Los nuevos archivos se guardarán solo en este equipo.');">
+        <button type="submit" class="btn btn-sm btn-secondary">Desconectar</button>
+    </form>
+</div>
+{% endif %}
+
 <form class="filter-bar" method="GET">
     <select name="category">
         <option value="">Todas las categorías</option>

@@ -11,13 +11,14 @@ base_dir = '/Users/alex/Documents/nodex/nodex-panel'
 googleapi_datas, googleapi_binaries, googleapi_imports = collect_all('googleapiclient')
 google_auth_datas, google_auth_binaries, google_auth_imports = collect_all('google.auth')
 google_oauth2_datas, google_oauth2_binaries, google_oauth2_imports = collect_all('google.oauth2')
+google_oauthlib_datas, google_oauthlib_binaries, google_oauthlib_imports = collect_all('google_auth_oauthlib')
 firebase_datas, firebase_binaries, firebase_imports = collect_all('firebase_admin')
 google_api_core_datas, google_api_core_binaries, google_api_core_imports = collect_all('google.api_core')
 
 a = Analysis(
     [os.path.join(base_dir, 'launcher_universal.py')],
     pathex=[base_dir],
-    binaries=googleapi_binaries + google_auth_binaries + google_oauth2_binaries + firebase_binaries + google_api_core_binaries,
+    binaries=googleapi_binaries + google_auth_binaries + google_oauth2_binaries + google_oauthlib_binaries + firebase_binaries + google_api_core_binaries,
     datas=[
         (os.path.join(base_dir, 'templates'), 'templates'),
         (os.path.join(base_dir, 'static'), 'static'),
@@ -26,8 +27,8 @@ a = Analysis(
         (os.path.join(base_dir, 'app.py'), '.'),
         (os.path.join(base_dir, 'config.py'), '.'),
         (os.path.join(base_dir, 'models.py'), '.'),
-    ] + googleapi_datas + google_auth_datas + google_oauth2_datas + firebase_datas + google_api_core_datas,
-    hiddenimports=googleapi_imports + google_auth_imports + google_oauth2_imports + firebase_imports + google_api_core_imports + [
+    ] + googleapi_datas + google_auth_datas + google_oauth2_datas + google_oauthlib_datas + firebase_datas + google_api_core_datas,
+    hiddenimports=googleapi_imports + google_auth_imports + google_oauth2_imports + google_oauthlib_imports + firebase_imports + google_api_core_imports + [
         'flask',
         'flask_sqlalchemy',
         'sqlalchemy',
@@ -91,7 +92,10 @@ a = Analysis(
         'google',
         'google.auth',
         'google.oauth2',
+        'google.oauth2.credentials',
         'google.oauth2.service_account',
+        'google_auth_oauthlib',
+        'google_auth_oauthlib.flow',
         'googleapiclient',
         'googleapiclient.discovery',
         'googleapiclient.http',
@@ -159,8 +163,8 @@ app = BUNDLE(
     info_plist={
         'CFBundleName': 'NodexAI Panel',
         'CFBundleDisplayName': 'NodexAI Panel',
-        'CFBundleVersion': '4.4.4',
-        'CFBundleShortVersionString': '4.4.4',
+        'CFBundleVersion': '4.4.5',
+        'CFBundleShortVersionString': '4.4.5',
         'NSHighResolutionCapable': True,
         'LSMinimumSystemVersion': '10.15.0',
         'NSCameraUsageDescription': 'NodexAI Panel necesita acceso a la camara para videollamadas.',

@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.4.5
+*Implementado por Alex*
+- **Fix critico de Google Drive**: Los archivos no se subian a Drive — los metadatos llegaban a Railway pero los bytes nunca salian del Mac. Causa: los Service Accounts de Google tienen cero cuota de almacenamiento en Drive, asi que cada upload fallaba con `storageQuotaExceeded` y el codigo hacia fallback silencioso a disco local. Google One (incluso el plan de 5TB) solo da cuota a la cuenta personal, no al Service Account.
+- **Migracion a OAuth del usuario**: `services/gdrive.py` reescrito para usar el flujo "Installed App" — cada socio autoriza una vez en el navegador y el refresh token se guarda en `~/Library/Application Support/NodexAI/gdrive_token.json`. Los archivos se suben a la cuenta personal del usuario (con su cuota real) y se comparte la carpeta con el socio para acceso mutuo. Ya no depende de Service Accounts.
+- **UI**: Nuevo banner en `/documentos` — muestra "Conectar con Google Drive" cuando no hay token, o "Drive conectado · Desconectar" cuando si lo hay. El boton abre el navegador del sistema, levanta un webserver local temporal en un puerto libre y captura el redirect automaticamente.
+- **Fallback local**: Si el usuario no autoriza, los archivos siguen guardandose en `uploads/` como antes — nada se rompe. `init_gdrive()` es non-fatal.
+- **Build**: `google-auth-oauthlib` anadido a requirements.txt y al spec de PyInstaller (hidden imports + `collect_all`) para que el flow funcione dentro del DMG.
+
 ## v4.4.4
 *Implementado por Alex*
 - **Fix critico de UI bloqueada**: el panel macOS se congelaba al crear/editar/borrar cualquier registro (time tracking, tareas, etc) y un triple-click acababa creando 3 filas duplicadas. Causa: `push_change()` corria sincrono dentro del request handler y competia por el `RLock` del sync con el thread de pull (que lo retiene 1-3s cada 3s). Cuando coincidian, el redirect tardaba 2-5s, el WebView se quedaba mudo y el usuario clicaba otra vez.
