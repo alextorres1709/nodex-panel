@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.5.3 — 2026-04-14
+*Implementado por Alex*
+- **Fix Google Calendar OAuth — redirect URI dinámico**: la app empaquetada (DMG) usa un puerto aleatorio en cada arranque, pero el `redirect_uri` estaba hardcodeado a `localhost:5001`. Google rechazaba el callback con `redirect_uri_mismatch`. Ahora `gcal.py` deriva el `redirect_uri` dinámicamente del request de Flask actual (`request.host_url + /calendario/gcal/callback`), funcionando en cualquier puerto. El callback también pasa el URI explícitamente a `exchange_code()` para que ambos extremos del flujo OAuth usen el mismo valor.
+- **Acción requerida**: en Google Cloud Console → APIs → Credentials → tu OAuth Client ID → añade `http://127.0.0.1` a "Authorized redirect URIs" (Google permite cualquier puerto con esta base). También mantén `http://localhost:5001/calendario/gcal/callback` si usas el servidor dev.
+
 ## v4.5.2 — 2026-04-14
 *Implementado por Alex*
 - **Fix Google Calendar — error 500 al entrar en el calendario**: dos causas raíz resueltas:

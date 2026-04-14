@@ -314,7 +314,12 @@ def gcal_callback():
         return redirect(url_for("calendar.index"))
 
     try:
-        token_dict = gcal_svc.exchange_code(code)
+        # Pass redirect_uri derived from the current request so it matches
+        # the one used in gcal_auth() — critical for the packaged app which
+        # runs on a random port, not necessarily 5001.
+        from flask import request as _req
+        callback_uri = _req.host_url.rstrip("/") + "/calendario/gcal/callback"
+        token_dict = gcal_svc.exchange_code(code, redirect_uri=callback_uri)
         gcal_svc._save_token(g.user.id, token_dict)
         flash("✅ Google Calendar conectado correctamente", "success")
 

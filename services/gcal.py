@@ -26,20 +26,33 @@ GCAL_CALENDAR_ID = "primary"  # Use the user's primary calendar
 
 CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
-REDIRECT_URI = os.environ.get(
+# Fallback redirect URI — used only outside Flask request context (e.g. tests).
+# At runtime the URI is derived dynamically from the current request host so it
+# works on any port (dev :5001, packaged app uses a random free port).
+_REDIRECT_URI_FALLBACK = os.environ.get(
     "GOOGLE_OAUTH_REDIRECT_URI",
     "http://localhost:5001/calendario/gcal/callback",
 )
 
 
-def _client_config():
+def _redirect_uri() -> str:
+    """Return the redirect URI for the current request, or the env-var fallback."""
+    try:
+        from flask import request
+        # request.host_url already includes the scheme + host + port + trailing /
+        return request.host_url.rstrip("/") + "/calendario/gcal/callback"
+    except Exception:
+        return _REDIRECT_URI_FALLBACK
+
+
+def _client_config(redirect_uri: str):
     return {
         "web": {
             "client_id": CLIENT_ID,
             "client_secret": CLIENT_SECRET,
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [REDIRECT_URI],
+            "redirect_uris": [redirect_uri],
         }
     }
 
@@ -55,10 +68,11 @@ def get_auth_url(state: str = "") -> str:
     """Generate the Google OAuth2 authorization URL."""
     from google_auth_oauthlib.flow import Flow
 
+    uri = _redirect_uri()
     flow = Flow.from_client_config(
-        _client_config(),
+        _client_config(uri),
         scopes=SCOPES,
-        redirect_uri=REDIRECT_URI,
+        redirect_uri=uri,
     )
     url, _ = flow.authorization_url(
         access_type="offline",
@@ -69,14 +83,19 @@ def get_auth_url(state: str = "") -> str:
     return url
 
 
-def exchange_code(code: str) -> dict:
-    """Exchange auth code for tokens. Returns token dict."""
+def exchange_code(code: str, redirect_uri: str = "") -> dict:
+    """Exchange auth code for tokens. Returns token dict.
+
+    redirect_uri must match the one used in get_auth_url(). Pass it explicitly
+    from the callback route so both ends of the flow use the same value.
+    """
     from google_auth_oauthlib.flow import Flow
 
+    uri = redirect_uri or _redirect_uri()
     flow = Flow.from_client_config(
-        _client_config(),
+        _client_config(uri),
         scopes=SCOPES,
-        redirect_uri=REDIRECT_URI,
+        redirect_uri=uri,
     )
     flow.fetch_token(code=code)
     creds = flow.credentials
