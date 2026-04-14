@@ -24,25 +24,26 @@ log = logging.getLogger("gcal")
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 GCAL_CALENDAR_ID = "primary"  # Use the user's primary calendar
 
-CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
-CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
-# Fallback redirect URI — used only outside Flask request context (e.g. tests).
-# At runtime the URI is derived dynamically from the current request host so it
-# works on any port (dev :5001, packaged app uses a random free port).
-_REDIRECT_URI_FALLBACK = os.environ.get(
-    "GOOGLE_OAUTH_REDIRECT_URI",
-    "http://localhost:5001/calendario/gcal/callback",
-)
+def _get_client_id() -> str:
+    """Read client ID from env at call time (not module import time)."""
+    return os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
+
+
+def _get_client_secret() -> str:
+    """Read client secret from env at call time (not module import time)."""
+    return os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
 
 
 def _redirect_uri() -> str:
     """Return the redirect URI for the current request, or the env-var fallback."""
     try:
         from flask import request
-        # request.host_url already includes the scheme + host + port + trailing /
         return request.host_url.rstrip("/") + "/calendario/gcal/callback"
     except Exception:
-        return _REDIRECT_URI_FALLBACK
+        return os.environ.get(
+            "GOOGLE_OAUTH_REDIRECT_URI",
+            "http://localhost:5001/calendario/gcal/callback",
+        )
 
 
 def _client_config(redirect_uri: str):
@@ -51,8 +52,8 @@ def _client_config(redirect_uri: str):
     # These clients automatically allow http://localhost on any port.
     return {
         "installed": {
-            "client_id": CLIENT_ID,
-            "client_secret": CLIENT_SECRET,
+            "client_id": _get_client_id(),
+            "client_secret": _get_client_secret(),
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "redirect_uris": [redirect_uri, "urn:ietf:wg:oauth:2.0:oob"],
@@ -60,9 +61,9 @@ def _client_config(redirect_uri: str):
     }
 
 
-def is_configured():
-    """Return True if OAuth credentials are set in .env."""
-    return bool(CLIENT_ID and CLIENT_SECRET)
+def is_configured() -> bool:
+    """Return True if OAuth credentials are set in .env. Checked at call time."""
+    return bool(_get_client_id() and _get_client_secret())
 
 
 # ─── OAuth flow ──────────────────────────────────────────────────────────────
@@ -136,8 +137,8 @@ def _build_credentials(token_dict: dict):
         token=token_dict.get("token"),
         refresh_token=token_dict.get("refresh_token"),
         token_uri=token_dict.get("token_uri", "https://oauth2.googleapis.com/token"),
-        client_id=token_dict.get("client_id", CLIENT_ID),
-        client_secret=token_dict.get("client_secret", CLIENT_SECRET),
+        client_id=token_dict.get("client_id", _get_client_id()),
+        client_secret=token_dict.get("client_secret", _get_client_secret()),
         scopes=token_dict.get("scopes", SCOPES),
         expiry=expiry,
     )
