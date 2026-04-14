@@ -17,6 +17,7 @@ import os
 import json
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Optional, Tuple
 
 log = logging.getLogger("gcal")
 
@@ -151,7 +152,7 @@ def _save_token(user_id: int, token_dict: dict):
     db.session.commit()
 
 
-def get_token(user_id: int) -> dict | None:
+def get_token(user_id: int) -> Optional[dict]:
     """Load token dict from DB for a user."""
     from models import GoogleOAuthToken
     row = GoogleOAuthToken.query.filter_by(user_id=user_id).first()
@@ -236,7 +237,7 @@ def _event_body(ev) -> dict:
     return body
 
 
-def push_event(ev, user_id: int) -> str | None:
+def push_event(ev, user_id: int) -> Optional[str]:
     """
     Create or update a CalendarEvent in Google Calendar.
     Returns the gcal_event_id (str) or None on failure.
@@ -295,7 +296,7 @@ def delete_event(gcal_event_id: str, user_id: int) -> bool:
         return False
 
 
-def bulk_sync_user(user_id: int) -> tuple[int, int]:
+def bulk_sync_user(user_id: int) -> Tuple[int, int]:
     """
     Push all CalendarEvents that don't have a gcal_event_id yet.
     Returns (synced_count, failed_count).

@@ -2,7 +2,9 @@
 
 ## v4.5.2 — 2026-04-14
 *Implementado por Alex*
-- **Fix Google Calendar — error 500 al entrar en el calendario**: la tabla `google_oauth_tokens` no existía en la base de datos local (SQLite), causando un `OperationalError: no such table` al llamar a `gcal_svc.is_connected()`. El modelo `GoogleOAuthToken` estaba definido en `models.py` e importado en `app.py`, así que `db.create_all()` ahora la crea automáticamente en el arranque. La tabla ha sido creada en la instalación actual.
+- **Fix Google Calendar — error 500 al entrar en el calendario**: dos causas raíz resueltas:
+  1. La tabla `google_oauth_tokens` no existía en la base de datos local (SQLite). `db.create_all()` la crea automáticamente en el arranque.
+  2. `services/gcal.py` usaba la sintaxis de union types `dict | None` y `str | None` (PEP 604), que requiere Python 3.10+. El sistema corre Python 3.9 (LibreSSL), por lo que el módulo fallaba al importarse con `TypeError: unsupported operand type(s) for |`. Corregido usando `Optional[dict]` y `Optional[str]` de `typing`.
 
 ## v4.5.1 — 2026-04-09
 *Implementado por Alex*
