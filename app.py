@@ -3,14 +3,25 @@ import logging
 from datetime import datetime, timezone, date, timedelta
 from flask import Flask, g
 from config import Config, BASE_DIR, REMOTE_DATABASE_URL, APP_VERSION, HOSTED_MODE
-from models import db, User, Payment, Project, Tool, Task, Idea, Credential, CompanyInfo, CalendarEvent, PushToken
+from models import db, User, Payment, Project, Tool, Task, Idea, Credential, CompanyInfo, CalendarEvent, PushToken, GoogleOAuthToken
 
-logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
+# Logging estructurado: timestamp + nivel + módulo + mensaje
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+# Silencia los access logs ruidosos de Werkzeug en producción
+logging.getLogger("werkzeug").setLevel(logging.WARNING)
 log = logging.getLogger("app")
 
 
 MIGRATIONS = [
     ("users", "api_token", "VARCHAR(64)"),
+    ("users", "totp_secret", "VARCHAR(64)"),
+    # NOTE: usamos `FALSE` (no `0`) porque PostgreSQL rechaza `0` como
+    # default de BOOLEAN. SQLite acepta ambos desde 3.23+.
+    ("users", "totp_enabled", "BOOLEAN DEFAULT FALSE"),
     ("tasks", "estimated_minutes", "INTEGER DEFAULT 0"),
     ("tasks", "kanban_order", "INTEGER DEFAULT 0"),
     ("tasks", "company_id", "INTEGER"),
@@ -23,6 +34,11 @@ MIGRATIONS = [
     ("companies", "solution", "TEXT DEFAULT ''"),
     ("projects", "company_id", "INTEGER"),
     ("documents", "drive_file_id", "VARCHAR(100) DEFAULT ''"),
+    ("documents", "company_id", "INTEGER"),
+    ("documents", "task_id", "INTEGER"),
+    ("documents", "idea_id", "INTEGER"),
+    ("resources", "drive_file_id", "VARCHAR(100) DEFAULT ''"),
+    ("calendar_events", "gcal_event_id", "VARCHAR(200)"),
 ]
 
 
@@ -52,6 +68,13 @@ def _auto_migrate_pg():
     """Add missing columns and fix sequences in PostgreSQL (safe, idempotent)."""
     from sqlalchemy import text
     import re
+    # Fix FK constraints (ON DELETE CASCADE/SET NULL) so deletes propagate
+    # — root cause of the "deleted item comes back" bug.
+    try:
+        from services.sync import migrate_pg_fk_ondelete
+        migrate_pg_fk_ondelete(db.engine)
+    except Exception as e:
+        log.warning(f"FK migration skipped: {e}")
 
     # Whitelist pattern: only allow safe identifier characters
     _ident_re = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
@@ -111,6 +134,22 @@ def create_app():
     )
     app.config.from_object(Config)
     app.config["APP_VERSION"] = APP_VERSION
+
+    # Compresión gzip de respuestas (HTML/JS/CSS/JSON) — reduce el tráfico ~70%
+    try:
+        from flask_compress import Compress
+        app.config.setdefault("COMPRESS_MIMETYPES", [
+            "text/html", "text/css", "text/xml",
+            "application/json", "application/javascript",
+            "application/xml", "image/svg+xml",
+        ])
+        app.config.setdefault("COMPRESS_LEVEL", 6)
+        app.config.setdefault("COMPRESS_MIN_SIZE", 500)
+        Compress(app)
+        log.info("Flask-Compress activo (gzip)")
+    except ImportError:
+        log.warning("Flask-Compress no instalado — pip install flask-compress")
+
     db.init_app(app)
 
     with app.app_context():

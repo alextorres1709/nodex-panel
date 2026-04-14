@@ -104,3 +104,91 @@ def index():
 @login_required
 def api_summary():
     return jsonify(generate_financial_summary())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Asistente conversacional con contexto del panel
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _build_panel_context():
+    """Resumen denso del estado del panel para alimentar respuestas."""
+    today = date.today()
+    proj_active = Project.query.filter_by(status="activo").all()
+    overdue = Task.query.filter(
+        Task.due_date < today,
+        Task.status.in_(["pendiente", "en_progreso"]),
+    ).all()
+    pending = Task.query.filter(Task.status.in_(["pendiente", "en_progreso"])).count()
+    inv_pending = Invoice.query.filter(Invoice.status.in_(["enviada", "vencida"])).all()
+    leads = Client.query.filter_by(pipeline_stage="lead").count()
+
+    return {
+        "fecha": today.isoformat(),
+        "proyectos_activos": [{"id": p.id, "nombre": p.name, "progreso": p.progress or 0,
+                               "deadline": p.deadline.isoformat() if p.deadline else None} for p in proj_active],
+        "tareas_pendientes_total": pending,
+        "tareas_atrasadas": [{"id": t.id, "titulo": t.title, "vence": t.due_date.isoformat()} for t in overdue[:10]],
+        "facturas_pendientes": [{"id": i.id, "numero": i.number, "total": i.total} for i in inv_pending[:10]],
+        "leads": leads,
+    }
+
+
+def _local_answer(question, ctx):
+    """Respuesta heurística (sin red) usando palabras clave sobre el contexto."""
+    q = (question or "").lower().strip()
+    if not q:
+        return "Hazme una pregunta sobre el panel — por ejemplo: \"¿qué tareas vencen esta semana?\""
+
+    if any(w in q for w in ["atrasad", "vencid", "tarde"]):
+        if not ctx["tareas_atrasadas"]:
+            return "No tienes tareas atrasadas ahora mismo. 👌"
+        lines = ["Tareas atrasadas:"]
+        for t in ctx["tareas_atrasadas"]:
+            lines.append(f"• {t['titulo']} (venció {t['vence']})")
+        return "\n".join(lines)
+
+    if any(w in q for w in ["proyecto", "deadline", "entrega"]):
+        if not ctx["proyectos_activos"]:
+            return "No hay proyectos activos."
+        lines = ["Proyectos activos:"]
+        for p in ctx["proyectos_activos"]:
+            dl = f" · deadline {p['deadline']}" if p["deadline"] else ""
+            lines.append(f"• {p['nombre']} — {p['progreso']}%{dl}")
+        return "\n".join(lines)
+
+    if any(w in q for w in ["factura", "cobr", "pendiente de cobro"]):
+        if not ctx["facturas_pendientes"]:
+            return "No hay facturas pendientes de cobro."
+        total = sum(i["total"] or 0 for i in ctx["facturas_pendientes"])
+        lines = [f"Facturas pendientes (total {total:.0f}€):"]
+        for i in ctx["facturas_pendientes"]:
+            lines.append(f"• {i['numero']} — {i['total']:.0f}€")
+        return "\n".join(lines)
+
+    if any(w in q for w in ["lead", "captacion", "captación", "pipeline"]):
+        return f"Tienes {ctx['leads']} lead(s) en pipeline."
+
+    if any(w in q for w in ["resumen", "como va", "cómo va", "estado"]):
+        s = generate_financial_summary()
+        lines = [f"Resumen financiero del mes:",
+                 f"• Ingresos: {s['income']:.0f}€",
+                 f"• Gastos: {s['expense']:.0f}€",
+                 f"• Neto: {s['net']:.0f}€",
+                 f"• Tareas pendientes: {s['pending_tasks']} ({s['overdue_tasks']} atrasadas)"]
+        return "\n".join(lines)
+
+    return ("No tengo una respuesta directa, pero el contexto actual es: "
+            f"{ctx['tareas_pendientes_total']} tareas pendientes, "
+            f"{len(ctx['proyectos_activos'])} proyectos activos, "
+            f"{ctx['leads']} leads, "
+            f"{len(ctx['facturas_pendientes'])} facturas por cobrar.")
+
+
+@ai_bp.route("/api/ai/ask", methods=["POST"])
+@login_required
+def api_ask():
+    data = request.get_json(force=True) or {}
+    question = (data.get("question") or "").strip()
+    ctx = _build_panel_context()
+    answer = _local_answer(question, ctx)
+    return jsonify({"answer": answer, "context": ctx})

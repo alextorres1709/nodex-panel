@@ -170,6 +170,11 @@
                         </button>
                     </form>
                     {% endif %}
+                    <form method="POST" action="{{ url_for('tasks.duplicate', tid=t.id) }}" style="display:inline">
+                        <button type="submit" class="btn btn-sm btn-secondary" title="Duplicar">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        </button>
+                    </form>
                     <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline" onsubmit="return confirm('Eliminar?')">
                         <button type="submit" class="btn btn-sm btn-danger">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -253,6 +258,9 @@
         <div class="task-list-actions">
             <button class="btn btn-sm btn-secondary"
                 onclick="editTask({{ t.id }}, '{{ t.title|e }}', `{{ t.description|e }}`, [{% for u in t.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], '{{ t.priority }}', '{{ t.status }}', '{{ t.safe_due_date or '' }}', '{{ t.project_id or '' }}', '{{ t.estimated_minutes or '' }}', '{{ t.recurrence or 'ninguna' }}', '{{ t.reminder_minutes or 0 }}')">Editar</button>
+            <form method="POST" action="{{ url_for('tasks.duplicate', tid=t.id) }}" style="display:inline">
+                <button type="submit" class="btn btn-sm btn-secondary" title="Duplicar">⧉</button>
+            </form>
             <form method="POST" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline"
                 onsubmit="return confirm('Eliminar?')">
                 <button type="submit" class="btn btn-sm btn-danger">
@@ -379,6 +387,27 @@
                     </select>
                     <span style="font-size:11px;color:var(--text-tertiary)">Notificacion del sistema cada intervalo hasta completar</span>
                 </div>
+
+                <!-- Comentarios + menciones -->
+                <div class="comments-section" id="commentsSection" style="display:none">
+                    <h4 style="margin:14px 0 8px;font-size:13px;color:var(--text-secondary)">Comentarios</h4>
+                    <div class="comments-list" id="commentsList"></div>
+                    <div class="comment-compose" style="display:flex;gap:6px;margin-top:8px">
+                        <input type="text" id="commentInput" placeholder="Escribe un comentario… usa @nombre para mencionar"
+                               style="flex:1;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="sendComment()">Enviar</button>
+                    </div>
+                </div>
+
+                <!-- Adjuntos -->
+                <div class="attachments-section" id="attachmentsSection" style="display:none">
+                    <h4 style="margin:14px 0 8px;font-size:13px;color:var(--text-secondary)">Adjuntos</h4>
+                    <div class="attachments-list" id="attachmentsList"></div>
+                    <div style="display:flex;gap:6px;margin-top:8px">
+                        <input type="file" id="attachmentInput" style="flex:1;font-size:12px;color:var(--text-secondary)">
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="uploadAttachment()">Subir</button>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary"
                     onclick="closeModal('editModal')">Cancelar</button><button type="submit"
@@ -392,7 +421,10 @@
 <script>
     var today = new Date().toISOString().split('T')[0];
 
+    var _currentTaskId = null;
+
     function editTask(id, title, description, assignedIds, priority, status, due_date, project_id, estimated_minutes, recurrence, reminder_minutes) {
+        _currentTaskId = id;
         document.getElementById('editForm').action = '/tareas/edit/' + id;
         var f = document.getElementById('editForm');
         f.querySelector('[name=title]').value = title;
@@ -408,7 +440,127 @@
         Array.from(sel.options).forEach(function(opt) {
             opt.selected = assignedIds.indexOf(parseInt(opt.value)) !== -1;
         });
+        loadComments(id);
+        loadAttachments(id);
         openModal('editModal');
+    }
+
+    function loadAttachments(taskId) {
+        var sec = document.getElementById('attachmentsSection');
+        var list = document.getElementById('attachmentsList');
+        if (!sec || !list) return;
+        sec.style.display = '';
+        list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary)">Cargando…</div>';
+        fetch('/api/attachments/task/' + taskId)
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (!d.docs || !d.docs.length) {
+                    list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary)">Sin adjuntos.</div>';
+                    return;
+                }
+                list.innerHTML = d.docs.map(function(doc) {
+                    var kb = doc.size ? Math.round(doc.size / 1024) + ' KB' : '';
+                    return '<div class="attachment-row">'
+                         + '<a href="/documentos/' + doc.id + '/preview" target="_blank">' + doc.name + '</a>'
+                         + '<span style="color:var(--text-tertiary);font-size:11px;margin-left:6px">' + kb + '</span>'
+                         + '</div>';
+                }).join('');
+            });
+    }
+
+    function uploadAttachment() {
+        if (!_currentTaskId) return;
+        var input = document.getElementById('attachmentInput');
+        if (!input.files || !input.files.length) return;
+        var fd = new FormData();
+        fd.append('file', input.files[0]);
+        fd.append('task_id', _currentTaskId);
+        fd.append('category', 'tarea');
+        fetch('/documentos/upload', {
+            method: 'POST',
+            body: fd,
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d.ok) {
+                input.value = '';
+                loadAttachments(_currentTaskId);
+                if (window.toast) window.toast('Adjunto subido', 'success');
+            }
+        });
+    }
+
+    function loadComments(taskId) {
+        var sec = document.getElementById('commentsSection');
+        var list = document.getElementById('commentsList');
+        if (!sec || !list) return;
+        sec.style.display = '';
+        list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary)">Cargando…</div>';
+        fetch('/api/tasks/' + taskId + '/comments')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (!d.comments || !d.comments.length) {
+                    list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary)">Sin comentarios todavía.</div>';
+                    return;
+                }
+                list.innerHTML = d.comments.map(function(c) {
+                    var when = c.created_at ? new Date(c.created_at).toLocaleString() : '';
+                    var html = (c.content || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                        .replace(/@([a-zA-Z0-9_\-]+)/g, '<span class="comment-mention">@$1</span>');
+                    return '<div class="comment-item">'
+                         + '<div class="comment-meta"><strong>' + (c.author || '—') + '</strong>'
+                         + '<span style="color:var(--text-tertiary)"> · ' + when + '</span>'
+                         + ' <button type="button" class="comment-delete" data-id="' + c.id + '" title="Borrar">&times;</button>'
+                         + '</div>'
+                         + '<div class="comment-body">' + html + '</div>'
+                         + '</div>';
+                }).join('');
+                Array.from(list.querySelectorAll('.comment-delete')).forEach(function(btn) {
+                    btn.addEventListener('click', function() { deleteComment(btn.dataset.id); });
+                });
+            })
+            .catch(function() {
+                list.innerHTML = '<div style="font-size:12px;color:var(--danger)">Error cargando comentarios.</div>';
+            });
+    }
+
+    function sendComment() {
+        if (!_currentTaskId) return;
+        var input = document.getElementById('commentInput');
+        var content = (input.value || '').trim();
+        if (!content) return;
+        fetch('/api/tasks/' + _currentTaskId + '/comments', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({content: content}),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d.ok) {
+                input.value = '';
+                loadComments(_currentTaskId);
+                if (window.toast) window.toast('Comentario añadido', 'success');
+            } else {
+                if (window.toast) window.toast('Error: ' + (d.error || 'no se pudo enviar'), 'error');
+            }
+        });
+    }
+
+    function deleteComment(id) {
+        if (!_currentTaskId) return;
+        var doIt = function() {
+            fetch('/api/tasks/' + _currentTaskId + '/comments/' + id, {method: 'DELETE'})
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    if (d.ok) loadComments(_currentTaskId);
+                });
+        };
+        if (window.nxConfirm) {
+            window.nxConfirm('¿Borrar este comentario?').then(function(ok) { if (ok) doIt(); });
+        } else if (confirm('¿Borrar este comentario?')) {
+            doIt();
+        }
     }
 
     function addSubtaskField() {

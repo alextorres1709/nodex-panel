@@ -4589,3 +4589,324 @@ a:hover {
     border-radius: var(--radius-md);
 }
 
+/* ═══════════════════════════════════════
+   v2.1 NEW UI HELPERS
+   ═══════════════════════════════════════ */
+
+/* ── Sticky table headers ── */
+.data-table thead th,
+.table-list thead th,
+table.sticky-header thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-card);
+    z-index: 5;
+    box-shadow: 0 1px 0 var(--border-color);
+}
+
+/* ── Skeleton loaders ── */
+.skeleton {
+    background: linear-gradient(90deg,
+        var(--bg-tertiary) 0%,
+        var(--bg-card-hover) 50%,
+        var(--bg-tertiary) 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s infinite;
+    border-radius: 6px;
+    color: transparent;
+    user-select: none;
+    pointer-events: none;
+}
+.skeleton-line { height: 14px; margin: 6px 0; }
+.skeleton-line.lg { height: 22px; }
+.skeleton-block { height: 60px; width: 100%; }
+@keyframes skeleton-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ── Sync status indicator (header) ── */
+.sync-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    cursor: default;
+    user-select: none;
+    transition: all .2s;
+    min-width: 88px;
+    white-space: nowrap;
+    justify-content: center;
+}
+.sync-indicator .sync-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text-tertiary);
+    transition: background .2s;
+}
+.sync-indicator.idle    .sync-dot { background: #22c55e; }
+.sync-indicator.syncing .sync-dot { background: #f59e0b; animation: sync-pulse 1.2s infinite; }
+.sync-indicator.error   .sync-dot { background: #ef4444; }
+.sync-indicator.idle    { color: #22c55e; }
+.sync-indicator.syncing { color: #f59e0b; }
+.sync-indicator.error   { color: #ef4444; }
+@keyframes sync-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .5; transform: scale(.85); }
+}
+
+/* ── Toast container (corner stack) ── */
+#toastContainer {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+    max-width: 360px;
+}
+.toast {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--brand-primary);
+    border-radius: 10px;
+    padding: 12px 16px;
+    box-shadow: var(--shadow-lg);
+    color: var(--text-primary);
+    font-size: 13px;
+    pointer-events: auto;
+    animation: toast-slide-in .25s ease-out;
+    max-width: 360px;
+}
+.toast.success { border-left-color: #22c55e; }
+.toast.error   { border-left-color: #ef4444; }
+.toast.warning { border-left-color: #f59e0b; }
+.toast.info    { border-left-color: #3b82f6; }
+.toast.fade-out { animation: toast-slide-out .3s ease-in forwards; }
+@keyframes toast-slide-in {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes toast-slide-out {
+    to { opacity: 0; transform: translateX(20px); }
+}
+
+/* ── Confirm modal ── */
+#confirmOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    z-index: 10002;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+#confirmOverlay.active { display: flex; }
+#confirmOverlay .confirm-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 22px 24px;
+    max-width: 380px;
+    box-shadow: var(--shadow-lg);
+    animation: toast-slide-in .2s ease-out;
+}
+#confirmOverlay h4 {
+    margin: 0 0 10px;
+    font-size: 16px;
+    color: var(--text-primary);
+}
+#confirmOverlay p {
+    margin: 0 0 18px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+#confirmOverlay .confirm-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* ── Webhook TODO badge ── */
+.todo-section {
+    background: linear-gradient(135deg, rgba(124,58,237,.05), rgba(124,58,237,.02));
+    border: 1px dashed rgba(124,58,237,.4);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-top: 20px;
+}
+.todo-section h3 {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--brand-primary);
+    margin: 0 0 6px;
+    font-size: 14px;
+}
+.todo-section p {
+    margin: 0 0 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+.todo-section .todo-tag {
+    display: inline-block;
+    background: var(--brand-primary);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
+/* ── Comments thread ── */
+.comments-section { margin-top: 20px; }
+.comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.comment-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+}
+.comment-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--brand-primary);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
+}
+.comment-body { flex: 1; min-width: 0; }
+.comment-head {
+    display: flex; align-items: baseline; gap: 8px;
+    margin-bottom: 4px;
+}
+.comment-author {
+    font-size: 12px; font-weight: 600;
+    color: var(--text-primary);
+}
+.comment-time {
+    font-size: 10px; color: var(--text-tertiary);
+}
+.comment-content {
+    font-size: 13px; color: var(--text-secondary);
+    line-height: 1.5;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+.comment-mention {
+    background: rgba(124,58,237,.15);
+    color: var(--brand-primary);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+.comment-form { display: flex; gap: 8px; margin-top: 12px; }
+.comment-form textarea {
+    flex: 1;
+    min-height: 44px;
+    resize: vertical;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 13px;
+}
+
+/* ── Attachments list (compact) ── */
+.attachments-list {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-top: 8px;
+}
+.attachment-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 12px;
+}
+.attachment-row a {
+    color: var(--text-primary);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.attachment-row .attachment-size {
+    color: var(--text-tertiary);
+    font-size: 10px;
+}
+
+/* ── Doc preview iframe modal ── */
+.doc-preview-modal {
+    background: var(--bg-card);
+    border-radius: 12px;
+    width: 90vw; height: 88vh;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.doc-preview-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border-color);
+}
+.doc-preview-head .doc-preview-title {
+    font-size: 13px; font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+.doc-preview-iframe-wrap {
+    flex: 1;
+    overflow: hidden;
+    background: #1a1a1a;
+}
+.doc-preview-iframe-wrap iframe {
+    width: 100%; height: 100%; border: none;
+}
+.doc-preview-fallback {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+/* ── OKR progress chart container ── */
+.okr-chart-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 12px;
+}
+.okr-chart-card canvas { max-height: 220px; }
+

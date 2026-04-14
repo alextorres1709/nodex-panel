@@ -156,10 +156,117 @@ def delete(iid):
     return redirect(url_for("invoices.index"))
 
 
+def _build_invoice_pdf(inv, items, company):
+    """Construye una factura PDF con reportlab y devuelve los bytes."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import (
+        SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    )
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=18 * mm, rightMargin=18 * mm,
+                            topMargin=18 * mm, bottomMargin=18 * mm)
+    styles = getSampleStyleSheet()
+    h1 = ParagraphStyle("h1", parent=styles["Heading1"], fontSize=20, spaceAfter=4)
+    small = ParagraphStyle("small", parent=styles["Normal"], fontSize=9, textColor=colors.grey)
+    body = styles["Normal"]
+
+    story = []
+
+    # Cabecera
+    company_name = (company.name if company else "NodexAI")
+    company_email = (company.email if company else "")
+    company_web = (company.website if company else "")
+    story.append(Paragraph(company_name, h1))
+    if company_email or company_web:
+        story.append(Paragraph(f"{company_email} · {company_web}", small))
+    story.append(Spacer(1, 8))
+
+    # Bloque factura/cliente
+    invoice_meta = [
+        ["Factura", inv.number or "—"],
+        ["Fecha", inv.invoice_date.isoformat() if inv.invoice_date else "—"],
+        ["Estado", (inv.status or "").capitalize()],
+    ]
+    client_meta = [
+        ["Cliente", inv.client_name or "—"],
+        ["Email", getattr(inv, "client_email", "") or ""],
+    ]
+    head_table = Table([
+        [Table(invoice_meta, colWidths=[28 * mm, 50 * mm]),
+         Table(client_meta, colWidths=[22 * mm, 60 * mm])]
+    ], colWidths=[80 * mm, 90 * mm])
+    head_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    story.append(head_table)
+    story.append(Spacer(1, 14))
+
+    # Tabla de líneas
+    rows = [["Concepto", "Cant.", "Precio", "Total"]]
+    for it in items:
+        qty = float(it.get("quantity", 1) or 1)
+        price = float(it.get("price", 0) or 0)
+        total_line = qty * price
+        rows.append([
+            it.get("description", ""),
+            f"{qty:g}",
+            f"{price:.2f} €",
+            f"{total_line:.2f} €",
+        ])
+    items_table = Table(rows, colWidths=[95 * mm, 20 * mm, 25 * mm, 30 * mm])
+    items_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f2937")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f3f4f6")]),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.black),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+        ("TOPPADDING", (0, 0), (-1, 0), 6),
+    ]))
+    story.append(items_table)
+    story.append(Spacer(1, 12))
+
+    # Totales
+    subtotal = sum(float(it.get("quantity", 1) or 1) * float(it.get("price", 0) or 0) for it in items)
+    tax_rate = float(getattr(inv, "tax_rate", 0) or 0)
+    tax = subtotal * tax_rate / 100.0
+    total = subtotal + tax
+    totals = [
+        ["Subtotal", f"{subtotal:.2f} €"],
+        [f"IVA ({tax_rate:g}%)", f"{tax:.2f} €"],
+        ["TOTAL", f"{total:.2f} €"],
+    ]
+    totals_table = Table(totals, colWidths=[40 * mm, 30 * mm], hAlign="RIGHT")
+    totals_table.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("LINEABOVE", (0, -1), (-1, -1), 1, colors.black),
+        ("TOPPADDING", (0, -1), (-1, -1), 6),
+    ]))
+    story.append(totals_table)
+
+    if inv.notes:
+        story.append(Spacer(1, 18))
+        story.append(Paragraph("<b>Notas</b>", body))
+        story.append(Paragraph(inv.notes.replace("\n", "<br/>"), small))
+
+    doc.build(story)
+    return buf.getvalue()
+
+
 @invoices_bp.route("/facturas/<int:iid>/pdf")
 @login_required
 def download_pdf(iid):
-    """Generate PDF invoice using HTML rendering."""
+    """Genera y descarga la factura como PDF (reportlab).
+    Si reportlab no está instalado, cae al template HTML como fallback."""
     inv = db.session.get(Invoice, iid)
     if not inv:
         flash("Factura no encontrada", "error")
@@ -168,12 +275,19 @@ def download_pdf(iid):
     items = json.loads(inv.items) if inv.items else []
     company = CompanyInfo.query.first()
 
-    html = render_template("factura_pdf.html", invoice=inv, items=items, company=company)
-
-    response = make_response(html)
-    response.headers["Content-Type"] = "text/html; charset=utf-8"
-    response.headers["Content-Disposition"] = f"inline; filename=factura_{inv.number}.html"
-    return response
+    try:
+        pdf_bytes = _build_invoice_pdf(inv, items, company)
+        response = make_response(pdf_bytes)
+        response.headers["Content-Type"] = "application/pdf"
+        response.headers["Content-Disposition"] = f'inline; filename="factura_{inv.number}.pdf"'
+        return response
+    except ImportError:
+        # Fallback: HTML si reportlab no está disponible
+        html = render_template("factura_pdf.html", invoice=inv, items=items, company=company)
+        response = make_response(html)
+        response.headers["Content-Type"] = "text/html; charset=utf-8"
+        response.headers["Content-Disposition"] = f"inline; filename=factura_{inv.number}.html"
+        return response
 
 
 @invoices_bp.route("/facturas/<int:iid>/view")

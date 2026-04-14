@@ -136,6 +136,89 @@
     </div>
 </div>
 
+<!-- ═══ Action Items: tareas atrasadas + cobros pendientes ═══ -->
+{% if overdue_task_list or top_pending_invoices %}
+<div class="two-col-grid" style="margin-bottom:20px">
+    {% if overdue_task_list %}
+    <div class="info-card" style="padding:16px 20px;border-left:3px solid var(--danger)">
+        <h3 style="margin:0 0 12px;font-size:13px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Tareas atrasadas ({{ overdue_tasks }})
+        </h3>
+        {% for t in overdue_task_list %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-color);font-size:13px">
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.title }}</div>
+                <div style="font-size:11px;color:var(--text-tertiary)">
+                    {% if t.project %}{{ t.project.name }} · {% endif %}
+                    Venció {{ t.due_date.strftime('%d/%m') }}
+                    {% set days_late = (today - t.due_date).days %}
+                    <span style="color:var(--danger);font-weight:600">· {{ days_late }}d tarde</span>
+                </div>
+            </div>
+            <a href="{{ url_for('tasks.index') }}" class="btn btn-sm btn-secondary" style="margin-left:8px">Ver</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if top_pending_invoices %}
+    <div class="info-card" style="padding:16px 20px;border-left:3px solid var(--warning, #f59e0b)">
+        <h3 style="margin:0 0 12px;font-size:13px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em;display:flex;justify-content:space-between;align-items:center">
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Cobros pendientes</span>
+            <span style="font-weight:700;color:var(--text-primary);font-size:13px">{{ "%.0f"|format(pending_invoices_total) }}&euro;</span>
+        </h3>
+        {% for i in top_pending_invoices %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-color);font-size:13px">
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:600;color:var(--text-primary)">{{ i.number or 'Sin nº' }}</div>
+                <div style="font-size:11px;color:var(--text-tertiary)">
+                    {{ i.client.name if i.client else 'Sin cliente' }}
+                    {% if i.due_date %} · Vence {{ i.due_date.strftime('%d/%m') }}{% endif %}
+                </div>
+            </div>
+            <span style="font-weight:700;color:var(--text-primary)">{{ "%.0f"|format(i.total) }}&euro;</span>
+        </div>
+        {% endfor %}
+        <div style="margin-top:8px;text-align:right">
+            <a href="{{ url_for('invoices.index') }}" class="btn btn-sm btn-secondary">Ver todas</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ═══ Income vs Expenses 6-month trend ═══ -->
+<div class="info-card" style="padding:16px 20px;margin-bottom:20px">
+    <h3 style="margin:0 0 12px;font-size:13px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        Ingresos vs Gastos (últimos 6 meses)
+    </h3>
+    <div style="height:200px"><canvas id="trendChart"></canvas></div>
+</div>
+
+<!-- ═══ Mis objetivos ═══ -->
+{% if my_objectives %}
+<div class="info-card" style="padding:16px 20px;margin-bottom:20px">
+    <h3 style="margin:0 0 12px;font-size:13px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em;display:flex;justify-content:space-between;align-items:center">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Mis OKRs activos</span>
+        <a href="{{ url_for('objetivos.index') }}" style="font-size:11px;color:var(--accent);text-decoration:none">Ver todos →</a>
+    </h3>
+    {% for o in my_objectives %}
+    <div style="padding:10px 0;border-bottom:1px solid var(--border-color)">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:6px">
+            <span style="font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">{{ o.title }}</span>
+            <span style="font-size:11px;font-weight:700;margin-left:8px">{{ o.progress or 0 }}%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:{{ o.progress or 0 }}%"></div></div>
+        {% if o.target_date %}
+        <div style="font-size:10px;color:var(--text-tertiary);margin-top:4px">Deadline: {{ o.target_date.strftime('%d/%m/%Y') }}</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 <!-- Equipo en linea -->
 <div class="presence-card info-card" id="presenceCard" style="margin-bottom:20px;padding:16px 20px">
     <h3 style="margin:0 0 12px;font-size:13px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em">
@@ -329,6 +412,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 {% if cost_labels %}
 <script>
     var costLabels = {{ cost_labels|tojson }};
@@ -337,6 +421,53 @@
     rebuildCharts();
 </script>
 {% endif %}
+<script>
+// 6-month income vs expense trend
+(function() {
+    var monthLabels = {{ month_labels|tojson }};
+    var income6m   = {{ income_6m|tojson }};
+    var expense6m  = {{ expense_6m|tojson }};
+    var canvas = document.getElementById('trendChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: monthLabels,
+            datasets: [
+                {
+                    label: 'Ingresos',
+                    data: income6m,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34,197,94,0.12)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                },
+                {
+                    label: 'Gastos',
+                    data: expense6m,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245,158,11,0.10)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+            scales: {
+                y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                x: { ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+})();
+</script>
 <script>
 // ═══ COMPLETE TASK from dashboard ═══
 function completeTask(taskId, btn) {

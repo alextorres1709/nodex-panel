@@ -11,6 +11,7 @@ import time
 import queue
 import logging
 import threading
+from datetime import datetime, timezone
 
 import sqlalchemy as sa
 
@@ -29,6 +30,7 @@ SYNC_TABLES = [
     "incomes",
     "tasks",
     "task_assignments",
+    "task_comments",
     "subtasks",
     "ideas",
     "credentials",
@@ -45,6 +47,9 @@ SYNC_TABLES = [
     "calendar_events",
     "push_tokens",
     "objectives",
+    "objective_snapshots",
+    "project_templates",
+    "project_template_tasks",
 ]
 
 SYNC_INTERVAL = 3  # seconds
@@ -78,9 +83,22 @@ class SyncManager:
         # Frontend polls this to detect changes and refresh UI
         self.sync_version = 0
 
+        # Sync status (for /api/sync/status endpoint + header indicator)
+        self.last_sync_at = None  # datetime of last successful sync
+        self.last_error = None    # last error string
+        self.is_syncing = False   # True while pull/push is running
+
         # Track known remote IDs per table (for detecting remote deletions)
         # None = first pull (no prior knowledge), set() = known IDs from last pull
         self._known_remote_ids = {}
+
+        # IDs that were just push-deleted to remote, kept for one pull cycle
+        # so the next merge phase skips them. Without this, a pull that
+        # entered Phase 1 (network fetch, no lock) BEFORE the delete
+        # would re-insert the row from its stale snapshot in Phase 2.
+        # Maps table_name -> set of deleted ids.
+        self._recently_deleted = {}
+        self._recently_deleted_lock = threading.Lock()
 
     def ensure_remote_tables(self):
         """Create missing tables on remote PostgreSQL based on local SQLite schema."""
@@ -119,6 +137,9 @@ class SyncManager:
     def start(self):
         """Start the background sync thread."""
         self.ensure_remote_tables()
+        # NOTE: FK migration runs inside _loop() on the first iteration
+        # (not here) because it does 20+ ALTER TABLE round-trips against
+        # remote PG and would block app startup for ~1 minute otherwise.
         self._thread = threading.Thread(target=self._loop, daemon=True, name="sync")
         self._thread.start()
 
@@ -177,23 +198,50 @@ class SyncManager:
 
     def _loop(self):
         log.info("Sync thread started")
+        fk_migrated = False
         while not self._stop.is_set():
             try:
+                self.is_syncing = True
                 # Flush all pending pushes BEFORE pulling
                 # This ensures local changes reach remote before we sync back
                 self._flush_push_queue()
                 self._pull_from_remote()
+                self.last_sync_at = datetime.now(timezone.utc)
+                self.last_error = None
                 if not self._first_sync_done.is_set():
                     self._first_sync_done.set()
                     log.info("First sync complete")
+                # Run FK migration AFTER first sync so app startup isn't
+                # blocked waiting for ~20 remote ALTER TABLEs.
+                if not fk_migrated:
+                    try:
+                        migrate_pg_fk_ondelete(self.remote_engine)
+                    except Exception as e:
+                        log.warning(f"FK migration failed: {e}")
+                    fk_migrated = True
             except Exception as e:
                 log.warning(f"Sync error: {e}")
+                self.last_error = str(e)[:200]
                 if not self._first_sync_done.is_set():
                     self._first_sync_done.set()  # Don't block startup on failure
+            finally:
+                self.is_syncing = False
             self._stop.wait(SYNC_INTERVAL)
 
     def _pull_from_remote(self):
         """Pull data from remote PostgreSQL and MERGE into local SQLite.
+
+        Two-phase to keep the sync lock held only during the (fast) local
+        merge, not during the (slow, network-bound) remote fetch:
+
+        1. FETCH remote rows for every table WITHOUT holding the lock.
+           This is the slow part (1-2 s of network I/O for a full pull).
+        2. MERGE into local SQLite under the lock — purely local writes,
+           typically <100 ms.
+
+        Before the merge phase we re-flush the push queue, so any local
+        writes that happened during the fetch get pushed before we merge
+        the (possibly stale) remote snapshot back over them.
 
         Uses UPSERT (insert-or-update) instead of destructive DELETE ALL + INSERT.
         - Remote rows are inserted or updated locally.
@@ -201,30 +249,38 @@ class SyncManager:
         - Remote deletions are detected by comparing with previously known remote IDs.
         - First pull for each table is aggressive (cleans up stale local data).
         """
+        # Refresh metadata snapshot (no lock needed — read-only reflection)
+        local_meta, remote_meta = self._get_metadata(force_refresh=True)
+
+        # ── PHASE 1: Fetch all remote tables WITHOUT holding the lock ──
+        fetched = {}
+        for table_name in SYNC_TABLES:
+            if table_name not in remote_meta.tables:
+                continue
+            remote_table = remote_meta.tables[table_name]
+            try:
+                with self.remote_engine.connect() as rconn:
+                    rows = rconn.execute(sa.select(remote_table)).fetchall()
+                    columns = list(remote_table.columns.keys())
+                fetched[table_name] = (rows, columns)
+            except Exception as e:
+                log.warning(f"Failed to read remote table {table_name}: {e}")
+                continue
+
+        # ── PHASE 2: Merge into local SQLite WITH the lock held briefly ──
         any_changed = False
         with self._lock:
-            local_meta, remote_meta = self._get_metadata(force_refresh=True)
+            # Drain any pushes that landed during phase 1 BEFORE we merge,
+            # otherwise the merge would overwrite local writes with stale
+            # remote snapshot data.
+            self._flush_push_queue()
 
-            for table_name in SYNC_TABLES:
-                if table_name not in remote_meta.tables:
-                    continue
-
-                remote_table = remote_meta.tables[table_name]
+            for table_name, (rows, columns) in fetched.items():
                 local_table = local_meta.tables.get(table_name)
                 if local_table is None:
                     continue
-
                 local_col_names = [c.name for c in local_table.columns]
                 has_id = "id" in local_col_names
-
-                # Read all rows from remote
-                try:
-                    with self.remote_engine.connect() as rconn:
-                        rows = rconn.execute(sa.select(remote_table)).fetchall()
-                        columns = list(remote_table.columns.keys())
-                except Exception as e:
-                    log.warning(f"Failed to read remote table {table_name}: {e}")
-                    continue
 
                 try:
                     with self.local_engine.begin() as lconn:
@@ -267,6 +323,13 @@ class SyncManager:
         Returns True if any rows were inserted, updated, or deleted.
         """
         changed = False
+
+        # Snapshot of rows that were push-deleted since the last merge.
+        # We pop them so they only suppress this one merge cycle — by the
+        # next pull the remote fetch will reflect the deletion naturally.
+        with self._recently_deleted_lock:
+            skip_ids = self._recently_deleted.pop(table_name, set())
+
         # Get existing local rows with their IDs and timestamps
         local_ids = set()
         local_timestamps = {}
@@ -301,6 +364,14 @@ class SyncManager:
 
             row_id = values.get("id")
             if row_id is not None:
+                if row_id in skip_ids:
+                    # We just push-deleted this row to remote, but the
+                    # Phase-1 fetch happened before the delete landed and
+                    # so still includes it. Skip it entirely so we don't
+                    # re-insert it locally and don't add it to remote_ids
+                    # (which would otherwise survive into the next pull
+                    # cycle and trigger a spurious "remote delete").
+                    continue
                 remote_ids.add(row_id)
 
             if row_id in local_ids:
@@ -345,42 +416,99 @@ class SyncManager:
         return changed
 
     def push_to_remote(self, table_name, row_id):
-        """Push a single row from local to remote (called after local writes)."""
-        with self._lock:
-            try:
-                local_meta, remote_meta = self._get_metadata()
+        """Push a single row from local to remote (called after local writes).
 
-                local_table = local_meta.tables.get(table_name)
-                remote_table = remote_meta.tables.get(table_name)
-                if local_table is None or remote_table is None:
-                    log.warning(f"Push skipped — table '{table_name}' not found locally or remotely")
-                    return
+        Optimized to minimize round-trips:
+        - Reads local row outside the sync lock.
+        - For deletes: 1 statement (DELETE WHERE id=?).
+        - For upserts: 1 statement on PostgreSQL (INSERT … ON CONFLICT … DO UPDATE),
+          falling back to SELECT-then-decide for other backends.
+        """
+        try:
+            local_meta, remote_meta = self._get_metadata()
+            local_table = local_meta.tables.get(table_name)
+            remote_table = remote_meta.tables.get(table_name)
+            if local_table is None or remote_table is None:
+                log.warning(f"Push skipped — table '{table_name}' not found locally or remotely")
+                return
 
-                # Read the row from local
-                with self.local_engine.connect() as lconn:
-                    row = lconn.execute(
-                        sa.select(local_table).where(local_table.c.id == row_id)
-                    ).fetchone()
+            # Read the row from local (no sync lock needed — local SQLite is fast)
+            with self.local_engine.connect() as lconn:
+                row = lconn.execute(
+                    sa.select(local_table).where(local_table.c.id == row_id)
+                ).fetchone()
 
-                if row is None:
-                    # Row was deleted locally — delete from remote too
+            if row is None:
+                # Row was deleted locally — delete from remote in one statement.
+                # Mark as recently deleted *before* the SQL so even if the
+                # remote DELETE fails, the next merge still skips re-inserting
+                # it.
+                with self._recently_deleted_lock:
+                    self._recently_deleted.setdefault(table_name, set()).add(row_id)
+
+                def _do_remote_delete():
                     with self.remote_engine.begin() as rconn:
                         rconn.execute(
                             sa.delete(remote_table).where(remote_table.c.id == row_id)
                         )
-                    # Update known remote IDs
-                    if table_name in self._known_remote_ids:
-                        self._known_remote_ids[table_name].discard(row_id)
-                    return
 
-                # Upsert into remote
-                columns = list(local_table.columns.keys())
-                values = {}
-                for col in columns:
-                    if col in remote_table.columns.keys():
-                        values[col] = getattr(row, col, None)
+                try:
+                    _do_remote_delete()
+                except Exception as del_err:
+                    # Most likely an FK constraint without ON DELETE CASCADE.
+                    # Run the FK migration on the spot and retry once. This
+                    # makes the FIRST delete succeed even if the background
+                    # FK migration hasn't finished yet.
+                    msg = str(del_err).lower()
+                    if "foreign key" in msg or "violates" in msg or "constraint" in msg:
+                        log.warning(
+                            f"Remote DELETE for {table_name} #{row_id} hit FK "
+                            f"violation — running FK migration and retrying"
+                        )
+                        try:
+                            migrate_pg_fk_ondelete(self.remote_engine)
+                        except Exception as mig_err:
+                            log.error(f"FK migration failed: {mig_err}")
+                        try:
+                            _do_remote_delete()
+                        except Exception as retry_err:
+                            log.error(
+                                f"Remote DELETE retry failed for {table_name} "
+                                f"#{row_id}: {retry_err}"
+                            )
+                            raise
+                    else:
+                        log.error(
+                            f"Remote DELETE failed for {table_name} #{row_id}: "
+                            f"{del_err}"
+                        )
+                        raise
+                if table_name in self._known_remote_ids:
+                    self._known_remote_ids[table_name].discard(row_id)
+                return
 
-                with self.remote_engine.begin() as rconn:
+            # Build values dict (columns present in both schemas)
+            remote_col_names = set(remote_table.columns.keys())
+            values = {}
+            for col in local_table.columns.keys():
+                if col in remote_col_names:
+                    values[col] = getattr(row, col, None)
+
+            # Single-statement UPSERT for PostgreSQL — saves a round-trip
+            with self.remote_engine.begin() as rconn:
+                if rconn.dialect.name == "postgresql":
+                    from sqlalchemy.dialects.postgresql import insert as pg_insert
+                    stmt = pg_insert(remote_table).values(**values)
+                    update_cols = {c: stmt.excluded[c] for c in values if c != "id"}
+                    if update_cols:
+                        stmt = stmt.on_conflict_do_update(
+                            index_elements=["id"], set_=update_cols
+                        )
+                    else:
+                        stmt = stmt.on_conflict_do_nothing(index_elements=["id"])
+                    rconn.execute(stmt)
+                else:
+                    # Fallback: SELECT-then-decide (used in HOSTED_MODE tests)
                     existing = rconn.execute(
                         sa.select(remote_table).where(remote_table.c.id == row_id)
                     ).fetchone()
@@ -393,13 +521,84 @@ class SyncManager:
                     else:
                         rconn.execute(sa.insert(remote_table).values(**values))
 
-                # Update known remote IDs so next pull doesn't treat this as "new"
-                if table_name not in self._known_remote_ids:
-                    self._known_remote_ids[table_name] = set()
-                self._known_remote_ids[table_name].add(row_id)
+            if table_name not in self._known_remote_ids:
+                self._known_remote_ids[table_name] = set()
+            self._known_remote_ids[table_name].add(row_id)
 
-            except Exception as e:
-                log.warning(f"Push to remote failed ({table_name} #{row_id}): {e}")
+        except Exception as e:
+            log.warning(f"Push to remote failed ({table_name} #{row_id}): {e}")
+
+
+def migrate_pg_fk_ondelete(engine):
+    """Alter all FK constraints on a PostgreSQL engine so deletes cascade.
+
+    For each FK constraint with ON DELETE NO ACTION / RESTRICT:
+    - If the local column is NOT NULL → ON DELETE CASCADE
+      (the child row is "owned" by the parent)
+    - If the local column is nullable → ON DELETE SET NULL
+      (the child row outlives the parent, just loses the link)
+
+    This is the root cause of the "deleted item comes back after a few
+    seconds" bug: SQLAlchemy ORM cascades children locally, but
+    push_to_remote only pushes the parent delete, so PostgreSQL refuses
+    it (FK violation from orphaned children) and the row stays in
+    remote — the next pull then re-inserts it locally.
+
+    Idempotent: skips constraints already configured with CASCADE/SET NULL.
+    """
+    if engine is None or engine.dialect.name != "postgresql":
+        return
+    try:
+        inspector = sa.inspect(engine)
+        with engine.connect() as conn:
+            for table_name in inspector.get_table_names():
+                try:
+                    cols = {c["name"]: c for c in inspector.get_columns(table_name)}
+                    fks = inspector.get_foreign_keys(table_name)
+                except Exception:
+                    continue
+                for fk in fks:
+                    constraint_name = fk.get("name")
+                    referred_table = fk.get("referred_table")
+                    local_cols = fk.get("constrained_columns") or []
+                    referred_cols = fk.get("referred_columns") or []
+                    if not (constraint_name and referred_table and local_cols and referred_cols):
+                        continue
+                    options = fk.get("options") or {}
+                    current_action = (options.get("ondelete") or "").upper()
+                    if current_action in ("CASCADE", "SET NULL"):
+                        continue
+                    nullable = cols.get(local_cols[0], {}).get("nullable", True)
+                    action = "SET NULL" if nullable else "CASCADE"
+                    cols_csv = ", ".join(f'"{c}"' for c in local_cols)
+                    refs_csv = ", ".join(f'"{c}"' for c in referred_cols)
+                    try:
+                        conn.execute(sa.text(
+                            f'ALTER TABLE "{table_name}" '
+                            f'DROP CONSTRAINT IF EXISTS "{constraint_name}"'
+                        ))
+                        conn.execute(sa.text(
+                            f'ALTER TABLE "{table_name}" '
+                            f'ADD CONSTRAINT "{constraint_name}" '
+                            f'FOREIGN KEY ({cols_csv}) '
+                            f'REFERENCES "{referred_table}" ({refs_csv}) '
+                            f'ON DELETE {action}'
+                        ))
+                        conn.commit()
+                        log.info(
+                            f"FK migration: {table_name}.{local_cols[0]} → "
+                            f"{referred_table} (ON DELETE {action})"
+                        )
+                    except Exception as e:
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+                        log.warning(
+                            f"FK migration failed for {table_name}.{constraint_name}: {e}"
+                        )
+    except Exception as e:
+        log.warning(f"FK migration scan failed: {e}")
 
 
 # Global sync manager instance (set in app.py)

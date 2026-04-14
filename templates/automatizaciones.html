@@ -50,6 +50,23 @@
 <div class="empty-state"><p>No hay automatizaciones configuradas</p></div>
 {% endif %}
 
+<!-- Webhooks (TODO — placeholder) -->
+<div class="todo-section">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span class="badge">PRÓXIMAMENTE</span>
+        <h3 style="margin:0;font-size:15px">Webhooks salientes</h3>
+    </div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">
+        Permitirá enviar eventos del panel (creación de tareas, cambios de estado, nuevas ideas, facturas pagadas…) a una URL externa, para integrarse con n8n, Zapier, Make o tus propios webhooks.
+    </p>
+    <ul style="font-size:12px;color:var(--text-tertiary);margin:0;padding-left:18px">
+        <li>Suscribir URLs por evento</li>
+        <li>Reintentos automáticos con backoff</li>
+        <li>Firma HMAC para verificar el origen</li>
+        <li>Log de últimas entregas (status, latencia)</li>
+    </ul>
+</div>
+
 <!-- Create Modal -->
 <div class="modal-overlay" id="createModal">
     <div class="modal">

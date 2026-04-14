@@ -1,5 +1,50 @@
 # Changelog
 
+## v4.5.2 — 2026-04-14
+*Implementado por Alex*
+- **Fix Google Calendar — error 500 al entrar en el calendario**: la tabla `google_oauth_tokens` no existía en la base de datos local (SQLite), causando un `OperationalError: no such table` al llamar a `gcal_svc.is_connected()`. El modelo `GoogleOAuthToken` estaba definido en `models.py` e importado en `app.py`, así que `db.create_all()` ahora la crea automáticamente en el arranque. La tabla ha sido creada en la instalación actual.
+
+## v4.5.1 — 2026-04-09
+*Implementado por Alex*
+- **Sync indicator arreglado**: el badge del header ya no se ve cortado (`min-width:88px`, `white-space:nowrap`) ni se queda en amarillo casi todo el rato. La lógica nueva muestra verde mientras el último sync exitoso sea de los últimos 15 s, aunque haya otro ciclo en curso — antes el polling cogía `is_syncing=True` constantemente porque el sync corre cada 3 s y el sondeo era cada 5 s.
+- **Fix 2FA invisible en webapp (HOSTED_MODE)**: la migración Postgres usaba `BOOLEAN DEFAULT 0` y PostgreSQL rechaza `0` como literal booleano, así que `users.totp_enabled` nunca se creaba en Railway y el bloque `{% if current_user.totp_enabled %}` no aparecía. Cambiado a `BOOLEAN DEFAULT FALSE` (compatible con SQLite y PG).
+- **Documentos · Banner Drive descartable**: el aviso "Google Drive conectado" en `/documentos` ahora tiene una X que lo oculta (persistente vía `localStorage`).
+- **Recursos conectados a Google Drive**: `/recursos` ahora sube/descarga/borra a través de Google Drive igual que `/documentos`, pero apuntando a una **carpeta separada** (`1nIZD4DtlscGvXL2Rd0got0e3YyD8oyUl`) para no mezclar logos/brand kit con contratos. Modelo `Resource` extendido con `drive_file_id`, fallback local intacto, banner de estado descartable y endpoint de preview añadido.
+- **Dashboard repensado**: nuevas tarjetas accionables.
+  - Bloque "Tareas atrasadas" con top 5 (proyecto, fecha de vencimiento, días tarde y CTA "Ver").
+  - Bloque "Cobros pendientes" con top 5 facturas impagadas/vencidas, total acumulado y enlace.
+  - Gráfica de línea "Ingresos vs Gastos (últimos 6 meses)" — se calculaba en backend pero nunca se renderizaba.
+  - Bloque "Mis OKRs activos" con barra de progreso por objetivo asignado al usuario.
+- **Asistente IA conversacional expuesto**: el endpoint `POST /api/ai/ask` (creado en v4.5.0 pero sin UI) ahora tiene un chat real en `/asistente` con burbujas, botones de pregunta rápida y respuestas tipo lenguaje natural sobre el contexto del panel (tareas atrasadas, proyectos, facturas, leads, resumen).
+
+## v4.5.0 — 2026-04-09
+*Implementado por Alex*
+- **Comentarios y menciones en tareas**: tabla `task_comments` nueva, sección de comentarios en el modal de tarea con `@usuario` parseado por regex, notificación automática al mencionado.
+- **Adjuntos por tarea e idea**: `documents.task_id` y `documents.idea_id` añadidos. El modal de tarea/idea muestra los archivos vinculados, sube vía XHR y los lista al instante. Endpoints `/api/attachments/task/<id>` y `/api/attachments/idea/<id>`.
+- **Plantillas de proyecto**: nueva página `/proyectos/plantillas` con CRUD. Cada plantilla tiene su lista de tareas (`Title|priority|days`) y un botón "Usar plantilla" que clona el proyecto + tareas con offsets de deadline.
+- **Snapshots de OKR**: cada vez que se actualiza el progreso de un objetivo se guarda una fila en `objective_snapshots`. El modal de edición muestra una gráfica de línea (Chart.js) con la evolución temporal del progreso. Endpoint `/api/objetivos/<oid>/snapshots`.
+- **Tareas recurrentes**: al completar una tarea con `recurrence` distinto de `ninguna` (diaria/semanal/mensual/anual) se clona automáticamente la siguiente instancia con el offset correspondiente.
+- **Botones de duplicar**: tareas y proyectos tienen botón "⧉ Duplicar" en kanban, lista y card grid.
+- **Exportación CSV**: nuevos endpoints `/api/export/{tasks,projects,clients,invoices,time_entries}.csv` con BOM UTF-8 para Excel.
+- **PDF de facturas con reportlab**: `download_pdf()` ahora genera un PDF real con cabecera, tabla de líneas, totales (subtotal/IVA/TOTAL) y notas. Fallback HTML si reportlab no está instalado.
+- **Asistente IA con contexto del panel**: nuevas funciones `_build_panel_context()` + `_local_answer()` y endpoint `POST /api/ai/ask` que responde a preguntas en lenguaje natural usando los datos en vivo (proyectos activos, tareas atrasadas, facturas pendientes, leads, resumen mensual). Ya expuesto en la UI en v4.5.1.
+- **2FA TOTP**: integración completa con `pyotp` — endpoints `/2fa/setup`, `/2fa/verify`, `/2fa/disable`. Configuración con QR (api.qrserver.com) en `/configuracion`. Login muestra campo de código si el usuario tiene 2FA activo.
+- **Webhooks placeholder**: sección "Webhooks (PRÓXIMAMENTE)" en `/automatizaciones` para preparar la API.
+- **Frontend polish**: API global `window.toast()` y `window.nxConfirm()` para confirmaciones consistentes; doble-submit protection global; modal de preview inline en documentos para el WebView.
+- **Backend**: Flask-Compress (gzip activo, nivel 6, mín 500 B) y logging estructurado (`%(asctime)s [%(levelname)s] %(name)s: %(message)s`).
+- **Sync extendido**: cuatro tablas nuevas (`task_comments`, `objective_snapshots`, `project_templates`, `project_template_tasks`) ahora se sincronizan con Railway.
+- **Sidebar**: nuevo enlace "Asistente IA" bajo la sección Inteligencia.
+- **Dependencias**: añadidos `flask-compress`, `pyotp`, `qrcode`, `reportlab` a `requirements.txt`.
+
+## v4.4.7
+*Implementado por Alex*
+- **Rendimiento: editar/borrar ya no se cuelga esperando al sync.** En v4.4.6 envolvi los deletes en `sync_locked()` para fixear el race condition, pero el background pull thread mantenia ese mismo lock durante 1-3s en cada ciclo mientras leia el remoto. Cualquier delete que cayera durante un pull esperaba todo ese tiempo. Mismo problema para los `push_change_now` de tasks reminders.
+- **Fix sync:** `_pull_from_remote()` ahora hace el fetch remoto (la parte lenta) SIN tocar el lock, y solo lo agarra para el merge local en SQLite (<100 ms). Tiempo lock-held reducido de 1-3s a <200ms — los deletes ya no bloquean nunca con el pull.
+- **Fix push:** `push_to_remote()` ahora usa `INSERT ... ON CONFLICT DO UPDATE` en un solo statement para PostgreSQL (antes hacia SELECT + INSERT/UPDATE, 2 round-trips). Lectura local fuera del lock. Aproximadamente 40% mas rapido por push.
+- **Fix /tareas:** Las stats de KPIs se calculaban cargando `Task.query.all()` entero despues de ya haber hecho la query filtrada (doble fetch). Ahora usa `GROUP BY status` y `COUNT()` — una sola query agregada en lugar de dos full-table scans.
+- **Fix /timetracking:** Las stats de usuario y equipo cargaban 4+ queries con `.all()` y sumaban en Python. Ahora usa `SUM()` y `GROUP BY` — 2 queries agregadas en vez de 2×N (una por usuario). Para 5 usuarios es ~8x menos round-trips.
+- **Fix dashboard:** El chart de 6 meses hacia 12 queries separadas (una por mes, una por tipo). Ahora son 2 queries con `GROUP BY extract(year/month)`. Semana personal y monthly_income tambien migradas a `SUM()` SQL.
+
 ## v4.4.6
 *Implementado por Alex*
 - **Fix critico race condition al borrar:** Algunos elementos volvian a aparecer despues de borrarlos (tareas, time tracking, objetivos, proyectos, empresas, clientes, ideas, recursos, herramientas, automatizaciones, facturas, credenciales, pagos, ingresos, eventos de calendario, usuarios). Causa: el delete handler hacia commit local y luego encolaba un push asincrono — pero el thread de sync pull tenia su propia ventana de 1-3s donde leia el remoto (que aun tenia la fila) y la re-insertaba en local antes de que el push llegara al remoto. Resultado: la fila desaparecia un instante y volvia a aparecer despues del siguiente pull cycle.

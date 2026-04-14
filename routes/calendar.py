@@ -34,10 +34,7 @@ def index():
     _, days_in_month = cal.monthrange(year, month)
     start_weekday = first_day.weekday()
 
-    if start_weekday > 0:
-        prev_date = first_day - timedelta(days=start_weekday)
-    else:
-        prev_date = first_day
+    prev_date = first_day - timedelta(days=start_weekday) if start_weekday > 0 else first_day
 
     cells = []
     current = prev_date
@@ -140,6 +137,11 @@ def index():
     )
     users = _safe_query(lambda: User.query.filter_by(active=True).all())
 
+    # Google Calendar connection status for the current user
+    from services import gcal as gcal_svc
+    gcal_configured = gcal_svc.is_configured()
+    gcal_connected = gcal_svc.is_connected(g.user.id) if gcal_configured else False
+
     return render_template(
         "calendario.html",
         cells=cells, year=year, month=month,
@@ -149,6 +151,8 @@ def index():
         active_projects=active_projects,
         users=users,
         today=today,
+        gcal_configured=gcal_configured,
+        gcal_connected=gcal_connected,
     )
 
 
@@ -181,6 +185,9 @@ def create_event():
     )
     db.session.add(ev)
     db.session.commit()
+
+    # Auto-sync to Google Calendar
+    _gcal_push(ev, g.user.id)
 
     from services.activity import log_activity
     log_activity("creo", "evento", ev.id, ev.title)
@@ -225,6 +232,9 @@ def update_event(eid):
 
     db.session.commit()
 
+    # Auto-sync to Google Calendar
+    _gcal_push(ev, g.user.id)
+
     from services.activity import log_activity
     log_activity("edito", "evento", ev.id, ev.title)
     try:
@@ -244,12 +254,22 @@ def delete_event(eid):
         return jsonify({"error": "No encontrado"}), 404
 
     title = ev.title
+    gcal_id = ev.gcal_event_id
+
     from services.activity import log_activity
     with sync_locked():
         log_activity("elimino", "evento", eid, title)
         db.session.delete(ev)
         db.session.commit()
         push_change_now("calendar_events", eid)
+
+    # Remove from Google Calendar
+    if gcal_id:
+        try:
+            from services import gcal as gcal_svc
+            gcal_svc.delete_event(gcal_id, g.user.id)
+        except Exception as e:
+            log.warning(f"GCal delete skipped: {e}")
 
     return jsonify({"ok": True})
 
@@ -263,7 +283,75 @@ def get_event(eid):
     return jsonify({"event": _event_dict(ev)})
 
 
-# Keep quick-task for backwards compat
+# ═══ GOOGLE CALENDAR OAUTH ROUTES ═══
+
+@calendar_bp.route("/calendario/gcal/auth")
+@login_required
+def gcal_auth():
+    """Redirect user to Google OAuth2 consent screen."""
+    from services import gcal as gcal_svc
+    if not gcal_svc.is_configured():
+        flash("Google Calendar no está configurado. Añade GOOGLE_OAUTH_CLIENT_ID y GOOGLE_OAUTH_CLIENT_SECRET al .env", "error")
+        return redirect(url_for("calendar.index"))
+    auth_url = gcal_svc.get_auth_url(state=str(g.user.id))
+    return redirect(auth_url)
+
+
+@calendar_bp.route("/calendario/gcal/callback")
+@login_required
+def gcal_callback():
+    """Handle Google OAuth2 callback, exchange code for tokens."""
+    from services import gcal as gcal_svc
+
+    error = request.args.get("error")
+    if error:
+        flash(f"Google Calendar: acceso denegado ({error})", "error")
+        return redirect(url_for("calendar.index"))
+
+    code = request.args.get("code")
+    if not code:
+        flash("No se recibió código de autorización de Google", "error")
+        return redirect(url_for("calendar.index"))
+
+    try:
+        token_dict = gcal_svc.exchange_code(code)
+        gcal_svc._save_token(g.user.id, token_dict)
+        flash("✅ Google Calendar conectado correctamente", "success")
+
+        # Bulk-sync existing panel events immediately
+        synced, failed = gcal_svc.bulk_sync_user(g.user.id)
+        if synced:
+            flash(f"Se sincronizaron {synced} evento(s) existentes a Google Calendar", "success")
+    except Exception as e:
+        log.error(f"GCal OAuth callback error: {e}")
+        flash(f"Error al conectar Google Calendar: {e}", "error")
+
+    return redirect(url_for("calendar.index"))
+
+
+@calendar_bp.route("/calendario/gcal/disconnect", methods=["POST"])
+@login_required
+def gcal_disconnect():
+    """Remove stored Google Calendar OAuth token."""
+    from services import gcal as gcal_svc
+    gcal_svc.disconnect(g.user.id)
+    flash("Google Calendar desconectado", "success")
+    return redirect(url_for("calendar.index"))
+
+
+@calendar_bp.route("/calendario/gcal/sync", methods=["POST"])
+@login_required
+def gcal_sync():
+    """Manually push all events that don't have a gcal_event_id yet."""
+    from services import gcal as gcal_svc
+    if not gcal_svc.is_connected(g.user.id):
+        return jsonify({"error": "No conectado a Google Calendar"}), 400
+    synced, failed = gcal_svc.bulk_sync_user(g.user.id)
+    return jsonify({"ok": True, "synced": synced, "failed": failed})
+
+
+# ═══ QUICK TASK (legacy) ═══
+
 @calendar_bp.route("/calendario/quick-task", methods=["POST"])
 @login_required
 def quick_task():
@@ -301,6 +389,21 @@ def quick_task():
     return redirect(url_for("calendar.index"))
 
 
+# ═══ HELPERS ═══
+
+def _gcal_push(ev, user_id: int):
+    """Push event to Google Calendar (fire-and-forget). Saves gcal_event_id."""
+    try:
+        from services import gcal as gcal_svc
+        if gcal_svc.is_configured() and gcal_svc.is_connected(user_id):
+            gcal_id = gcal_svc.push_event(ev, user_id)
+            if gcal_id and gcal_id != ev.gcal_event_id:
+                ev.gcal_event_id = gcal_id
+                db.session.commit()
+    except Exception as e:
+        log.warning(f"GCal push skipped: {e}")
+
+
 def _event_dict(ev):
     return {
         "id": ev.id,
@@ -314,6 +417,7 @@ def _event_dict(ev):
         "all_day": ev.all_day,
         "created_by": ev.created_by,
         "assigned_to": ev.assigned_to,
+        "gcal_event_id": ev.gcal_event_id,
         "creator_name": ev.creator.name if ev.creator else None,
         "assignee_name": ev.assignee.name if ev.assignee else None,
     }

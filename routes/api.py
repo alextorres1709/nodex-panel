@@ -78,6 +78,49 @@ def version():
     return jsonify({"version": APP_VERSION, "download_url": DOWNLOAD_URL})
 
 
+@api_bp.route("/api/sync/status")
+@login_required
+def api_sync_status():
+    """Status of the background sync thread for the header indicator."""
+    from datetime import datetime, timezone
+    from config import HOSTED_MODE
+    if HOSTED_MODE:
+        return jsonify({"disabled": True})
+    try:
+        import services.sync as sync_mod
+        mgr = sync_mod.sync_manager
+        if not mgr:
+            return jsonify({"disabled": True})
+        last_ago = None
+        if mgr.last_sync_at:
+            delta = datetime.now(timezone.utc) - mgr.last_sync_at
+            last_ago = int(delta.total_seconds())
+        return jsonify({
+            "syncing": bool(mgr.is_syncing),
+            "error": mgr.last_error,
+            "last_sync_ago": last_ago,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)[:100]})
+
+
+@api_bp.route("/healthz")
+def healthz():
+    """Lightweight health check for Railway/monitoring."""
+    from datetime import datetime, timezone
+    try:
+        db.session.execute(db.text("SELECT 1"))
+        db_ok = True
+    except Exception:
+        db_ok = False
+    return jsonify({
+        "status": "ok" if db_ok else "degraded",
+        "db": "ok" if db_ok else "error",
+        "version": APP_VERSION,
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }), (200 if db_ok else 503)
+
+
 @api_bp.route("/api/update/check")
 def api_update_check():
     """Check if an update is available for the requesting client.
@@ -973,3 +1016,110 @@ def _time_entry_dict(e):
         "project_id": e.project_id,
         "task_id": e.task_id,
     }
+
+
+# ═══════════════════════════════════════
+# CSV EXPORT
+# ═══════════════════════════════════════
+
+import csv
+import io as _io
+
+
+def _csv_response(filename, header, rows):
+    buf = _io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(header)
+    for r in rows:
+        w.writerow(r)
+    out = buf.getvalue().encode("utf-8-sig")  # BOM para Excel
+    return Response(
+        out,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@api_bp.route("/api/export/tasks.csv")
+@login_required
+def export_tasks_csv():
+    rows = []
+    for t in Task.query.order_by(Task.created_at.desc()).all():
+        assignees = ", ".join(u.name for u in t.assignees) if t.assignees else ""
+        proj = t.project.name if t.project else ""
+        rows.append([
+            t.id, t.title, t.status, t.priority, proj, assignees,
+            t.due_date.isoformat() if t.due_date else "",
+            t.estimated_minutes or 0,
+            t.created_at.isoformat() if t.created_at else "",
+        ])
+    return _csv_response("tareas.csv",
+        ["id", "titulo", "estado", "prioridad", "proyecto", "asignados",
+         "fecha_limite", "minutos_estimados", "creado"],
+        rows)
+
+
+@api_bp.route("/api/export/projects.csv")
+@login_required
+def export_projects_csv():
+    rows = []
+    for p in Project.query.order_by(Project.created_at.desc()).all():
+        rows.append([
+            p.id, p.name, p.client_name or "", p.status, p.type,
+            p.progress or 0, p.budget or 0,
+            p.deadline.isoformat() if p.deadline else "",
+            p.created_at.isoformat() if p.created_at else "",
+        ])
+    return _csv_response("proyectos.csv",
+        ["id", "nombre", "cliente", "estado", "tipo", "progreso", "presupuesto",
+         "fecha_limite", "creado"],
+        rows)
+
+
+@api_bp.route("/api/export/clients.csv")
+@login_required
+def export_clients_csv():
+    rows = []
+    for c in Client.query.order_by(Client.created_at.desc()).all():
+        rows.append([
+            c.id, c.name, c.email or "", c.phone or "", c.company or "",
+            c.pipeline_stage or "", c.source or "",
+            c.created_at.isoformat() if c.created_at else "",
+        ])
+    return _csv_response("clientes.csv",
+        ["id", "nombre", "email", "telefono", "empresa", "estado_pipeline", "origen", "creado"],
+        rows)
+
+
+@api_bp.route("/api/export/invoices.csv")
+@login_required
+def export_invoices_csv():
+    rows = []
+    for i in Invoice.query.order_by(Invoice.created_at.desc()).all():
+        rows.append([
+            i.id, i.number or "", i.client_name or "", i.total or 0,
+            i.currency or "EUR", i.status or "",
+            i.invoice_date.isoformat() if i.invoice_date else "",
+            i.paid_date.isoformat() if i.paid_date else "",
+        ])
+    return _csv_response("facturas.csv",
+        ["id", "numero", "cliente", "total", "divisa", "estado", "fecha_factura", "fecha_pago"],
+        rows)
+
+
+@api_bp.route("/api/export/time_entries.csv")
+@login_required
+def export_time_entries_csv():
+    rows = []
+    for e in TimeEntry.query.order_by(TimeEntry.date.desc()).all():
+        user = User.query.get(e.user_id) if e.user_id else None
+        proj = Project.query.get(e.project_id) if e.project_id else None
+        rows.append([
+            e.id, user.name if user else "",
+            proj.name if proj else "",
+            e.description or "", e.minutes or 0,
+            e.date.isoformat() if e.date else "",
+        ])
+    return _csv_response("registro_tiempo.csv",
+        ["id", "usuario", "proyecto", "descripcion", "minutos", "fecha"],
+        rows)

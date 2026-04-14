@@ -2,7 +2,7 @@ import logging
 from datetime import date, datetime, timedelta
 from sqlalchemy.orm import joinedload
 from flask import Blueprint, render_template, g
-from models import db, Payment, Project, Task, TaskAssignment, Idea, Income, ActivityLog, Client, Invoice, TimeEntry
+from models import db, Payment, Project, Task, TaskAssignment, Idea, Income, ActivityLog, Client, Invoice, TimeEntry, Objective
 from routes.auth import login_required
 
 log = logging.getLogger("dashboard")
@@ -46,13 +46,13 @@ def index():
         for p in active_payments
     )
 
-    monthly_income = _safe(lambda: sum(
-        i.amount for i in Income.query.filter(
-            Income.status == "cobrado",
-            db.extract("month", Income.paid_date) == now_month,
-            db.extract("year", Income.paid_date) == now_year,
-        ).all()
-    ))
+    monthly_income = _safe(lambda: float(db.session.query(
+        db.func.coalesce(db.func.sum(Income.amount), 0)
+    ).filter(
+        Income.status == "cobrado",
+        db.extract("month", Income.paid_date) == now_month,
+        db.extract("year", Income.paid_date) == now_year,
+    ).scalar()))
     monthly_income += _safe(lambda: float(db.session.query(
         db.func.coalesce(db.func.sum(Invoice.total), 0)
     ).filter(
@@ -100,10 +100,10 @@ def index():
     cost_values = [float(r[1] or 0) for r in cost_chart]
 
     # ── 6-month Income vs Expenses chart ──
+    # Build the 6 (year, month) pairs first
     import calendar as cal_mod
     month_labels = []
-    income_6m = []
-    expense_6m = []
+    month_keys = []
     for i in range(5, -1, -1):
         m = now_month - i
         y = now_year
@@ -111,32 +111,53 @@ def index():
             m += 12
             y -= 1
         month_labels.append(cal_mod.month_abbr[m])
-        # Income for month
-        inc = _safe(lambda m=m, y=y: sum(
-            x.amount for x in Income.query.filter(
-                Income.status == "cobrado",
-                db.extract("month", Income.paid_date) == m,
-                db.extract("year", Income.paid_date) == y,
-            ).all()
-        ))
-        inc += _safe(lambda m=m, y=y: float(db.session.query(
-            db.func.coalesce(db.func.sum(Invoice.total), 0)
-        ).filter(
-            Invoice.status == "cobrada",
-            db.extract("month", Invoice.paid_date) == m,
-            db.extract("year", Invoice.paid_date) == y,
-        ).scalar()))
-        income_6m.append(inc)
-        expense_6m.append(monthly_cost)  # flat monthly cost estimate
+        month_keys.append((y, m))
+
+    # Range covering the earliest of the 6 months → today (drops unrelated rows)
+    earliest_y, earliest_m = month_keys[0]
+    period_start = date(earliest_y, earliest_m, 1)
+
+    # Two grouped queries instead of 12 scalar queries
+    income_rows = _safe(lambda: db.session.query(
+        db.extract("year", Income.paid_date),
+        db.extract("month", Income.paid_date),
+        db.func.coalesce(db.func.sum(Income.amount), 0),
+    ).filter(
+        Income.status == "cobrado",
+        Income.paid_date >= period_start,
+    ).group_by(
+        db.extract("year", Income.paid_date),
+        db.extract("month", Income.paid_date),
+    ).all(), [])
+    invoice_rows = _safe(lambda: db.session.query(
+        db.extract("year", Invoice.paid_date),
+        db.extract("month", Invoice.paid_date),
+        db.func.coalesce(db.func.sum(Invoice.total), 0),
+    ).filter(
+        Invoice.status == "cobrada",
+        Invoice.paid_date >= period_start,
+    ).group_by(
+        db.extract("year", Invoice.paid_date),
+        db.extract("month", Invoice.paid_date),
+    ).all(), [])
+
+    income_by_ym = {}
+    for y, m, total in income_rows:
+        income_by_ym[(int(y), int(m))] = income_by_ym.get((int(y), int(m)), 0) + float(total or 0)
+    for y, m, total in invoice_rows:
+        income_by_ym[(int(y), int(m))] = income_by_ym.get((int(y), int(m)), 0) + float(total or 0)
+
+    income_6m = [income_by_ym.get(k, 0) for k in month_keys]
+    expense_6m = [monthly_cost] * 6  # flat monthly cost estimate
 
     # ── Personal stats (this week) ──
     week_start = today - timedelta(days=today.weekday())
-    week_hours = _safe(lambda: sum(
-        e.minutes for e in TimeEntry.query.filter(
-            TimeEntry.user_id == user.id,
-            TimeEntry.date >= week_start,
-        ).all()
-    ) / 60)
+    week_hours = _safe(lambda: (db.session.query(
+        db.func.coalesce(db.func.sum(TimeEntry.minutes), 0)
+    ).filter(
+        TimeEntry.user_id == user.id,
+        TimeEntry.date >= week_start,
+    ).scalar() or 0) / 60)
     week_tasks = _safe(lambda: Task.query.filter(
         Task.assigned_to == user.id,
         Task.status == "completada",
@@ -159,6 +180,28 @@ def index():
         Invoice.status.in_(["borrador", "enviada"])
     ).count())
     balance = monthly_income - monthly_cost
+
+    # ── Tareas atrasadas concretas (top 5) — para alerta de acción rápida ──
+    overdue_task_list = _safe(lambda: Task.query.options(joinedload(Task.project)).filter(
+        Task.due_date < today,
+        Task.status.in_(["pendiente", "en_progreso"]),
+    ).order_by(Task.due_date.asc()).limit(5).all(), [])
+
+    # ── Top facturas pendientes de cobro (impagadas / vencidas) ──
+    top_pending_invoices = _safe(lambda: Invoice.query.options(
+        joinedload(Invoice.client)
+    ).filter(
+        Invoice.status.in_(["enviada", "vencida"])
+    ).order_by(Invoice.due_date.asc().nullslast(), Invoice.created_at.desc()).limit(5).all(), [])
+    pending_invoices_total = _safe(lambda: float(db.session.query(
+        db.func.coalesce(db.func.sum(Invoice.total), 0)
+    ).filter(Invoice.status.in_(["enviada", "vencida"])).scalar()))
+
+    # ── Objetivos activos del usuario (top 4 por progreso ascendente) ──
+    my_objectives = _safe(lambda: Objective.query.filter(
+        Objective.assigned_to == user.id,
+        Objective.status.in_(["nuevo", "en_progreso"]),
+    ).order_by(Objective.progress.asc(), Objective.target_date.asc().nullslast()).limit(4).all(), [])
 
     return render_template(
         "dashboard.html",
@@ -196,4 +239,9 @@ def index():
         total_clients=total_clients,
         pending_invoices=pending_invoices,
         balance=balance,
+        # NEW v4.5.1: action items
+        overdue_task_list=overdue_task_list,
+        top_pending_invoices=top_pending_invoices,
+        pending_invoices_total=pending_invoices_total,
+        my_objectives=my_objectives,
     )

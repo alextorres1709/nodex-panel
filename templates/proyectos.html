@@ -8,7 +8,10 @@
         <h1>Proyectos</h1>
         <p class="page-subtitle">Todos los proyectos de NodexAI</p>
     </div>
-    <button class="btn btn-primary" onclick="openModal('createModal')">+ Nuevo proyecto</button>
+    <div style="display:flex;gap:8px">
+        <a href="{{ url_for('projects.templates_index') }}" class="btn btn-secondary">📋 Plantillas</a>
+        <button class="btn btn-primary" onclick="openModal('createModal')">+ Nuevo proyecto</button>
+    </div>
 </div>
 
 <form class="filter-bar" method="GET">
@@ -70,6 +73,9 @@
         </div>
         <div class="project-card-footer">
             <button class="btn btn-sm btn-secondary" onclick="editProject({{ p.id }}, '{{ p.name|e }}', '{{ p.client_name|e }}', '{{ p.company_id or '' }}', '{{ p.status }}', '{{ p.type }}', {{ p.budget }}, {{ p.progress }}, '{{ p.deadline or '' }}', '{{ p.description|e }}', '{{ p.notes|e }}')">Editar</button>
+            <form method="POST" action="{{ url_for('projects.duplicate', pid=p.id) }}" style="display:inline">
+                <button type="submit" class="btn btn-sm btn-secondary" title="Duplicar">⧉</button>
+            </form>
             <form method="POST" action="{{ url_for('projects.delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('Eliminar?')">
                 <button type="submit" class="btn btn-sm btn-danger">X</button>
             </form>

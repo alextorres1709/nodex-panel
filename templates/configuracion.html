@@ -51,6 +51,72 @@
     </div>
 </div>
 
+<!-- 2FA TOTP -->
+<div class="settings-card" style="margin-bottom:24px">
+    <h3 style="margin-bottom:16px;font-size:16px">Autenticación en dos pasos (2FA)</h3>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">
+        Añade un código TOTP de 6 dígitos al inicio de sesión usando Google Authenticator, 1Password, Authy, etc.
+    </p>
+    <div id="twofaStatus" class="info-row">
+        <div class="info-label">Estado</div>
+        <div class="info-value">
+            {% if current_user.totp_enabled %}
+                <span class="badge badge-success">Activo</span>
+                <button class="btn btn-sm btn-danger" onclick="disable2fa()" style="margin-left:8px">Desactivar</button>
+            {% else %}
+                <span class="badge">Desactivado</span>
+                <button class="btn btn-sm btn-primary" onclick="setup2fa()" style="margin-left:8px">Activar 2FA</button>
+            {% endif %}
+        </div>
+    </div>
+    <div id="twofaSetup" style="display:none;margin-top:14px;padding:12px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary)">
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">
+            Escanea este código en tu app de autenticación o copia el secret manualmente:
+        </p>
+        <div id="twofaQrWrap" style="text-align:center;margin-bottom:10px"></div>
+        <div style="font-size:12px;color:var(--text-tertiary);word-break:break-all" id="twofaSecret"></div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+            <input type="text" id="twofaCode" inputmode="numeric" placeholder="Código de 6 dígitos"
+                   style="flex:1;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:13px">
+            <button class="btn btn-sm btn-primary" onclick="verify2fa()">Verificar y activar</button>
+        </div>
+    </div>
+</div>
+<script>
+function setup2fa() {
+    fetch('/2fa/setup', {method: 'POST'})
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d.error) { if (window.toast) window.toast(d.error, 'error'); return; }
+            document.getElementById('twofaSetup').style.display = '';
+            document.getElementById('twofaSecret').textContent = 'Secret: ' + d.secret;
+            // QR vía API pública (no requiere libs en backend)
+            var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(d.uri);
+            document.getElementById('twofaQrWrap').innerHTML = '<img src="' + qrUrl + '" alt="QR 2FA" width="180" height="180" style="background:white;padding:6px;border-radius:6px">';
+        });
+}
+function verify2fa() {
+    var code = document.getElementById('twofaCode').value.trim();
+    if (!code) return;
+    fetch('/2fa/verify', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({code: code}),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.ok) { if (window.toast) window.toast('2FA activado', 'success'); setTimeout(function() { location.reload(); }, 600); }
+        else { if (window.toast) window.toast(d.error || 'Código inválido', 'error'); }
+    });
+}
+function disable2fa() {
+    if (!confirm('¿Desactivar 2FA?')) return;
+    fetch('/2fa/disable', {method: 'POST'})
+        .then(function(r) { return r.json(); })
+        .then(function() { location.reload(); });
+}
+</script>
+
 <!-- API Token -->
 <div class="settings-card">
     <h3 style="margin-bottom:16px;font-size:16px">API Token</h3>

@@ -18,6 +18,8 @@ class User(db.Model):
     role = db.Column(db.String(20), default=ROLE_EDITOR)
     active = db.Column(db.Boolean, default=True, index=True)
     api_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
+    totp_secret = db.Column(db.String(64), nullable=True)  # base32 secret for 2FA
+    totp_enabled = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def set_password(self, pw):
@@ -404,15 +406,21 @@ class Document(db.Model):
     drive_file_id = db.Column(db.String(100), default="")
     file_size = db.Column(db.Integer, default=0)  # bytes
     mime_type = db.Column(db.String(100), default="")
-    category = db.Column(db.String(50), default="otro")  # contrato, factura, propuesta, informe, plantilla, otro
+    category = db.Column(db.String(50), default="otro")  # contrato, factura_pago, factura_ingreso, propuesta, informe, plantilla, otro
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
     client_id = db.Column(db.Integer, db.ForeignKey("clients.id"), nullable=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=True)
+    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id"), nullable=True)
+    idea_id = db.Column(db.Integer, db.ForeignKey("ideas.id"), nullable=True)
     uploaded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     project = db.relationship("Project", foreign_keys=[project_id])
     client = db.relationship("Client", foreign_keys=[client_id])
+    company = db.relationship("Company", foreign_keys=[company_id])
+    task = db.relationship("Task", foreign_keys=[task_id])
+    idea = db.relationship("Idea", foreign_keys=[idea_id])
     uploader = db.relationship("User", foreign_keys=[uploaded_by])
 
 
@@ -422,6 +430,7 @@ class Resource(db.Model):
     name = db.Column(db.String(300), nullable=False)
     filename = db.Column(db.String(500), default="")
     file_path = db.Column(db.String(500), default="")
+    drive_file_id = db.Column(db.String(100), default="")
     file_size = db.Column(db.Integer, default=0)
     mime_type = db.Column(db.String(100), default="")
     category = db.Column(db.String(50), default="otro")  # logo, presentacion, brand, plantilla, otro
@@ -467,12 +476,28 @@ class CalendarEvent(db.Model):
     all_day = db.Column(db.Boolean, default=False)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    gcal_event_id = db.Column(db.String(200), nullable=True)  # Google Calendar event ID
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
                            onupdate=lambda: datetime.now(timezone.utc))
 
     creator = db.relationship("User", foreign_keys=[created_by])
     assignee = db.relationship("User", foreign_keys=[assigned_to])
+
+
+# ═══════════════════════════════════════
+# GOOGLE OAUTH2 TOKENS (Google Calendar)
+# ═══════════════════════════════════════
+
+class GoogleOAuthToken(db.Model):
+    __tablename__ = "google_oauth_tokens"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True)
+    token_json = db.Column(db.Text, nullable=False)  # JSON with access/refresh tokens
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User", foreign_keys=[user_id])
 
 
 # ═══════════════════════════════════════
@@ -488,6 +513,68 @@ class PushToken(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship("User", foreign_keys=[user_id])
+
+
+# ═══════════════════════════════════════
+# COMMENTS (v2.1) — comentarios en tareas con menciones
+# ═══════════════════════════════════════
+
+class TaskComment(db.Model):
+    __tablename__ = "task_comments"
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id"), nullable=False, index=True)
+    author_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    author = db.relationship("User", foreign_keys=[author_id])
+    task = db.relationship("Task", backref=db.backref("comments", lazy="dynamic", cascade="all, delete-orphan"))
+
+
+# ═══════════════════════════════════════
+# PROJECT TEMPLATES (v2.1)
+# ═══════════════════════════════════════
+
+class ProjectTemplate(db.Model):
+    __tablename__ = "project_templates"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, default="")
+    type = db.Column(db.String(30), default="web")
+    default_status = db.Column(db.String(20), default="activo")
+    default_progress = db.Column(db.Integer, default=0)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    creator = db.relationship("User", foreign_keys=[created_by])
+
+
+class ProjectTemplateTask(db.Model):
+    __tablename__ = "project_template_tasks"
+    id = db.Column(db.Integer, primary_key=True)
+    template_id = db.Column(db.Integer, db.ForeignKey("project_templates.id"), nullable=False, index=True)
+    title = db.Column(db.String(300), nullable=False)
+    description = db.Column(db.Text, default="")
+    priority = db.Column(db.String(10), default="media")
+    estimated_minutes = db.Column(db.Integer, default=0)
+    days_offset = db.Column(db.Integer, default=0)  # due_date relative to project start
+    sort_order = db.Column(db.Integer, default=0)
+
+    template = db.relationship("ProjectTemplate", backref=db.backref("template_tasks", lazy="dynamic", cascade="all, delete-orphan"))
+
+
+# ═══════════════════════════════════════
+# OBJECTIVE SNAPSHOTS (v2.1) — historial de progreso para gráfico OKR
+# ═══════════════════════════════════════
+
+class ObjectiveSnapshot(db.Model):
+    __tablename__ = "objective_snapshots"
+    id = db.Column(db.Integer, primary_key=True)
+    objective_id = db.Column(db.Integer, db.ForeignKey("objectives.id"), nullable=False, index=True)
+    progress = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    objective = db.relationship("Objective", backref=db.backref("snapshots", lazy="dynamic", cascade="all, delete-orphan"))
 
 
 # ═══════════════════════════════════════

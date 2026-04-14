@@ -18,6 +18,28 @@
         <h2 class="cal-month-title">{{ month_name }} {{ year }}</h2>
     </div>
     <div class="cal-toolbar-right">
+        <!-- Google Calendar integration pill -->
+        {% if gcal_configured %}
+        <div class="gcal-pill {{ 'gcal-pill-on' if gcal_connected else 'gcal-pill-off' }}" id="gcalPill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            {% if gcal_connected %}
+            <span>Google Calendar</span>
+            <span class="gcal-dot"></span>
+            <button class="gcal-action" onclick="gcalSync()" title="Resincronizar" id="gcalSyncBtn">↻</button>
+            <form method="POST" action="{{ url_for('calendar.gcal_disconnect') }}" style="display:inline">
+                <button type="submit" class="gcal-action gcal-action-dis" title="Desconectar">✕</button>
+            </form>
+            {% else %}
+            <span>Conectar Google</span>
+            <a href="{{ url_for('calendar.gcal_auth') }}" class="gcal-action gcal-action-con">Conectar →</a>
+            {% endif %}
+        </div>
+        {% endif %}
         <button class="btn btn-sm btn-primary" onclick="openNewEvent(null, 'reunion')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
             Reunion
@@ -211,6 +233,65 @@
 </div>
 {% endblock %}
 
+{% block styles %}
+<style>
+/* ─── Google Calendar pill ─────────────────────────────────────── */
+.gcal-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    transition: all .2s;
+    white-space: nowrap;
+}
+.gcal-pill-on {
+    background: rgba(66,133,244,.12);
+    border-color: rgba(66,133,244,.3);
+    color: #4285f4;
+}
+.gcal-pill-off {
+    background: var(--bg-tertiary, rgba(255,255,255,.05));
+    border-color: var(--border, rgba(255,255,255,.1));
+    color: var(--text-secondary, #9ca3af);
+}
+.gcal-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #34a853;
+    flex-shrink: 0;
+}
+.gcal-action {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0 2px;
+    color: inherit;
+    opacity: .7;
+    transition: opacity .15s;
+    font-family: inherit;
+}
+.gcal-action:hover { opacity: 1; }
+.gcal-action-con {
+    background: #4285f4;
+    color: #fff !important;
+    opacity: 1 !important;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 11px;
+}
+.gcal-action-con:hover { background: #1a73e8; }
+.gcal-action-dis { color: #ef4444 !important; }
+.gcal-syncing { animation: gcalSpin .7s linear infinite; display:inline-block; }
+@keyframes gcalSpin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
 {% block scripts %}
 <script>
 // ═══ DATA ═══
@@ -391,5 +472,39 @@ document.addEventListener('click', function(e) {
         closeDayPopover();
     }
 });
+
+// ═══ GOOGLE CALENDAR SYNC ═══
+function gcalSync() {
+    var btn = document.getElementById('gcalSyncBtn');
+    if (btn) btn.classList.add('gcal-syncing');
+    fetch('/calendario/gcal/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (btn) btn.classList.remove('gcal-syncing');
+            if (data.ok) {
+                var msg = data.synced > 0
+                    ? '\u2705 ' + data.synced + ' evento(s) sincronizados a Google Calendar'
+                    : '\u2705 Todo sincronizado';
+                _showToast(msg);
+            } else {
+                _showToast('\u26a0\ufe0f ' + (data.error || 'Error al sincronizar'));
+            }
+        })
+        .catch(function() {
+            if (btn) btn.classList.remove('gcal-syncing');
+            _showToast('\u26a0\ufe0f Error de conexion');
+        });
+}
+
+function _showToast(msg) {
+    var t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--bg-secondary,#1e2130);'
+        + 'color:var(--text-primary,#f1f5f9);padding:10px 16px;border-radius:10px;'
+        + 'font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4);'
+        + 'animation:fadeInUp .3s ease;pointer-events:none;';
+    document.body.appendChild(t);
+    setTimeout(function() { t.remove(); }, 3500);
+}
 </script>
 {% endblock %}

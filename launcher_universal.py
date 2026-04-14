@@ -369,6 +369,76 @@ LOADING_HTML = """
 """
 
 
+class NodexJSBridge:
+    """JS API exposed to the WebView via window.pywebview.api.
+    Lets the frontend open a native SAVE dialog for downloads and open
+    document previews in a new native WebView window."""
+
+    def __init__(self):
+        self.port = None  # set after find_free_port()
+        self.session_cookie = None  # captured from the main window on demand
+
+    def _fetch_bytes(self, url):
+        """Fetch a URL from the local Flask server with the session cookie
+        attached, so @login_required routes authorize the request."""
+        import urllib.request
+        full = f"http://127.0.0.1:{self.port}{url}"
+        req = urllib.request.Request(full)
+        try:
+            import webview as _wv
+            if _wv.windows:
+                cookies = _wv.windows[0].get_cookies()
+                cookie_str = "; ".join(
+                    f"{c.key}={c.value.value}" for c in cookies
+                    if getattr(c, "key", None) and hasattr(c, "value")
+                )
+                if cookie_str:
+                    req.add_header("Cookie", cookie_str)
+        except Exception:
+            pass
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            return resp.read()
+
+    def save_document(self, url, filename):
+        """Open a native SAVE dialog and write the document bytes there."""
+        try:
+            import webview as _wv
+            win = _wv.windows[0] if _wv.windows else None
+            if win is None:
+                return {"ok": False, "error": "No window"}
+            result = win.create_file_dialog(
+                _wv.SAVE_DIALOG,
+                save_filename=filename or "documento",
+            )
+            if not result:
+                return {"ok": False, "error": "cancelled"}
+            # pywebview returns either a string or a list
+            path = result if isinstance(result, str) else result[0]
+            data = self._fetch_bytes(url)
+            with open(path, "wb") as f:
+                f.write(data)
+            return {"ok": True, "path": path}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def preview_document(self, url, filename):
+        """Open a new native WebView window with the document preview."""
+        try:
+            import webview as _wv
+            full = f"http://127.0.0.1:{self.port}{url}"
+            _wv.create_window(
+                filename or "Vista previa",
+                url=full,
+                width=1000,
+                height=800,
+                min_size=(600, 400),
+                background_color="#1a1a1a",
+            )
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+
 def main():
     if getattr(sys, "frozen", False):
         sys.path.insert(0, sys._MEIPASS)
@@ -382,6 +452,8 @@ def main():
     _register_login_item()
 
     port = find_free_port()
+    js_bridge = NodexJSBridge()
+    js_bridge.port = port
 
     window = webview.create_window(
         "NodexAI Panel",
@@ -391,6 +463,7 @@ def main():
         min_size=(900, 600),
         background_color='#050505',
         easy_drag=True,
+        js_api=js_bridge,
     )
 
     def _boot_flask_and_navigate(win):

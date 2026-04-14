@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Plantillas de proyecto{% endblock %}
+{% block page_title %}Plantillas{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Plantillas de proyecto</h1>
+        <p class="page-subtitle">Crea proyectos repetibles a partir de una plantilla con tareas predefinidas</p>
+    </div>
+    <div style="display:flex;gap:8px">
+        <a href="{{ url_for('projects.index') }}" class="btn btn-secondary">← Proyectos</a>
+        <button class="btn btn-primary" onclick="openModal('createTplModal')">+ Nueva plantilla</button>
+    </div>
+</div>
+
+<div class="card-grid">
+    {% for tpl in templates %}
+    <div class="card">
+        <div class="card-header">
+            <h3 style="margin:0">{{ tpl.name }}</h3>
+            <span class="badge">{{ tpl.type }}</span>
+        </div>
+        <div class="card-body">
+            <p style="font-size:13px;color:var(--text-secondary)">{{ tpl.description or 'Sin descripción' }}</p>
+            <p style="font-size:12px;color:var(--text-tertiary)">
+                {{ tpl.template_tasks.count() }} tarea(s) · estado por defecto: {{ tpl.default_status }}
+            </p>
+        </div>
+        <div class="card-footer" style="display:flex;gap:6px">
+            <form method="POST" action="{{ url_for('projects.template_use', tid=tpl.id) }}" style="flex:1;display:flex;gap:6px">
+                <input type="text" name="name" placeholder="Nombre del nuevo proyecto" required
+                       style="flex:1;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:12px">
+                <button class="btn btn-sm btn-primary">Usar</button>
+            </form>
+            <form method="POST" action="{{ url_for('projects.template_delete', tid=tpl.id) }}"
+                  onsubmit="return confirm('¿Borrar esta plantilla?')">
+                <button class="btn btn-sm btn-danger">×</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>Aún no hay plantillas. Crea la primera para empezar.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Create Template Modal -->
+<div class="modal-overlay" id="createTplModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Nueva plantilla</h3>
+            <button class="modal-close" onclick="closeModal('createTplModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('projects.template_create') }}">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nombre</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea name="description" rows="2"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <select name="type">
+                            <option value="web">Web</option>
+                            <option value="app">App</option>
+                            <option value="bot">Bot</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado por defecto</label>
+                        <select name="default_status">
+                            <option value="activo">Activo</option>
+                            <option value="pausado">Pausado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Progreso inicial (%)</label>
+                        <input type="number" name="default_progress" min="0" max="100" value="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Tareas (una por línea: <code>Título|prioridad|días desde inicio</code>)</label>
+                    <textarea name="tasks" rows="6" placeholder="Definir alcance|alta|0&#10;Diseñar wireframes|media|3&#10;Implementación inicial|alta|7&#10;Tests y QA|media|14"></textarea>
+                    <span style="font-size:11px;color:var(--text-tertiary)">
+                        Ejemplo: <code>Definir alcance|alta|0</code> · prioridad opcional (alta/media/baja) · días opcional (0 = hoy)
+                    </span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('createTplModal')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Crear plantilla</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

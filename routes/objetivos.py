@@ -1,10 +1,18 @@
 from datetime import datetime
 from sqlalchemy.orm import joinedload
-from flask import Blueprint, render_template, request, redirect, url_for, flash, g
-from models import db, Objective, Project, User
+from flask import Blueprint, render_template, request, redirect, url_for, flash, g, jsonify
+from models import db, Objective, Project, User, ObjectiveSnapshot
 from routes.auth import login_required
 from services.activity import log_activity
 from services.sync import push_change, push_change_now, sync_locked
+
+
+def _record_snapshot(obj):
+    """Guarda el progreso actual del objetivo en una fila de snapshot."""
+    snap = ObjectiveSnapshot(objective_id=obj.id, progress=obj.progress or 0)
+    db.session.add(snap)
+    db.session.flush()
+    push_change("objective_snapshots", snap.id)
 
 objetivos_bp = Blueprint("objetivos", __name__)
 
@@ -88,6 +96,7 @@ def edit(oid):
         flash("Objetivo no encontrado", "error")
         return redirect(url_for("objetivos.index"))
     try:
+        prev_progress = obj.progress or 0
         obj.title = request.form.get("title", obj.title).strip()
         obj.description = request.form.get("description", "").strip()
         obj.priority = request.form.get("priority", obj.priority)
@@ -101,6 +110,9 @@ def edit(oid):
         obj.assigned_to = int(aid) if aid else None
         obj.notes = request.form.get("notes", "").strip()
         log_activity("update", "objective", oid, f"Editado: {obj.title}")
+        # Snapshot solo si el progreso ha cambiado (para no llenar la tabla)
+        if obj.progress != prev_progress:
+            _record_snapshot(obj)
         db.session.commit()
         push_change("objectives", oid)
         flash("Objetivo actualizado", "success")
@@ -123,3 +135,21 @@ def delete(oid):
             push_change_now("objectives", obj_id)
         flash("Objetivo eliminado", "success")
     return redirect(url_for("objetivos.index"))
+
+
+@objetivos_bp.route("/api/objetivos/<int:oid>/snapshots")
+@login_required
+def api_snapshots(oid):
+    """Devuelve la serie temporal del progreso del objetivo (para Chart.js)."""
+    obj = db.session.get(Objective, oid)
+    if not obj:
+        return jsonify({"error": "not found"}), 404
+    rows = obj.snapshots.order_by(ObjectiveSnapshot.created_at.asc()).all()
+    return jsonify({
+        "title": obj.title,
+        "current": obj.progress or 0,
+        "points": [{
+            "date": (s.created_at.isoformat() if s.created_at else None),
+            "progress": s.progress or 0,
+        } for s in rows],
+    })

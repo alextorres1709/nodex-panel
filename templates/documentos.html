@@ -27,30 +27,62 @@
     </form>
 </div>
 {% elif gdrive_connected %}
-<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;">
+<div id="gdriveBanner" style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;">
     <div style="display:flex;align-items:center;gap:8px;color:#256029;">
         <svg viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="20 6 9 17 4 12"/></svg>
         Google Drive conectado — los archivos se sincronizan con tu carpeta compartida.
     </div>
-    <form method="POST" action="{{ url_for('documents.gdrive_disconnect') }}" style="margin:0;" onsubmit="return confirm('Desconectar Google Drive? Los nuevos archivos se guardarán solo en este equipo.');">
-        <button type="submit" class="btn btn-sm btn-secondary">Desconectar</button>
-    </form>
+    <div style="display:flex;align-items:center;gap:6px;">
+        <form method="POST" action="{{ url_for('documents.gdrive_disconnect') }}" style="margin:0;" onsubmit="return confirm('Desconectar Google Drive? Los nuevos archivos se guardarán solo en este equipo.');">
+            <button type="submit" class="btn btn-sm btn-secondary">Desconectar</button>
+        </form>
+        <button type="button" onclick="dismissGdriveBanner()" title="Ocultar"
+                style="background:transparent;border:none;color:#256029;font-size:18px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:4px;">&times;</button>
+    </div>
 </div>
+<script>
+(function() {
+    if (localStorage.getItem('gdriveBannerDismissed') === '1') {
+        var b = document.getElementById('gdriveBanner');
+        if (b) b.style.display = 'none';
+    }
+})();
+function dismissGdriveBanner() {
+    localStorage.setItem('gdriveBannerDismissed', '1');
+    var b = document.getElementById('gdriveBanner');
+    if (b) b.style.display = 'none';
+}
+</script>
 {% endif %}
+
+{% set CATEGORY_LABELS = {
+    'contrato': 'Contrato',
+    'factura_pago': 'Factura de pago',
+    'factura_ingreso': 'Factura de ingreso',
+    'factura': 'Factura (legacy)',
+    'propuesta': 'Propuesta',
+    'informe': 'Informe',
+    'plantilla': 'Plantilla',
+    'otro': 'Otro',
+} %}
 
 <form class="filter-bar" method="GET">
     <select name="category">
         <option value="">Todas las categorías</option>
-        {% for c in ['contrato','factura','propuesta','informe','plantilla','otro'] %}
-        <option value="{{ c }}" {{ 'selected' if sel_category == c }}>{{ c|capitalize }}</option>
+        {% for c in ['contrato','factura_pago','factura_ingreso','propuesta','informe','plantilla','otro'] %}
+        <option value="{{ c }}" {{ 'selected' if sel_category == c }}>{{ CATEGORY_LABELS[c] }}</option>
         {% endfor %}
+    </select>
+    <select name="company_id">
+        <option value="">Todas las empresas</option>
+        {% for co in companies %}<option value="{{ co.id }}" {{ 'selected' if sel_company == co.id|string }}>{{ co.name }}</option>{% endfor %}
     </select>
     <select name="project_id">
         <option value="">Todos los proyectos</option>
         {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if sel_project == p.id|string }}>{{ p.name }}</option>{% endfor %}
     </select>
     <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
-    {% if sel_category or sel_project %}
+    {% if sel_category or sel_project or sel_company %}
     <a href="{{ url_for('documents.index') }}" class="btn btn-sm btn-secondary">Limpiar</a>
     {% endif %}
 </form>
@@ -63,14 +95,29 @@
         <div class="doc-icon {{ icon_class }}">{{ icons[icon_class]|safe }}</div>
         <div class="doc-name">{{ doc.name }}</div>
         <div class="doc-meta">
-            <span class="badge badge-{{ doc.category }}">{{ doc.category }}</span>
+            <span class="badge badge-{{ doc.category }}">{{ CATEGORY_LABELS.get(doc.category, doc.category) }}</span>
+            {% if doc.company %} · {{ doc.company.name }}{% endif %}
             {% if doc.project %} · {{ doc.project.name }}{% endif %}
             · {{ "%.1f"|format(doc.file_size / 1024) }} KB
         </div>
         <div class="doc-meta" style="margin-top:4px">{{ doc.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
         {% if doc.notes %}<div class="doc-meta" style="margin-top:4px">{{ doc.notes }}</div>{% endif %}
-        <div style="display:flex;gap:6px;margin-top:12px">
-            <a href="{{ url_for('documents.download', did=doc.id) }}" class="btn btn-sm btn-primary">Descargar</a>
+        <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
+            <button type="button"
+                    class="btn btn-sm btn-secondary"
+                    data-doc-id="{{ doc.id }}"
+                    data-doc-name="{{ doc.filename }}"
+                    data-doc-mime="{{ doc.mime_type or '' }}"
+                    onclick="previewDocument(this)">
+                Vista previa
+            </button>
+            <button type="button"
+                    class="btn btn-sm btn-primary"
+                    data-doc-id="{{ doc.id }}"
+                    data-doc-name="{{ doc.filename }}"
+                    onclick="saveDocument(this)">
+                Descargar
+            </button>
             <form method="POST" action="{{ url_for('documents.delete', did=doc.id) }}" style="display:inline" onsubmit="return confirm('Eliminar archivo?')">
                 <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
             </form>
@@ -96,7 +143,8 @@
                         <select name="category">
                             <option value="otro">Otro</option>
                             <option value="contrato">Contrato</option>
-                            <option value="factura">Factura</option>
+                            <option value="factura_pago">Factura de pago</option>
+                            <option value="factura_ingreso">Factura de ingreso</option>
                             <option value="propuesta">Propuesta</option>
                             <option value="informe">Informe</option>
                             <option value="plantilla">Plantilla</option>
@@ -106,8 +154,13 @@
                         <select name="project_id"><option value="">—</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
                     </div>
                 </div>
-                <div class="form-group"><label>Cliente</label>
-                    <select name="client_id"><option value="">—</option>{% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select>
+                <div class="form-row">
+                    <div class="form-group"><label>Empresa</label>
+                        <select name="company_id"><option value="">—</option>{% for co in companies %}<option value="{{ co.id }}">{{ co.name }}</option>{% endfor %}</select>
+                    </div>
+                    <div class="form-group"><label>Cliente</label>
+                        <select name="client_id"><option value="">—</option>{% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select>
+                    </div>
                 </div>
                 <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
             </div>
@@ -152,5 +205,114 @@ document.querySelectorAll('form[action*="/documentos/"][action$="/delete"]').for
         }
     });
 });
+
+// ─── Document preview & download ─────────────────────────────────────
+// Detect the runtime: macOS pywebview exposes window.pywebview.api, the
+// Android WebView exposes window.NodexAndroid (our JS bridge), and
+// plain browsers fall through to window.open / anchor download.
+function _isPywebview() {
+    return !!(window.pywebview && window.pywebview.api);
+}
+function _isAndroid() {
+    return !!(window.NodexAndroid);
+}
+
+function previewDocument(btn) {
+    var id = btn.dataset.docId;
+    var name = btn.dataset.docName;
+    var mime = btn.dataset.docMime || '';
+    var url = '/documentos/' + id + '/preview';
+
+    if (_isPywebview()) {
+        // Open in a new pywebview window (native title bar, resizable)
+        window.pywebview.api.preview_document(url, name);
+        return;
+    }
+    if (_isAndroid()) {
+        // Android: download to cache + open with system viewer (Intent.ACTION_VIEW)
+        window.NodexAndroid.previewDocument(url, name, mime);
+        return;
+    }
+    // Browser fallback: modal inline con iframe para PDFs/imágenes/texto
+    openInlinePreview(url, name, mime);
+}
+
+function openInlinePreview(url, name, mime) {
+    var modal = document.getElementById('docPreviewModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'docPreviewModal';
+        modal.className = 'doc-preview-modal';
+        modal.innerHTML =
+            '<div class="doc-preview-card">' +
+              '<div class="doc-preview-header">' +
+                '<strong id="docPreviewTitle">Documento</strong>' +
+                '<div style="display:flex;gap:8px">' +
+                  '<a id="docPreviewOpen" target="_blank" class="btn btn-sm btn-secondary">Abrir en pestaña</a>' +
+                  '<button class="btn btn-sm btn-secondary" onclick="closeInlinePreview()">Cerrar</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="doc-preview-iframe-wrap">' +
+                '<iframe id="docPreviewIframe" frameborder="0"></iframe>' +
+              '</div>' +
+            '</div>';
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) closeInlinePreview();
+        });
+    }
+    document.getElementById('docPreviewTitle').textContent = name;
+    document.getElementById('docPreviewIframe').src = url;
+    document.getElementById('docPreviewOpen').href = url;
+    modal.classList.add('open');
+}
+
+function closeInlinePreview() {
+    var modal = document.getElementById('docPreviewModal');
+    if (modal) {
+        modal.classList.remove('open');
+        document.getElementById('docPreviewIframe').src = 'about:blank';
+    }
+}
+
+function saveDocument(btn) {
+    var id = btn.dataset.docId;
+    var name = btn.dataset.docName;
+    var url = '/documentos/' + id + '/download';
+
+    if (_isPywebview()) {
+        // Open native SAVE_DIALOG, then stream the file to the chosen path
+        btn.disabled = true;
+        var original = btn.textContent;
+        btn.textContent = 'Guardando...';
+        window.pywebview.api.save_document(url, name).then(function(result) {
+            btn.disabled = false;
+            btn.textContent = original;
+            if (result && result.ok) {
+                // Optional lightweight feedback
+                console.log('Saved to', result.path);
+            } else if (result && result.error) {
+                alert('Error al guardar: ' + result.error);
+            }
+        }).catch(function(e) {
+            btn.disabled = false;
+            btn.textContent = original;
+            alert('Error: ' + e);
+        });
+        return;
+    }
+    if (_isAndroid()) {
+        // Fires ACTION_CREATE_DOCUMENT so the user picks the destination
+        window.NodexAndroid.saveDocument(url, name);
+        return;
+    }
+    // Fallback: direct download (browser save dialog or ~/Downloads)
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name || '';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
 </script>
 {% endblock %}

@@ -84,6 +84,22 @@ def login():
         password = request.form.get("password", "")
         user = User.query.filter_by(email=email).first()
         if user and user.active and user.check_password(password):
+            # Si el usuario tiene 2FA activo, exigir token
+            if getattr(user, "totp_enabled", False) and getattr(user, "totp_secret", None):
+                token = (request.form.get("totp_code") or "").strip().replace(" ", "")
+                if not token:
+                    # Mostrar formulario de 2FA conservando email/pwd
+                    return render_template("login.html", show_2fa=True, email=email)
+                try:
+                    import pyotp
+                    totp = pyotp.TOTP(user.totp_secret)
+                    if not totp.verify(token, valid_window=1):
+                        flash("Código 2FA incorrecto", "error")
+                        return render_template("login.html", show_2fa=True, email=email)
+                except ImportError:
+                    flash("pyotp no está instalado en el servidor", "error")
+                    return render_template("login.html")
+
             remember = request.form.get("remember")
             if remember:
                 session.permanent = True
@@ -100,3 +116,52 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("auth.login"))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2FA TOTP — setup, verify, disable
+# ─────────────────────────────────────────────────────────────────────────────
+
+@auth_bp.route("/2fa/setup", methods=["POST"])
+@login_required
+def totp_setup():
+    """Genera un secret nuevo y devuelve el otpauth:// URI para mostrar QR."""
+    try:
+        import pyotp
+    except ImportError:
+        return jsonify({"error": "pyotp no instalado"}), 500
+    secret = pyotp.random_base32()
+    g.user.totp_secret = secret
+    g.user.totp_enabled = False  # se activa al confirmar el primer código
+    db.session.commit()
+    uri = pyotp.TOTP(secret).provisioning_uri(name=g.user.email, issuer_name="NodexAI Panel")
+    return jsonify({"secret": secret, "uri": uri})
+
+
+@auth_bp.route("/2fa/verify", methods=["POST"])
+@login_required
+def totp_verify():
+    """Confirma un código y activa 2FA si valida."""
+    try:
+        import pyotp
+    except ImportError:
+        return jsonify({"error": "pyotp no instalado"}), 500
+    data = request.get_json(force=True)
+    code = (data.get("code") or "").strip().replace(" ", "")
+    if not g.user.totp_secret:
+        return jsonify({"error": "no hay secret"}), 400
+    totp = pyotp.TOTP(g.user.totp_secret)
+    if totp.verify(code, valid_window=1):
+        g.user.totp_enabled = True
+        db.session.commit()
+        return jsonify({"ok": True})
+    return jsonify({"error": "código inválido"}), 400
+
+
+@auth_bp.route("/2fa/disable", methods=["POST"])
+@login_required
+def totp_disable():
+    g.user.totp_enabled = False
+    g.user.totp_secret = None
+    db.session.commit()
+    return jsonify({"ok": True})

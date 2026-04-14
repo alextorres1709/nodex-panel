@@ -39,7 +39,7 @@ def _get_local_db_path():
 BASE_DIR = _get_base_dir()
 LOCAL_DB_PATH = _get_local_db_path()
 
-APP_VERSION = "4.4.6"
+APP_VERSION = "4.5.2"
 
 # Remote Railway PostgreSQL — used ONLY for background sync, never for page loads
 REMOTE_DATABASE_URL = os.getenv(
@@ -75,6 +75,13 @@ GOOGLE_OAUTH_CLIENT_SECRET = os.getenv(
     "".join(_OAUTH_PARTS),
 )
 GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID", "1kWiAqCjqhrxvJb7KsXvLsfr1OOOmixVb")
+# Carpeta separada para /recursos (logos, brand kit, plantillas...).
+# El socio comparte esta carpeta con su Gmail; ambos paneles apuntan al
+# mismo folder ID y los archivos viven en Drive en lugar de en disco local.
+GOOGLE_DRIVE_RESOURCES_FOLDER_ID = os.getenv(
+    "GOOGLE_DRIVE_RESOURCES_FOLDER_ID",
+    "1nIZD4DtlscGvXL2Rd0got0e3YyD8oyUl",
+)
 
 
 class Config:

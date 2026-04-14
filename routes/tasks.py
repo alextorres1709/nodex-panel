@@ -1,7 +1,8 @@
+import re
 from datetime import datetime, date, timezone, timedelta
 from sqlalchemy.orm import joinedload
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from models import db, Task, TaskAssignment, Subtask, User, Project, REMINDER_CHOICES
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, g
+from models import db, Task, TaskAssignment, TaskComment, Subtask, User, Project, REMINDER_CHOICES
 from routes.auth import login_required
 from services.activity import log_activity
 from services.sync import push_change, push_change_now, sync_locked
@@ -33,13 +34,18 @@ def index():
         "completada": [t for t in tasks if t.status == "completada"],
     }
 
-    # Stats
-    all_tasks = Task.query.all()
-    total = len(all_tasks)
-    pending = sum(1 for t in all_tasks if t.status == "pendiente")
-    in_progress = sum(1 for t in all_tasks if t.status == "en_progreso")
-    completed = sum(1 for t in all_tasks if t.status == "completada")
-    overdue = sum(1 for t in all_tasks if t.safe_due_date and t.safe_due_date < date.today() and t.status != "completada")
+    # Stats — computed via lightweight COUNT queries (no second full load)
+    from sqlalchemy import func, and_
+    status_counts = dict(
+        db.session.query(Task.status, func.count(Task.id)).group_by(Task.status).all()
+    )
+    total = sum(status_counts.values())
+    pending = status_counts.get("pendiente", 0)
+    in_progress = status_counts.get("en_progreso", 0)
+    completed = status_counts.get("completada", 0)
+    overdue = db.session.query(func.count(Task.id)).filter(
+        and_(Task.due_date < date.today(), Task.status != "completada")
+    ).scalar() or 0
 
     users = User.query.filter_by(active=True).all()
     projects = Project.query.order_by(Project.name).all()
@@ -165,16 +171,102 @@ def edit(tid):
     return redirect(url_for("tasks.index"))
 
 
+def _maybe_clone_recurring(task):
+    """Si la tarea tiene recurrencia, genera la siguiente instancia.
+    Devuelve la nueva Task creada o None."""
+    rec = (task.recurrence or "ninguna").lower()
+    if rec in ("", "ninguna", "none"):
+        return None
+
+    base = task.due_date or date.today()
+    if rec == "diaria":
+        next_due = base + timedelta(days=1)
+    elif rec == "semanal":
+        next_due = base + timedelta(days=7)
+    elif rec == "mensual":
+        # +30 días aproximado (sin dependencias extra)
+        next_due = base + timedelta(days=30)
+    elif rec == "anual":
+        try:
+            next_due = base.replace(year=base.year + 1)
+        except ValueError:
+            next_due = base + timedelta(days=365)
+    else:
+        return None
+
+    clone = Task(
+        title=task.title,
+        description=task.description,
+        priority=task.priority,
+        status="pendiente",
+        project_id=task.project_id,
+        company_id=task.company_id,
+        due_date=next_due,
+        estimated_minutes=task.estimated_minutes,
+        recurrence=task.recurrence,
+        reminder_minutes=task.reminder_minutes,
+    )
+    db.session.add(clone)
+    db.session.flush()
+    # Replicar asignaciones
+    for ta in TaskAssignment.query.filter_by(task_id=task.id).all():
+        db.session.add(TaskAssignment(task_id=clone.id, user_id=ta.user_id))
+    return clone
+
+
 @tasks_bp.route("/tareas/toggle/<int:tid>", methods=["POST"])
 @login_required
 def toggle(tid):
     t = db.session.get(Task, tid)
     if t:
-        t.status = "completada" if t.status != "completada" else "pendiente"
+        was_complete = t.status == "completada"
+        t.status = "completada" if not was_complete else "pendiente"
         log_activity("update", "task", t.id, f"{'Completada' if t.status == 'completada' else 'Reabierta'}: {t.title}")
+
+        # Si se acaba de completar y es recurrente, generar la siguiente
+        clone = None
+        if not was_complete and t.status == "completada":
+            clone = _maybe_clone_recurring(t)
+
         db.session.commit()
         from services.sync import push_change
         push_change("tasks", t.id)
+        if clone:
+            push_change("tasks", clone.id)
+            for ta in TaskAssignment.query.filter_by(task_id=clone.id).all():
+                push_change("task_assignments", ta.id)
+    return redirect(url_for("tasks.index"))
+
+
+@tasks_bp.route("/tareas/duplicate/<int:tid>", methods=["POST"])
+@login_required
+def duplicate(tid):
+    t = db.session.get(Task, tid)
+    if not t:
+        flash("Tarea no encontrada", "error")
+        return redirect(url_for("tasks.index"))
+    clone = Task(
+        title=f"{t.title} (copia)",
+        description=t.description,
+        priority=t.priority,
+        status="pendiente",
+        project_id=t.project_id,
+        company_id=t.company_id,
+        due_date=t.due_date,
+        estimated_minutes=t.estimated_minutes,
+        recurrence=t.recurrence,
+        reminder_minutes=t.reminder_minutes,
+    )
+    db.session.add(clone)
+    db.session.flush()
+    for ta in TaskAssignment.query.filter_by(task_id=t.id).all():
+        db.session.add(TaskAssignment(task_id=clone.id, user_id=ta.user_id))
+    log_activity("create", "task", clone.id, f"Duplicada de #{t.id}: {t.title}")
+    db.session.commit()
+    push_change("tasks", clone.id)
+    for ta in TaskAssignment.query.filter_by(task_id=clone.id).all():
+        push_change("task_assignments", ta.id)
+    flash("Tarea duplicada", "success")
     return redirect(url_for("tasks.index"))
 
 
@@ -207,13 +299,24 @@ def api_move(tid):
     data = request.get_json(force=True)
     new_status = data.get("status", t.status)
     new_order = data.get("order", t.kanban_order)
+    prev_status = t.status
     if new_status in ("pendiente", "en_progreso", "completada"):
         t.status = new_status
     t.kanban_order = new_order
     log_activity("update", "task", t.id, f"Movida a {t.status}: {t.title}")
+
+    # Si se completó vía drag&drop y es recurrente, clonar la siguiente
+    clone = None
+    if prev_status != "completada" and t.status == "completada":
+        clone = _maybe_clone_recurring(t)
+
     db.session.commit()
     from services.sync import push_change
     push_change("tasks", t.id)
+    if clone:
+        push_change("tasks", clone.id)
+        for ta in TaskAssignment.query.filter_by(task_id=clone.id).all():
+            push_change("task_assignments", ta.id)
     return jsonify({"ok": True, "status": t.status, "order": t.kanban_order})
 
 
@@ -313,4 +416,92 @@ def api_due_reminders():
                 push_change_now("tasks", d["id"])
 
     return jsonify({"due": due})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Comentarios + menciones (@usuario)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_MENTION_RE = re.compile(r"@([a-zA-Z0-9_\-]+)")
+
+
+def _parse_mentions(text):
+    """Devuelve lista de User encontrados a partir de @nombre dentro de text."""
+    if not text:
+        return []
+    raw = set(m.lower() for m in _MENTION_RE.findall(text))
+    if not raw:
+        return []
+    users = User.query.filter(User.active.is_(True)).all()
+    out = []
+    for u in users:
+        first = (u.name or "").split()[0].lower() if u.name else ""
+        if first and first in raw:
+            out.append(u)
+    return out
+
+
+@tasks_bp.route("/api/tasks/<int:task_id>/comments")
+@login_required
+def api_task_comments(task_id):
+    Task.query.get_or_404(task_id)
+    rows = TaskComment.query.filter_by(task_id=task_id).order_by(TaskComment.created_at.asc()).all()
+    return jsonify({"comments": [{
+        "id": c.id,
+        "content": c.content,
+        "author": c.author.name if c.author else "—",
+        "author_id": c.author_id,
+        "created_at": (c.created_at.isoformat() if c.created_at else None),
+    } for c in rows]})
+
+
+@tasks_bp.route("/api/tasks/<int:task_id>/comments", methods=["POST"])
+@login_required
+def api_task_comment_create(task_id):
+    from flask import g
+    task = Task.query.get_or_404(task_id)
+    data = request.get_json(force=True)
+    content = (data.get("content") or "").strip()
+    if not content:
+        return jsonify({"error": "vacío"}), 400
+
+    user = g.get("user")
+    c = TaskComment(task_id=task.id, author_id=(user.id if user else None), content=content)
+    db.session.add(c)
+    db.session.commit()
+    push_change("task_comments", c.id)
+
+    # Notificar a los mencionados (notify ya envía FCM internamente)
+    try:
+        from services.notifications import notify
+        for u in _parse_mentions(content):
+            if user and u.id == user.id:
+                continue
+            notify(
+                user_id=u.id,
+                type="mention",
+                title=f"Te mencionaron en «{task.title}»",
+                body=content[:140],
+                link=f"/tareas#task-{task.id}",
+            )
+    except Exception:
+        pass
+
+    log_activity("task_comment_create", "task", task.id, f"Comentario en {task.title}")
+    return jsonify({"ok": True, "id": c.id})
+
+
+@tasks_bp.route("/api/tasks/<int:task_id>/comments/<int:comment_id>", methods=["DELETE"])
+@login_required
+def api_task_comment_delete(task_id, comment_id):
+    from flask import g
+    c = TaskComment.query.filter_by(id=comment_id, task_id=task_id).first_or_404()
+    user = g.get("user")
+    # Solo autor o admin pueden borrar
+    if user and c.author_id and c.author_id != user.id and user.role != "admin":
+        return jsonify({"error": "forbidden"}), 403
+    db.session.delete(c)
+    db.session.commit()
+    push_change("task_comments", comment_id)
+    return jsonify({"ok": True})
 

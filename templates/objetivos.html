@@ -155,6 +155,12 @@
                     </div>
                 </div>
                 <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+
+                <!-- Histórico de progreso -->
+                <div class="okr-chart-card" id="okrChartCard" style="display:none">
+                    <h4 style="margin:14px 0 6px;font-size:13px;color:var(--text-secondary)">Evolución del progreso</h4>
+                    <canvas id="okrChart" height="120"></canvas>
+                </div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
         </form>
@@ -163,11 +169,50 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
+var _okrChart = null;
 function editObj(id, title, description, priority, status, progress, target_date, project_id, assigned_to, notes) {
     document.getElementById('editForm').action = '/objetivos/edit/' + id;
     populateEditModal({title, description, priority, status, progress, target_date, project_id, assigned_to, notes}, 'editForm');
     openModal('editModal');
+    loadOkrSnapshots(id);
+}
+
+function loadOkrSnapshots(oid) {
+    fetch('/api/objetivos/' + oid + '/snapshots')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (!d.points || d.points.length < 2) {
+                document.getElementById('okrChartCard').style.display = 'none';
+                return;
+            }
+            document.getElementById('okrChartCard').style.display = '';
+            var labels = d.points.map(function(p) {
+                return p.date ? new Date(p.date).toLocaleDateString() : '';
+            });
+            var values = d.points.map(function(p) { return p.progress; });
+            var ctx = document.getElementById('okrChart').getContext('2d');
+            if (_okrChart) _okrChart.destroy();
+            _okrChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Progreso (%)',
+                        data: values,
+                        borderColor: '#4f9cf9',
+                        backgroundColor: 'rgba(79,156,249,0.15)',
+                        tension: 0.3,
+                        fill: true,
+                    }],
+                },
+                options: {
+                    scales: { y: { min: 0, max: 100 } },
+                    plugins: { legend: { display: false } },
+                },
+            });
+        });
 }
 </script>
 {% endblock %}

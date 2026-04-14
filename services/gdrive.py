@@ -192,8 +192,11 @@ def disconnect():
     _drive_service = None
 
 
-def upload_file(file_stream, filename, mime_type):
-    """Upload a file into the shared Drive folder.
+def upload_file(file_stream, filename, mime_type, parent_folder_id=None):
+    """Upload a file into a Drive folder.
+
+    `parent_folder_id` overrides the default GOOGLE_DRIVE_FOLDER_ID — used by
+    /recursos to push to a different shared folder than /documentos.
 
     Returns the Drive file ID on success, or None on failure (the caller
     is expected to fall back to local storage).
@@ -204,7 +207,8 @@ def upload_file(file_stream, filename, mime_type):
     try:
         from googleapiclient.http import MediaIoBaseUpload
 
-        file_metadata = {"name": filename, "parents": [_folder_id]}
+        target_folder = parent_folder_id or _folder_id
+        file_metadata = {"name": filename, "parents": [target_folder]}
 
         if hasattr(file_stream, "seek"):
             file_stream.seek(0)

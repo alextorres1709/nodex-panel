@@ -11,6 +11,43 @@
     <button class="btn btn-primary" onclick="openModal('uploadModal')">+ Subir recurso</button>
 </div>
 
+{% if gdrive_needs_auth %}
+<div style="background:#fff8e1;border:1px solid #f0c36d;border-radius:8px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:flex-start;gap:12px;flex:1;min-width:260px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#b8860b" stroke-width="2" style="width:22px;height:22px;flex-shrink:0;margin-top:2px;">
+            <path d="M12 2L2 22h20L12 2z"/><line x1="12" y1="9" x2="12" y2="14"/><circle cx="12" cy="18" r="0.8" fill="#b8860b"/>
+        </svg>
+        <div>
+            <div style="font-weight:600;color:#6b4a00;margin-bottom:2px;">Google Drive no conectado</div>
+            <div style="font-size:13px;color:#7a5a00;">Los recursos se guardan solo en este equipo. Conecta Google Drive desde Documentos para compartirlos con tu socio.</div>
+        </div>
+    </div>
+    <a href="{{ url_for('documents.index') }}" class="btn btn-primary">Ir a conectar</a>
+</div>
+{% elif gdrive_connected %}
+<div id="gdriveResBanner" style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;">
+    <div style="display:flex;align-items:center;gap:8px;color:#256029;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="20 6 9 17 4 12"/></svg>
+        Recursos sincronizados con Google Drive — carpeta compartida con tu socio.
+    </div>
+    <button type="button" onclick="dismissResBanner()" title="Ocultar"
+            style="background:transparent;border:none;color:#256029;font-size:18px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:4px;">&times;</button>
+</div>
+<script>
+(function() {
+    if (localStorage.getItem('gdriveResBannerDismissed') === '1') {
+        var b = document.getElementById('gdriveResBanner');
+        if (b) b.style.display = 'none';
+    }
+})();
+function dismissResBanner() {
+    localStorage.setItem('gdriveResBannerDismissed', '1');
+    var b = document.getElementById('gdriveResBanner');
+    if (b) b.style.display = 'none';
+}
+</script>
+{% endif %}
+
 <!-- Filter -->
 <div class="filter-bar" style="margin-bottom:20px">
     <a href="{{ url_for('resources.index') }}"

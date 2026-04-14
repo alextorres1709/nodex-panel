@@ -4,7 +4,7 @@ import threading
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, session
 from werkzeug.utils import secure_filename
-from models import db, Document, Project, Client
+from models import db, Document, Project, Client, Company
 from routes.auth import login_required
 from services.activity import log_activity
 from config import BASE_DIR
@@ -36,24 +36,30 @@ def get_mime_icon(mime_type):
 def index():
     cat = request.args.get("category", "")
     pid = request.args.get("project_id", "")
+    coid = request.args.get("company_id", "")
 
     q = Document.query
     if cat:
         q = q.filter_by(category=cat)
     if pid:
         q = q.filter_by(project_id=int(pid))
+    if coid:
+        q = q.filter_by(company_id=int(coid))
 
     docs = q.order_by(Document.created_at.desc()).all()
     projects = Project.query.order_by(Project.name).all()
     clients = Client.query.order_by(Client.name).all()
+    companies = Company.query.order_by(Company.name).all()
 
     return render_template(
         "documentos.html",
         docs=docs,
         projects=projects,
         clients=clients,
+        companies=companies,
         sel_category=cat,
         sel_project=pid,
+        sel_company=coid,
         gdrive_connected=gdrive.is_available(),
         gdrive_needs_auth=gdrive.needs_authorization(),
     )
@@ -105,6 +111,9 @@ def upload():
 
     pid = request.form.get("project_id", "").strip()
     cid = request.form.get("client_id", "").strip()
+    coid = request.form.get("company_id", "").strip()
+    tid = request.form.get("task_id", "").strip()
+    iid = request.form.get("idea_id", "").strip()
 
     doc = Document(
         name=request.form.get("name", filename).strip() or filename,
@@ -116,6 +125,9 @@ def upload():
         category=request.form.get("category", "otro"),
         project_id=int(pid) if pid else None,
         client_id=int(cid) if cid else None,
+        company_id=int(coid) if coid else None,
+        task_id=int(tid) if tid else None,
+        idea_id=int(iid) if iid else None,
         uploaded_by=uid,
         notes=request.form.get("notes", "").strip(),
     )
@@ -123,8 +135,64 @@ def upload():
     log_activity("create", "document", details=f"Subido: {doc.name}")
     db.session.commit()
     push_change("documents", doc.id)
+
+    # Si la petición es JSON (XHR desde el modal de tarea/idea), responder JSON
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.headers.get("Accept", "").startswith("application/json"):
+        from flask import jsonify
+        return jsonify({"ok": True, "id": doc.id, "name": doc.name, "filename": doc.filename, "mime_type": doc.mime_type})
+
     flash("Documento subido", "success")
     return redirect(url_for("documents.index"))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Endpoints JSON para adjuntos por tarea / idea
+# ─────────────────────────────────────────────────────────────────────────────
+
+@documents_bp.route("/api/attachments/task/<int:task_id>")
+@login_required
+def api_attachments_task(task_id):
+    from flask import jsonify
+    docs = Document.query.filter_by(task_id=task_id).order_by(Document.created_at.desc()).all()
+    return jsonify({"docs": [{
+        "id": d.id, "name": d.name, "filename": d.filename,
+        "mime_type": d.mime_type, "size": d.file_size,
+    } for d in docs]})
+
+
+@documents_bp.route("/api/attachments/idea/<int:idea_id>")
+@login_required
+def api_attachments_idea(idea_id):
+    from flask import jsonify
+    docs = Document.query.filter_by(idea_id=idea_id).order_by(Document.created_at.desc()).all()
+    return jsonify({"docs": [{
+        "id": d.id, "name": d.name, "filename": d.filename,
+        "mime_type": d.mime_type, "size": d.file_size,
+    } for d in docs]})
+
+
+def _serve_document(doc, as_attachment):
+    """Return the document file from Drive (or local fallback) as a Flask
+    response. Used by both /download (attachment) and /preview (inline)."""
+    if doc.drive_file_id:
+        buffer = gdrive.download_file(doc.drive_file_id)
+        if buffer:
+            return send_file(
+                buffer,
+                as_attachment=as_attachment,
+                download_name=doc.filename,
+                mimetype=doc.mime_type or "application/octet-stream",
+            )
+
+    if doc.file_path and os.path.exists(doc.file_path):
+        return send_file(
+            doc.file_path,
+            as_attachment=as_attachment,
+            download_name=doc.filename,
+            mimetype=doc.mime_type or "application/octet-stream",
+        )
+
+    return None
 
 
 @documents_bp.route("/documentos/<int:did>/download")
@@ -135,23 +203,28 @@ def download(did):
         flash("Documento no encontrado", "error")
         return redirect(url_for("documents.index"))
 
-    # ── Try Google Drive first ──
-    if doc.drive_file_id:
-        buffer = gdrive.download_file(doc.drive_file_id)
-        if buffer:
-            return send_file(
-                buffer,
-                as_attachment=True,
-                download_name=doc.filename,
-                mimetype=doc.mime_type or "application/octet-stream",
-            )
+    resp = _serve_document(doc, as_attachment=True)
+    if resp is None:
+        flash("Archivo no encontrado", "error")
+        return redirect(url_for("documents.index"))
+    return resp
 
-    # ── Local file fallback ──
-    if doc.file_path and os.path.exists(doc.file_path):
-        return send_file(doc.file_path, as_attachment=True, download_name=doc.filename)
 
-    flash("Archivo no encontrado", "error")
-    return redirect(url_for("documents.index"))
+@documents_bp.route("/documentos/<int:did>/preview")
+@login_required
+def preview(did):
+    """Serve the file inline so the WebView can render PDFs, images,
+    and text files without triggering a download."""
+    doc = db.session.get(Document, did)
+    if not doc:
+        flash("Documento no encontrado", "error")
+        return redirect(url_for("documents.index"))
+
+    resp = _serve_document(doc, as_attachment=False)
+    if resp is None:
+        flash("Archivo no encontrado", "error")
+        return redirect(url_for("documents.index"))
+    return resp
 
 
 @documents_bp.route("/documentos/gdrive/authorize", methods=["POST"])

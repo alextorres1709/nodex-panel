@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, g
 from sqlalchemy.orm import joinedload
-from models import db, Project, ProjectContact, Task, TaskAssignment, Subtask, TimeEntry, Document, Invoice, Income, Idea, User, Client, Company
+from models import db, Project, ProjectContact, Task, TaskAssignment, Subtask, TimeEntry, Document, Invoice, Income, Idea, User, Client, Company, ProjectTemplate, ProjectTemplateTask
 from routes.auth import login_required
 from services.activity import log_activity
 from services.sync import push_change, push_change_now, sync_locked
@@ -124,6 +124,33 @@ def edit(pid):
         db.session.rollback()
         flash(f"Error: {e}", "error")
     return redirect(url_for("projects.index"))
+
+
+@projects_bp.route("/proyectos/duplicate/<int:pid>", methods=["POST"])
+@login_required
+def duplicate(pid):
+    p = db.session.get(Project, pid)
+    if not p:
+        flash("Proyecto no encontrado", "error")
+        return redirect(url_for("projects.index"))
+    clone = Project(
+        name=f"{p.name} (copia)",
+        client_name=p.client_name,
+        company_id=p.company_id,
+        status="activo",
+        type=p.type,
+        budget=p.budget,
+        progress=0,
+        description=p.description,
+        notes=p.notes,
+    )
+    db.session.add(clone)
+    db.session.flush()
+    log_activity("create", "project", clone.id, f"Duplicado de #{p.id}: {p.name}")
+    db.session.commit()
+    push_change("projects", clone.id)
+    flash("Proyecto duplicado", "success")
+    return redirect(url_for("projects.view", pid=clone.id))
 
 
 @projects_bp.route("/proyectos/delete/<int:pid>", methods=["POST"])
@@ -347,3 +374,109 @@ def vote_idea(pid, iid):
         idea.votes = (idea.votes or 0) + 1
         db.session.commit()
     return redirect(url_for("projects.view", pid=pid))
+
+
+# ═══════════════════════════════════════════
+# PLANTILLAS DE PROYECTO
+# ═══════════════════════════════════════════
+
+@projects_bp.route("/proyectos/plantillas")
+@login_required
+def templates_index():
+    tpls = ProjectTemplate.query.order_by(ProjectTemplate.name).all()
+    return render_template("plantillas.html", templates=tpls)
+
+
+@projects_bp.route("/proyectos/plantillas/create", methods=["POST"])
+@login_required
+def template_create():
+    try:
+        tpl = ProjectTemplate(
+            name=request.form.get("name", "").strip(),
+            description=request.form.get("description", "").strip(),
+            type=request.form.get("type", "web"),
+            default_status=request.form.get("default_status", "activo"),
+            default_progress=int(request.form.get("default_progress", 0) or 0),
+            created_by=g.user.id if hasattr(g, "user") and g.user else None,
+        )
+        db.session.add(tpl)
+        db.session.flush()
+
+        # Tareas opcionales (un campo por línea: "Título|prioridad|días")
+        raw = request.form.get("tasks", "").strip()
+        if raw:
+            for i, line in enumerate(raw.splitlines()):
+                line = line.strip()
+                if not line:
+                    continue
+                parts = [p.strip() for p in line.split("|")]
+                title = parts[0]
+                priority = parts[1] if len(parts) > 1 and parts[1] else "media"
+                days = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+                db.session.add(ProjectTemplateTask(
+                    template_id=tpl.id,
+                    title=title,
+                    priority=priority,
+                    days_offset=days,
+                    sort_order=i,
+                ))
+
+        db.session.commit()
+        push_change("project_templates", tpl.id)
+        flash("Plantilla creada", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {e}", "error")
+    return redirect(url_for("projects.templates_index"))
+
+
+@projects_bp.route("/proyectos/plantillas/<int:tid>/delete", methods=["POST"])
+@login_required
+def template_delete(tid):
+    tpl = db.session.get(ProjectTemplate, tid)
+    if tpl:
+        with sync_locked():
+            db.session.delete(tpl)
+            db.session.commit()
+            push_change_now("project_templates", tid)
+        flash("Plantilla eliminada", "success")
+    return redirect(url_for("projects.templates_index"))
+
+
+@projects_bp.route("/proyectos/plantillas/<int:tid>/use", methods=["POST"])
+@login_required
+def template_use(tid):
+    tpl = db.session.get(ProjectTemplate, tid)
+    if not tpl:
+        abort(404)
+    name = request.form.get("name", "").strip() or tpl.name
+    p = Project(
+        name=name,
+        client_name=request.form.get("client_name", "").strip(),
+        status=tpl.default_status or "activo",
+        type=tpl.type or "web",
+        progress=tpl.default_progress or 0,
+        description=tpl.description or "",
+    )
+    db.session.add(p)
+    db.session.flush()
+
+    # Generar tareas a partir de la plantilla
+    today = date.today()
+    for tt in tpl.template_tasks.order_by(ProjectTemplateTask.sort_order.asc()).all():
+        due = today + timedelta(days=tt.days_offset or 0)
+        db.session.add(Task(
+            title=tt.title,
+            description=tt.description or "",
+            priority=tt.priority or "media",
+            status="pendiente",
+            project_id=p.id,
+            due_date=due,
+            estimated_minutes=tt.estimated_minutes or 0,
+        ))
+
+    log_activity("create", "project", p.id, f"Proyecto desde plantilla: {tpl.name}")
+    db.session.commit()
+    push_change("projects", p.id)
+    flash(f"Proyecto creado desde la plantilla «{tpl.name}»", "success")
+    return redirect(url_for("projects.view", pid=p.id))

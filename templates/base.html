@@ -178,6 +178,15 @@
                         Recursos
                     </a></li>
                 <li class="sidebar-label">Inteligencia</li>
+                <li><a href="{{ url_for('ai_assistant.index') }}"
+                        class="{{ 'active' if request.endpoint and request.endpoint.startswith('ai_assistant.') }}">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z" />
+                            <path d="M19 10v2a7 7 0 01-14 0v-2" />
+                            <line x1="12" y1="19" x2="12" y2="22" />
+                        </svg>
+                        Asistente IA
+                    </a></li>
                 <li><a href="{{ url_for('reports.index') }}"
                         class="{{ 'active' if request.endpoint and request.endpoint.startswith('reports.') }}">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -285,9 +294,114 @@
                         </div>
                     </div>
                 </div>
+                <!-- Sync indicator -->
+                <div class="sync-indicator idle" id="syncIndicator" title="Sincronizado">
+                    <span class="sync-dot"></span>
+                    <span id="syncIndicatorText">Sync</span>
+                </div>
                 <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()"></button>
             </div>
         </header>
+
+        <!-- ═══ TOAST CONTAINER + CONFIRM MODAL ═══ -->
+        <div id="toastContainer"></div>
+        <div id="confirmOverlay">
+            <div class="confirm-box">
+                <h4 id="confirmTitle">¿Estás seguro?</h4>
+                <p id="confirmMessage"></p>
+                <div class="confirm-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" id="confirmCancelBtn">Cancelar</button>
+                    <button type="button" class="btn btn-danger btn-sm" id="confirmOkBtn">Confirmar</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        // ═══ TOAST API — window.toast(msg, type) ═══
+        (function() {
+            var container = document.getElementById('toastContainer');
+            window.toast = function(msg, type) {
+                if (!container) return;
+                type = type || 'info';
+                var el = document.createElement('div');
+                el.className = 'toast ' + type;
+                el.textContent = msg;
+                container.appendChild(el);
+                setTimeout(function() {
+                    el.classList.add('fade-out');
+                    setTimeout(function() { el.remove(); }, 300);
+                }, 3500);
+            };
+
+            // ── Confirm helper: returns Promise<boolean> ──
+            window.nxConfirm = function(message, opts) {
+                opts = opts || {};
+                return new Promise(function(resolve) {
+                    var ov = document.getElementById('confirmOverlay');
+                    document.getElementById('confirmTitle').textContent = opts.title || '¿Estás seguro?';
+                    document.getElementById('confirmMessage').textContent = message || '';
+                    var ok = document.getElementById('confirmOkBtn');
+                    var cancel = document.getElementById('confirmCancelBtn');
+                    ok.textContent = opts.okText || 'Confirmar';
+                    cancel.textContent = opts.cancelText || 'Cancelar';
+                    ok.className = 'btn btn-sm ' + (opts.okClass || 'btn-danger');
+                    function close(val) {
+                        ov.classList.remove('active');
+                        ok.removeEventListener('click', onOk);
+                        cancel.removeEventListener('click', onCancel);
+                        resolve(val);
+                    }
+                    function onOk() { close(true); }
+                    function onCancel() { close(false); }
+                    ok.addEventListener('click', onOk);
+                    cancel.addEventListener('click', onCancel);
+                    ov.classList.add('active');
+                });
+            };
+        })();
+
+        // ═══ SYNC INDICATOR — listens to /api/sync/status (poll) ═══
+        (function() {
+            var ind = document.getElementById('syncIndicator');
+            var txt = document.getElementById('syncIndicatorText');
+            if (!ind) return;
+            function setState(state, label, title) {
+                ind.classList.remove('idle','syncing','error');
+                ind.classList.add(state);
+                txt.textContent = label;
+                ind.title = title || '';
+            }
+            function fmtAgo(s) {
+                if (s == null) return 'OK';
+                if (s < 60)   return 'hace ' + s + 's';
+                if (s < 3600) return 'hace ' + Math.floor(s/60) + 'm';
+                return 'hace ' + Math.floor(s/3600) + 'h';
+            }
+            function check() {
+                fetch('/api/sync/status').then(function(r){return r.json();}).then(function(d){
+                    if (d.disabled) { setState('idle', 'Local', 'Sync deshabilitado (modo hosted)'); return; }
+                    if (d.error)    { setState('error', 'Error', d.error); return; }
+                    // El sync corre cada 3s y dura ~1-2s. Mostramos verde mientras
+                    // el último sync exitoso sea reciente (<15s), aunque haya otro
+                    // ciclo en curso. Solo amarillo si nunca hubo sync o lleva
+                    // más de 15s sin completar uno.
+                    var ago = d.last_sync_ago;
+                    var fresh = ago != null && ago < 15;
+                    if (fresh) {
+                        setState('idle', 'Sync ' + fmtAgo(ago), 'Sincronizado ' + fmtAgo(ago));
+                        return;
+                    }
+                    if (d.syncing) {
+                        setState('syncing', 'Sincronizando', 'Sincronizando con Railway...');
+                        return;
+                    }
+                    setState('syncing', 'Pendiente', 'Sin sincronizar todavía');
+                }).catch(function(){ setState('error', 'Error', 'No se pudo contactar con el servidor'); });
+            }
+            check();
+            setInterval(check, 4000);
+        })();
+        </script>
 
         <!-- ═══ COMMAND PALETTE (⌘K) ═══ -->
         <div class="cmd-palette-overlay" id="cmdPalette" onclick="if(event.target===this)closeCmdPalette()">
