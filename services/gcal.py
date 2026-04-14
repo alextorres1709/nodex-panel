@@ -46,13 +46,16 @@ def _redirect_uri() -> str:
 
 
 def _client_config(redirect_uri: str):
+    # "installed" is the correct key for Desktop / Installed App OAuth clients.
+    # Google Cloud Console → Credentials → type "Escritorio / Desktop".
+    # These clients automatically allow http://localhost on any port.
     return {
-        "web": {
+        "installed": {
             "client_id": CLIENT_ID,
             "client_secret": CLIENT_SECRET,
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [redirect_uri],
+            "redirect_uris": [redirect_uri, "urn:ietf:wg:oauth:2.0:oob"],
         }
     }
 
