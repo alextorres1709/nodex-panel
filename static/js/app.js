@@ -1,7 +1,13 @@
 // Theme
+function applyLauncherTheme(theme) {
+    const link = document.getElementById('ssLauncherTheme');
+    if (link) link.disabled = (theme === 'light');
+}
+
 function initTheme() {
     const saved = localStorage.getItem('nodex-panel-theme') || 'dark';
     document.body.setAttribute('data-theme', saved);
+    applyLauncherTheme(saved);
     updateToggleIcon(saved);
 }
 
@@ -10,6 +16,7 @@ function toggleTheme() {
     const next = current === 'dark' ? 'light' : 'dark';
     document.body.setAttribute('data-theme', next);
     localStorage.setItem('nodex-panel-theme', next);
+    applyLauncherTheme(next);
     updateToggleIcon(next);
     rebuildCharts();
 }

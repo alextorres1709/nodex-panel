@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.5.11 — 2026-04-21
+*Implementado por Alex*
+- **Fix KPI cards — arrow `→` y píldora del label eliminados**: quitado el `::after` chevron y los backgrounds pill de `.kpi-label` en `theme-saaslauncher.css`. El resto del diseño (sombras, gradientes de card, glow de botones) se mantiene.
+- **Modo claro operativo**: el stylesheet `theme-saaslauncher.css` ahora se desactiva automáticamente al togglear a `data-theme="light"` (`link.disabled = true`). En claro se aplica el design system limpio de `styles.css`; en oscuro sigue todo igual que antes.
+- **Paleta ligeramente más azul**: `--ss-primary` pasa de `#4A3AFD` a `#3B4EFD` (menos púrpura, más azul royal).
+- **Leads — 5 cards en una fila**: nueva clase `kpi-grid-5` en desktop (5 cols), 3 a <1200px y 2 a <780px.
+
 ## v4.5.9 — 2026-04-14
 *Implementado por Alex*
 - **Fix duplicados en GCal sync**: `bulk_sync_user` ahora hace commit del `gcal_event_id` por evento en lugar de en lote al final. Si el usuario pulsaba ↻ dos veces seguidas, ambas peticiones encontraban los mismos eventos con `gcal_event_id=NULL` y creaban duplicados. Con el commit inmediato la segunda petición ya los encuentra como sincronizados.

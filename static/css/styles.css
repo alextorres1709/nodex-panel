@@ -418,6 +418,10 @@ a:hover {
     margin-bottom: 24px;
 }
 
+.kpi-grid.kpi-grid-5 { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 1200px) { .kpi-grid.kpi-grid-5 { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 780px)  { .kpi-grid.kpi-grid-5 { grid-template-columns: repeat(2, 1fr); } }
+
 .kpi-card {
     position: relative;
     background: var(--bg-card);

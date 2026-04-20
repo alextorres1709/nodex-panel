@@ -19,14 +19,11 @@
 /* ═══════════════════════════════════════════════════════════
    TOKENS — Indigo scheme from screenshot + theme.json
    ═══════════════════════════════════════════════════════════ */
-html, body,
-:root,
-[data-theme="dark"],
-[data-theme="light"] {
-    --ss-primary:        #4A3AFD;
-    --ss-primary-light:  #6F79FF;
-    --ss-primary-dark:   #1A1452;
-    --ss-secondary:      #4938FE;
+[data-theme="dark"] {
+    --ss-primary:        #3B4EFD;
+    --ss-primary-light:  #6579FF;
+    --ss-primary-dark:   #1A2152;
+    --ss-secondary:      #3848FE;
 
     /* Pastel accent pills used on stat cards in the demo */
     --ss-pill-sales:    #22D3EE; /* cyan      */
@@ -97,14 +94,16 @@ html, body,
 }
 
 /* ═══════════════════════════════════════════════════════════
-   GLOBAL — pure black canvas, Inter body, Archivo headings
+   GLOBAL — pure black canvas (dark only), Inter body, Archivo headings
    ═══════════════════════════════════════════════════════════ */
 html, body {
-    background: var(--ss-bg) !important;
-    color: var(--ss-text);
     font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
     font-feature-settings: 'ss01', 'cv11';
     letter-spacing: -0.006em;
+}
+[data-theme="dark"] {
+    background: var(--ss-bg) !important;
+    color: var(--ss-text);
 }
 
 h1, h2, h3, h4, h5, h6,
@@ -351,50 +350,8 @@ body::before {
     overflow: hidden;
 }
 
-/* Top-right arrow chevron — uses CSS content, pure symbol */
-.kpi-card::after {
-    content: '→';
-    position: absolute;
-    top: 16px;
-    right: 20px;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255,255,255,.04);
-    border: 1px solid var(--ss-border);
-    color: var(--ss-text-alt);
-    font-size: 13px;
-    transition: all .18s ease;
-}
-.kpi-card:hover::after {
-    background: var(--ss-primary);
-    border-color: transparent;
-    color: #FFFFFE;
-    transform: translateX(2px);
-}
-
-.kpi-label {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    padding: 4px 10px;
-    border-radius: var(--radius-pill);
-    margin-bottom: 14px;
-    background: rgba(255,255,255,.05);
-    color: var(--ss-text);
-}
-
-/* Colored pills by accent class — matches demo's Sales/Download/Active */
-.kpi-card.accent-blue   .kpi-label { background: rgba(34, 211, 238, 0.14);  color: var(--ss-pill-sales);    }
-.kpi-card.accent-cyan   .kpi-label { background: rgba(34, 211, 238, 0.14);  color: var(--ss-pill-sales);    }
-.kpi-card.accent-purple .kpi-label { background: rgba(185, 131, 255, 0.14); color: var(--ss-pill-active);   }
-.kpi-card.accent-yellow .kpi-label { background: rgba(251, 191, 36, 0.14);  color: var(--ss-pill-warning);  }
-.kpi-card.accent-green  .kpi-label,
-.kpi-card.accent-emerald .kpi-label { background: rgba(168, 230, 0, 0.14);  color: var(--ss-pill-download); }
+/* Arrow chevron + colored label pills removed per product feedback;
+   styles.css .kpi-label (plain uppercase caption) applies. */
 
 .kpi-value {
     font-family: 'Archivo', 'Inter', sans-serif;
