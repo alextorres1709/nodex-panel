@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.6.0 — 2026-04-21
+*Implementado por Alex*
+- **Theme cleanup**: eliminado `theme-saaslauncher.css` (forzaba negro puro con `!important`, rompía modo claro, inyectaba la flecha `→` en cada KPI y la píldora de color bajo los labels). El sistema de diseño canónico ahora es `styles.css`.
+- **Fix KPI cards**: ya no aparecen flechas al hover ni píldoras de color bajo el label. Sin `box-shadow` en `.kpi-card`, `.chart-card`, `.info-card`, `.table-card`.
+- **Modo claro restaurado**: tokens `:root` (light) se aplican correctamente al togglear `data-theme="light"`.
+- **Paleta más azul**: `--brand-primary` pasa a `#1d4ed8` (light) y `#3b82f6` (dark); `--brand-cyan` a `#0ea5e9`/`#38bdf8`; `--brand-purple` a `#4f46e5`/`#6366f1`.
+- **Charts estilo TradingView**: plugin crosshair (línea vertical discontinua al hover), eje Y a la derecha con tipografía monoespaciada y notación compacta (€k/M), gradiente de área más marcado (0.38 → 0), tooltip con borde sutil, fuente mono en números y sin caret. Paleta centralizada azul en `getChartTheme()`.
+- **Leads**: grid KPI con 5 columnas en desktop (`kpi-grid-5`), 3 a partir de 1200px, 2 a partir de 780px.
+
 ## v4.5.9 — 2026-04-14
 *Implementado por Alex*
 - **Fix duplicados en GCal sync**: `bulk_sync_user` ahora hace commit del `gcal_event_id` por evento en lugar de en lote al final. Si el usuario pulsaba ↻ dos veces seguidas, ambas peticiones encontraban los mismos eventos con `gcal_event_id=NULL` y creaban duplicados. Con el commit inmediato la segunda petición ya los encuentra como sincronizados.

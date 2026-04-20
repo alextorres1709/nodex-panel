@@ -431,15 +431,20 @@
     if (!canvas || typeof Chart === 'undefined') return;
     if (typeof applyChartDefaults === 'function') applyChartDefaults();
     var ctx2d = canvas.getContext('2d');
-    var gIn = ctx2d.createLinearGradient(0, 0, 0, 220);
-    gIn.addColorStop(0, 'rgba(34,197,94,0.22)');
-    gIn.addColorStop(1, 'rgba(34,197,94,0)');
-    var gEx = ctx2d.createLinearGradient(0, 0, 0, 220);
-    gEx.addColorStop(0, 'rgba(239,68,68,0.18)');
-    gEx.addColorStop(1, 'rgba(239,68,68,0)');
+    var gIn = ctx2d.createLinearGradient(0, 0, 0, 240);
+    gIn.addColorStop(0, 'rgba(16,185,129,0.38)');
+    gIn.addColorStop(0.6, 'rgba(16,185,129,0.08)');
+    gIn.addColorStop(1, 'rgba(16,185,129,0)');
+    var gEx = ctx2d.createLinearGradient(0, 0, 0, 240);
+    gEx.addColorStop(0, 'rgba(244,63,94,0.30)');
+    gEx.addColorStop(0.6, 'rgba(244,63,94,0.06)');
+    gEx.addColorStop(1, 'rgba(244,63,94,0)');
     var isDark = document.body.getAttribute('data-theme') === 'dark';
-    var grid = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(10,10,10,0.06)';
-    var textSoft = isDark ? 'rgba(245,245,245,0.48)' : '#737373';
+    var grid = isDark ? 'rgba(255,255,255,0.055)' : 'rgba(15,23,42,0.06)';
+    var textSoft = isDark ? 'rgba(245,245,245,0.46)' : '#6b7280';
+    var mono = "'SF Mono', ui-monospace, Menlo, Consolas, monospace";
+    var upColor = '#10b981';
+    var downColor = '#f43f5e';
     new Chart(ctx2d, {
         type: 'line',
         data: {
@@ -448,30 +453,34 @@
                 {
                     label: 'Ingresos',
                     data: income6m,
-                    borderColor: '#22c55e',
+                    borderColor: upColor,
                     backgroundColor: gIn,
                     fill: true,
-                    tension: 0.32,
-                    borderWidth: 2,
+                    tension: 0.35,
+                    borderWidth: 2.25,
+                    borderCapStyle: 'round',
+                    borderJoinStyle: 'round',
                     pointRadius: 0,
                     pointHoverRadius: 5,
-                    pointBackgroundColor: '#22c55e',
-                    pointBorderColor: '#fff',
+                    pointBackgroundColor: upColor,
+                    pointBorderColor: '#0b0f1a',
                     pointHoverBorderWidth: 2,
                     cubicInterpolationMode: 'monotone',
                 },
                 {
                     label: 'Gastos',
                     data: expense6m,
-                    borderColor: '#ef4444',
+                    borderColor: downColor,
                     backgroundColor: gEx,
                     fill: true,
-                    tension: 0.32,
-                    borderWidth: 2,
+                    tension: 0.35,
+                    borderWidth: 2.25,
+                    borderCapStyle: 'round',
+                    borderJoinStyle: 'round',
                     pointRadius: 0,
                     pointHoverRadius: 5,
-                    pointBackgroundColor: '#ef4444',
-                    pointBorderColor: '#fff',
+                    pointBackgroundColor: downColor,
+                    pointBorderColor: '#0b0f1a',
                     pointHoverBorderWidth: 2,
                     cubicInterpolationMode: 'monotone',
                 }
@@ -489,8 +498,12 @@
                     labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 6, boxHeight: 6, padding: 14, color: textSoft, font: { size: 11, weight: '500' } }
                 },
                 tooltip: {
-                    backgroundColor: '#0a0a0a', titleColor: '#fafafa', bodyColor: '#fafafa',
-                    padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 6,
+                    backgroundColor: '#0b0f1a', titleColor: '#f8fafc', bodyColor: '#f8fafc',
+                    padding: 12, cornerRadius: 10, displayColors: true, boxPadding: 6,
+                    borderColor: 'rgba(148,163,184,0.18)', borderWidth: 1,
+                    caretSize: 0, caretPadding: 12,
+                    titleFont: { size: 11, weight: '600' },
+                    bodyFont: { size: 13, weight: '600', family: mono },
                     callbacks: {
                         label: function(c) {
                             return ' ' + c.dataset.label + ': ' + new Intl.NumberFormat('es-ES',{maximumFractionDigits:0}).format(c.parsed.y) + ' €';
@@ -500,15 +513,16 @@
             },
             scales: {
                 y: {
+                    position: 'right',
                     beginAtZero: true,
-                    ticks: { color: textSoft, font: { size: 10 }, padding: 8, maxTicksLimit: 5,
+                    ticks: { color: textSoft, font: { size: 10, family: mono }, padding: 8, maxTicksLimit: 5,
                         callback: function(v) { return new Intl.NumberFormat('es-ES',{notation:'compact',maximumFractionDigits:1}).format(v) + '€'; }
                     },
-                    grid: { color: grid, drawBorder: false, drawTicks: false },
+                    grid: { color: grid, drawBorder: false, drawTicks: false, lineWidth: 1 },
                     border: { display: false }
                 },
                 x: {
-                    ticks: { color: textSoft, font: { size: 10 }, padding: 6 },
+                    ticks: { color: textSoft, font: { size: 10 }, padding: 8, maxRotation: 0 },
                     grid: { display: false, drawBorder: false },
                     border: { display: false }
                 }
