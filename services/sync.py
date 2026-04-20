@@ -50,6 +50,8 @@ SYNC_TABLES = [
     "objective_snapshots",
     "project_templates",
     "project_template_tasks",
+    "email_templates",
+    "company_interactions",
 ]
 
 SYNC_INTERVAL = 3  # seconds

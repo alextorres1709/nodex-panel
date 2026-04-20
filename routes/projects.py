@@ -1,12 +1,30 @@
 from datetime import datetime, timedelta, date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, g
 from sqlalchemy.orm import joinedload
-from models import db, Project, ProjectContact, Task, TaskAssignment, Subtask, TimeEntry, Document, Invoice, Income, Idea, User, Client, Company, ProjectTemplate, ProjectTemplateTask
+from models import db, Project, ProjectContact, Task, TaskAssignment, Subtask, TimeEntry, Document, Invoice, Income, Idea, User, Client, Company, Lead, ProjectTemplate, ProjectTemplateTask
 from routes.auth import login_required
 from services.activity import log_activity
 from services.sync import push_change, push_change_now, sync_locked
 
 projects_bp = Blueprint("projects", __name__)
+
+
+def _gcal_push_item(item):
+    try:
+        from services import gcal as gcal_svc
+        if gcal_svc.is_configured() and gcal_svc.is_connected(g.user.id):
+            gcal_svc.push_item("project", item, g.user.id)
+    except Exception:
+        pass
+
+
+def _gcal_delete_item(item_id):
+    try:
+        from services import gcal as gcal_svc
+        if gcal_svc.is_configured() and gcal_svc.is_connected(g.user.id):
+            gcal_svc.delete_item_event("project", item_id, g.user.id)
+    except Exception:
+        pass
 
 
 @projects_bp.route("/proyectos")
@@ -21,7 +39,9 @@ def index():
         q = q.filter_by(type=ptype)
     projects = q.order_by(Project.created_at.desc()).all()
     companies = Company.query.order_by(Company.name).all()
-    return render_template("proyectos.html", projects=projects, companies=companies, sel_status=status, sel_type=ptype)
+    leads = Lead.query.order_by(Lead.first_name.asc(), Lead.last_name.asc()).all()
+    return render_template("proyectos.html", projects=projects, companies=companies,
+                           leads=leads, sel_status=status, sel_type=ptype)
 
 
 @projects_bp.route("/proyectos/<int:pid>")
@@ -56,6 +76,7 @@ def view(pid):
     proposals = [d for d in documents if d.category == "propuesta"]
     users = User.query.filter_by(active=True).all()
     companies = Company.query.order_by(Company.name).all()
+    leads = Lead.query.order_by(Lead.first_name.asc(), Lead.last_name.asc()).all()
 
     return render_template(
         "proyecto_detail.html", project=project, tasks=tasks, task_counts=task_counts,
@@ -63,7 +84,7 @@ def view(pid):
         documents=documents, invoices=invoices, total_invoiced=total_invoiced,
         incomes=incomes, total_income=total_income,
         contacts=contacts, ideas=ideas, proposals=proposals, users=users,
-        companies=companies,
+        companies=companies, leads=leads,
     )
 
 
@@ -73,10 +94,12 @@ def create():
     try:
         dl = request.form.get("deadline", "").strip()
         cid = request.form.get("company_id", "").strip()
+        lid = request.form.get("lead_id", "").strip()
         p = Project(
             name=request.form.get("name", "").strip(),
             client_name=request.form.get("client_name", "").strip(),
             company_id=int(cid) if cid else None,
+            lead_id=int(lid) if lid else None,
             status=request.form.get("status", "activo"),
             type=request.form.get("type", "web"),
             budget=float(request.form.get("budget", 0) or 0),
@@ -88,6 +111,7 @@ def create():
         db.session.add(p)
         log_activity("create", "project", details=f"Nuevo proyecto: {p.name}")
         db.session.commit()
+        _gcal_push_item(p)
         push_change("projects", p.id)
         flash("Proyecto creado", "success")
     except Exception as e:
@@ -108,6 +132,8 @@ def edit(pid):
         p.client_name = request.form.get("client_name", p.client_name).strip()
         cid = request.form.get("company_id", "").strip()
         p.company_id = int(cid) if cid else None
+        lid = request.form.get("lead_id", "").strip()
+        p.lead_id = int(lid) if lid else None
         p.status = request.form.get("status", p.status)
         p.type = request.form.get("type", p.type)
         p.budget = float(request.form.get("budget", p.budget) or 0)
@@ -118,6 +144,7 @@ def edit(pid):
         p.notes = request.form.get("notes", "").strip()
         log_activity("update", "project", p.id, f"Editado: {p.name}")
         db.session.commit()
+        _gcal_push_item(p)
         push_change("projects", p.id)
         flash("Proyecto actualizado", "success")
     except Exception as e:
@@ -159,6 +186,7 @@ def delete(pid):
     p = db.session.get(Project, pid)
     if p:
         pid_val = p.id
+        _gcal_delete_item(pid_val)
         with sync_locked():
             log_activity("delete", "project", p.id, f"Eliminado: {p.name}")
             db.session.delete(p)

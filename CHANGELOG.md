@@ -1,5 +1,40 @@
 # Changelog
 
+## v4.5.9 — 2026-04-14
+*Implementado por Alex*
+- **Fix duplicados en GCal sync**: `bulk_sync_user` ahora hace commit del `gcal_event_id` por evento en lugar de en lote al final. Si el usuario pulsaba ↻ dos veces seguidas, ambas peticiones encontraban los mismos eventos con `gcal_event_id=NULL` y creaban duplicados. Con el commit inmediato la segunda petición ya los encuentra como sincronizados.
+- **Autosync GCal cada 5 minutos**: hilo daemon que se lanza al arrancar la app y llama a `bulk_sync_user` para todos los usuarios conectados. Sirve para recuperar items creados durante una desconexión o ante fallos puntuales del sync automático.
+- **Fix dark mode — inputs fecha/hora en el modal de nuevo evento**: los `<input type="date">` y `<input type="time">` tenían fondo transparente y sin `color-scheme: dark`, lo que hacía que el navegador los renderizara con texto negro invisible. Añadido `color: var(--text-primary)` y `color-scheme: dark` para el selector `[data-theme="dark"]`.
+
+## v4.5.8 — 2026-04-14
+*Implementado por Alex*
+- **Google Calendar sync completo — tareas, proyectos, pagos y facturas**: anteriormente solo se sincronizaban los CalendarEvent creados directamente en /calendario. Ahora se sincronizan automáticamente:
+  - **Tareas** (pendientes/en progreso con fecha): se crean/actualizan en GCal al crear/editar; se eliminan al completar o borrar la tarea
+  - **Pagos activos** con `next_date`: se sincronizan al crear/editar; se eliminan al borrar
+  - **Proyectos activos** con `deadline`: se sincronizan al crear/editar; se eliminan al borrar
+  - **Facturas** (`enviada`/`vencida` con `due_date`): se sincronizan al crear/editar/cambiar estado; se eliminan automáticamente de GCal al marcarlas como `cobrada` o `borrador`
+- El botón `↻` de resincronización en /calendario ahora incluye todos estos tipos además de los CalendarEvent
+- Nueva tabla `gcal_item_sync` (creada automáticamente en el primer arranque) que mapea cada item al GCal event ID correspondiente sin modificar las tablas existentes
+
+## v4.5.7 — 2026-04-14
+*Implementado por Alex*
+- **Fix Google Calendar — "can't compare offset-naive and offset-aware datetimes"**: `_build_credentials()` convertía el `expiry` a timezone-aware (`tzinfo=UTC`). La propiedad `Credentials.expired` de `google-auth` compara internamente con `datetime.utcnow()` que es naive, provocando el error de tipos y que `_build_service()` devolviera `None` sin intentar el refresh. Corregido: si el `expiry` cargado del token tiene `tzinfo`, se elimina para mantenerlo como naive UTC, igual que lo almacena la librería.
+
+## v4.5.6 — 2026-04-14
+*Implementado por Alex*
+- **Fix Google Calendar — eventos no se exportaban tras conectar**: dos bugs en `_event_body()`:
+  1. **All-day events**: `end.date` era igual a `start.date`. Google Calendar usa fechas exclusivas para eventos de día completo — el `end` debe ser el día siguiente. Con `start == end` Google rechazaba el insert silenciosamente.
+  2. **Campo `source.url`**: apuntaba a `http://localhost:5001` (URL temporal del servidor PyInstaller); Google puede rechazar URLs de origen no verificado. Eliminado el campo `source` para evitar el rechazo.
+  3. **Normalización de hora**: `start_time` se trunca a `HH:MM` antes de construir el `dateTime` por si el modelo almacena segundos, evitando formato `HH:MM:SS:00` inválido.
+
+## v4.5.5 — 2026-04-14
+*Implementado por Alex*
+- **Fix Google Calendar OAuth — "missing code verifier"**: `google-auth-oauthlib` >= 1.x genera automáticamente un PKCE `code_verifier` al construir la URL de autorización y lo almacena en el objeto `Flow`. Al crear un **nuevo** `Flow` en `exchange_code()` ese verifier se perdía y Google rechazaba el intercambio de código con "missing code verifier". Ahora `get_auth_url()` devuelve el `code_verifier` junto con la URL; el route `gcal_auth` lo guarda en la sesión Flask, y `gcal_callback` lo recupera y lo pasa a `exchange_code()` / `flow.fetch_token()`. Compatible con versiones antiguas (verifier = None → PKCE no usado).
+
+## v4.5.4 — 2026-04-14
+*Implementado por Alex*
+- **Fix Google Calendar — botón "Conectar" no aparecía en app empaquetada**: `is_configured()` devolvía siempre `False` porque `GOOGLE_OAUTH_CLIENT_ID` y `GOOGLE_OAUTH_CLIENT_SECRET` no estaban en `~/Library/Application Support/NodexAI/.env` (el `.env` de producción sólo contenía credenciales de Drive y Firebase). Ahora `gcal.py` tiene las credenciales OAuth del cliente Desktop como fallback hardcodeado (igual que `config.py` hace con Drive), por lo que funciona sin ninguna variable de entorno adicional. Los valores de entorno `GCAL_OAUTH_CLIENT_ID` / `GCAL_OAUTH_CLIENT_SECRET` pueden sobrescribirlos si se desea.
+
 ## v4.5.3 — 2026-04-14
 *Implementado por Alex*
 - **Fix Google Calendar OAuth — redirect URI dinámico**: la app empaquetada (DMG) usa un puerto aleatorio en cada arranque, pero el `redirect_uri` estaba hardcodeado a `localhost:5001`. Google rechazaba el callback con `redirect_uri_mismatch`. Ahora `gcal.py` deriva el `redirect_uri` dinámicamente del request de Flask actual (`request.host_url + /calendario/gcal/callback`), funcionando en cualquier puerto. El callback también pasa el URI explícitamente a `exchange_code()` para que ambos extremos del flujo OAuth usen el mismo valor.

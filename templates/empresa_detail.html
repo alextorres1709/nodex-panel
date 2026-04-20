@@ -12,7 +12,91 @@
         </div>
         <p class="page-subtitle">{{ company.industry or 'Sin industria' }}{% if company.website %} &middot; <a href="{{ company.website }}" target="_blank" style="color:var(--accent)">{{ company.website|truncate(40) }}</a>{% endif %}</p>
     </div>
-    <a href="{{ url_for('companies.index') }}" class="btn btn-secondary">Volver</a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        {# ─── BIG LLAMAR button — primary CTA, takes priority over email ─── #}
+        {% set primary_phone = company.phone or (contacts|selectattr('phone')|map(attribute='phone')|first) %}
+        {% if primary_phone %}
+        <a href="tel:{{ primary_phone }}"
+           onclick="logCallClick()"
+           class="btn"
+           style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;padding:14px 24px;font-size:16px;font-weight:700;border-radius:10px;box-shadow:0 4px 14px rgba(34,197,94,.35);display:inline-flex;align-items:center;gap:10px"
+           title="Llamar a {{ primary_phone }}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+            </svg>
+            LLAMAR
+            <span class="tabular" style="font-size:12px;opacity:.9;font-weight:500;margin-left:4px">{{ primary_phone }}</span>
+        </a>
+        {% else %}
+        <button class="btn" disabled title="Añade un teléfono a la empresa o a un contacto"
+                style="background:var(--bg-tertiary,rgba(255,255,255,.04));color:var(--text-tertiary);border:1px dashed var(--border-color);padding:14px 24px;font-size:16px;font-weight:700;border-radius:10px;display:inline-flex;align-items:center;gap:10px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+            LLAMAR
+        </button>
+        {% endif %}
+
+        <button class="btn btn-secondary" onclick="openModal('sendEmailModal')" {% if not contacts %}disabled title="Añade un contacto con email primero"{% endif %}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-2px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            Email (n8n)
+        </button>
+        <button class="btn btn-secondary" onclick="openLogModal('meeting')">🤝 Reunión</button>
+        <button class="btn btn-secondary" onclick="openLogModal('note')">📝 Nota</button>
+        <a href="{{ url_for('companies.index') }}" class="btn btn-secondary">Volver</a>
+    </div>
+</div>
+
+<!-- ═══ LEAD SUMMARY BAR (priority + next contact + assigned + source) ═══ -->
+{% set priority_meta = {
+    'alta':  {'label':'Alta',  'color':'#ef4444', 'bg':'rgba(239,68,68,.10)'},
+    'media': {'label':'Media', 'color':'#f59e0b', 'bg':'rgba(245,158,11,.10)'},
+    'baja':  {'label':'Baja',  'color':'#64748b', 'bg':'rgba(100,116,139,.10)'},
+} %}
+{% set p = priority_meta.get(company.priority or 'media') %}
+<div class="table-card" style="padding:16px 20px;margin-bottom:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:18px;align-items:center">
+    <!-- Prioridad -->
+    <div>
+        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Prioridad</div>
+        <form method="POST" action="{{ url_for('companies.quick_priority', cid=company.id) }}" style="display:inline">
+            <select name="priority" onchange="this.form.submit()"
+                    style="background:{{ p.bg }};color:{{ p.color }};border:1px solid {{ p.color }}33;padding:6px 12px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
+                <option value="alta"  {% if company.priority == 'alta'  %}selected{% endif %}>● Alta</option>
+                <option value="media" {% if company.priority == 'media' or not company.priority %}selected{% endif %}>● Media</option>
+                <option value="baja"  {% if company.priority == 'baja'  %}selected{% endif %}>● Baja</option>
+            </select>
+        </form>
+    </div>
+
+    <!-- Próximo contacto -->
+    <div>
+        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Próximo contacto</div>
+        <form method="POST" action="{{ url_for('companies.quick_next_contact', cid=company.id) }}" style="display:flex;gap:6px;align-items:center">
+            <input type="date" name="next_contact_date"
+                   value="{{ company.next_contact_date.isoformat() if company.next_contact_date else '' }}"
+                   onchange="this.form.submit()"
+                   class="tabular"
+                   style="height:34px;padding:4px 8px;font-size:13px">
+        </form>
+    </div>
+
+    <!-- Asignado -->
+    <div>
+        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Asignado a</div>
+        <div style="font-size:14px;color:var(--text-primary);font-weight:600">{{ company.assignee.name if company.assignee else '— Sin asignar —' }}</div>
+    </div>
+
+    <!-- Origen -->
+    <div>
+        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Origen</div>
+        <div style="font-size:14px;color:var(--text-primary);font-weight:600">{{ company.source or '—' }}</div>
+    </div>
+
+    <!-- Email genérico -->
+    {% if company.email %}
+    <div>
+        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Email</div>
+        <a href="mailto:{{ company.email }}" style="font-size:13px;color:var(--accent);text-decoration:none">{{ company.email }}</a>
+    </div>
+    {% endif %}
 </div>
 
 <!-- KPIs -->
@@ -158,6 +242,122 @@
     {% else %}
     <div class="empty-state" style="padding:32px;text-align:center">
         <p style="color:var(--text-tertiary);font-size:13px">No hay proyectos vinculados a esta empresa. <a href="{{ url_for('projects.index') }}" style="color:var(--accent)">Vincular desde Proyectos</a></p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══ LEADS VINCULADOS ═══ -->
+{% set lead_status_meta = {
+    'nuevo':       {'label':'Nuevo',       'color':'#64748b'},
+    'contactado':  {'label':'Contactado',  'color':'#3b82f6'},
+    'interesado':  {'label':'Interesado',  'color':'#06b6d4'},
+    'qualified':   {'label':'Cualificado', 'color':'#8b5cf6'},
+    'propuesta':   {'label':'Propuesta',   'color':'#f59e0b'},
+    'negociacion': {'label':'Negociación', 'color':'#ec4899'},
+    'cliente':     {'label':'Cliente',     'color':'#22c55e'},
+    'perdido':     {'label':'Perdido',     'color':'#ef4444'},
+} %}
+<div class="table-card" style="margin-bottom:24px">
+    <div class="table-card-header">
+        <h3>Leads de esta empresa</h3>
+        <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--text-tertiary)">{{ company_leads|length }} leads</span>
+            <a href="{{ url_for('leads.index', company_id=company.id) }}" class="btn btn-sm btn-secondary">Ver en Leads</a>
+            <a href="{{ url_for('leads.index', company_id=company.id, new=1) }}" class="btn btn-sm btn-primary">+ Añadir lead</a>
+        </div>
+    </div>
+    {% if company_leads %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Nombre</th><th>Cargo</th><th>Email</th><th>Estado</th><th>Prioridad</th><th>Próx. contacto</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for l in company_leads %}
+            {% set lm = lead_status_meta.get(l.status, {'label': l.status, 'color':'#64748b'}) %}
+            <tr>
+                <td><a href="{{ url_for('leads.view', lid=l.id) }}" style="color:var(--accent);font-weight:600;text-decoration:none">{{ l.full_name }}</a></td>
+                <td>{{ l.position or '—' }}</td>
+                <td>{% if l.email %}<a href="mailto:{{ l.email }}" style="color:var(--accent)">{{ l.email }}</a>{% else %}—{% endif %}</td>
+                <td><span class="badge" style="background:{{ lm.color }}22;color:{{ lm.color }};border:1px solid {{ lm.color }}44;font-size:11px">{{ lm.label }}</span></td>
+                <td>
+                    {% set pc = {'alta':'#ef4444','media':'#f59e0b','baja':'#64748b'}.get(l.priority, '#64748b') %}
+                    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ pc }};margin-right:6px"></span>{{ (l.priority or 'media')|capitalize }}
+                </td>
+                <td class="tabular" style="font-size:12px">{{ l.next_contact_date.strftime('%d/%m/%Y') if l.next_contact_date else '—' }}</td>
+                <td style="text-align:right">
+                    {% if l.phone %}<a href="tel:{{ l.phone }}" class="btn btn-sm" style="background:#22c55e;color:#fff" title="Llamar a {{ l.phone }}">Llamar</a>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:32px;text-align:center">
+        <p style="color:var(--text-tertiary);font-size:13px">No hay leads vinculados a esta empresa todavía. <a href="{{ url_for('leads.index', company_id=company.id, new=1) }}" style="color:var(--accent)">Crear el primero</a></p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══ TIMELINE DE INTERACCIONES ═══ -->
+<div class="table-card" style="margin-bottom:24px">
+    <div class="table-card-header">
+        <h3>Timeline comercial</h3>
+        <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--text-tertiary)">{{ interactions|length }} interacciones</span>
+            <a href="{{ url_for('email_templates.index') }}" class="btn btn-sm btn-secondary" title="Gestionar plantillas">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Plantillas
+            </a>
+        </div>
+    </div>
+    {% if interactions %}
+    <div style="padding:8px 16px 16px">
+        {% for it in interactions %}
+        {% set icon_map = {'email':'✉️','call':'📞','meeting':'🤝','note':'📝'} %}
+        {% set color_map = {'email':'#3b82f6','call':'#22c55e','meeting':'#a855f7','note':'#6b7280'} %}
+        <div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-color)">
+            <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:rgba(99,102,241,0.1);display:flex;align-items:center;justify-content:center;font-size:16px">
+                {{ icon_map.get(it.type, '•') }}
+            </div>
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <strong style="font-size:13px;color:{{ color_map.get(it.type, 'var(--text-primary)') }}">
+                        {{ {'email':'Email','call':'Llamada','meeting':'Reunión','note':'Nota'}.get(it.type, it.type) }}
+                    </strong>
+                    {% if it.status == 'queued' %}
+                    <span class="badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;font-size:10px">En cola</span>
+                    {% elif it.status == 'sent' %}
+                    <span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;font-size:10px">Enviado</span>
+                    {% elif it.status == 'failed' %}
+                    <span class="badge badge-danger" style="font-size:10px">Fallido</span>
+                    {% endif %}
+                    {% if it.contact %}
+                    <span style="font-size:12px;color:var(--text-secondary)">→ {{ it.contact.name }}</span>
+                    {% endif %}
+                    <span style="font-size:11px;color:var(--text-tertiary);margin-left:auto">
+                        {{ it.created_at.strftime('%d/%m/%Y %H:%M') if it.created_at else '' }}
+                        {% if it.user %}· {{ it.user.name }}{% endif %}
+                    </span>
+                </div>
+                {% if it.subject %}
+                <div style="font-size:13px;color:var(--text-primary);margin-top:4px;font-weight:500">{{ it.subject }}</div>
+                {% endif %}
+                {% if it.body %}
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;white-space:pre-line;line-height:1.5">{{ it.body }}</div>
+                {% endif %}
+                {% if it.type == 'email' and it.to_email %}
+                <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">Para: {{ it.to_email }}</div>
+                {% endif %}
+            </div>
+            <form method="POST" action="{{ url_for('company_emails.delete_interaction', cid=company.id, iid=it.id) }}" style="flex-shrink:0" onsubmit="return confirm('¿Eliminar esta interacción?')">
+                <button type="submit" class="btn btn-sm btn-secondary" style="padding:4px 8px;color:var(--text-tertiary)" title="Eliminar">×</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:32px;text-align:center">
+        <p style="color:var(--text-tertiary);font-size:13px">Todavía no hay interacciones registradas. Usa los botones de arriba para empezar.</p>
     </div>
     {% endif %}
 </div>
@@ -338,6 +538,94 @@
     </div>
 </div>
 
+<!-- Send Email Modal -->
+<div class="modal-overlay" id="sendEmailModal">
+    <div class="modal" style="max-width:640px">
+        <div class="modal-header"><h3>Enviar email</h3><button class="modal-close" onclick="closeModal('sendEmailModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('company_emails.send_email', cid=company.id) }}">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Destinatario</label>
+                        <select name="contact_id" required onchange="previewTemplate()">
+                            <option value="">— Selecciona contacto —</option>
+                            {% for ct in contacts %}
+                                {% if ct.email %}
+                                <option value="{{ ct.id }}" data-name="{{ ct.name|e }}" data-email="{{ ct.email|e }}">{{ ct.name }} ({{ ct.email }})</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        {% set any_email = contacts|selectattr('email')|list %}
+                        {% if not any_email %}
+                        <small style="color:var(--danger);font-size:11px">Ningún contacto tiene email. Añade uno primero.</small>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label>Plantilla</label>
+                        <select name="template_id" id="tplSelect" onchange="previewTemplate()">
+                            <option value="">— Sin plantilla (escribir manual) —</option>
+                            {% for tpl in email_templates %}
+                            <option value="{{ tpl.id }}"
+                                    data-subject="{{ tpl.subject|e }}"
+                                    data-body="{{ tpl.body|e }}">
+                                {{ tpl.step_order }}. {{ tpl.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Asunto</label>
+                    <input type="text" name="subject" id="emailSubject" required>
+                </div>
+                <div class="form-group">
+                    <label>Cuerpo</label>
+                    <textarea name="body" id="emailBody" rows="10" required></textarea>
+                    <small style="color:var(--text-tertiary);font-size:11px">
+                        Variables renderizadas al enviar: <code>{empresa}</code> → {{ company.name }} · <code>{contacto}</code> · <code>{nombre_remitente}</code> → {{ current_user.name if current_user else '' }}
+                    </small>
+                </div>
+                <div style="padding:10px;background:rgba(59,130,246,0.08);border-radius:6px;font-size:12px;color:var(--text-secondary)">
+                    📨 El email entra en cola — n8n lo recoge cada 5 min vía <code>/api/companies/outbox</code> y lo envía por Gmail/SMTP.
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('sendEmailModal')">Cancelar</button><button type="submit" class="btn btn-primary">Encolar envío</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Log Interaction Modal (call / meeting / note) -->
+<div class="modal-overlay" id="logInteractionModal">
+    <div class="modal" style="max-width:560px">
+        <div class="modal-header"><h3 id="logModalTitle">Registrar interacción</h3><button class="modal-close" onclick="closeModal('logInteractionModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('company_emails.log_interaction', cid=company.id) }}">
+            <input type="hidden" name="type" id="logType">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Contacto (opcional)</label>
+                        <select name="contact_id">
+                            <option value="">— Sin contacto específico —</option>
+                            {% for ct in contacts %}
+                            <option value="{{ ct.id }}">{{ ct.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Asunto</label>
+                        <input type="text" name="subject" id="logSubject" placeholder="Resumen corto">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label id="logBodyLabel">Detalles</label>
+                    <textarea name="body" rows="5" required placeholder="Qué se habló, acuerdos, próximos pasos..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('logInteractionModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+
 <!-- Edit Idea Modal -->
 <div class="modal-overlay" id="editIdeaModal">
     <div class="modal">
@@ -382,6 +670,43 @@ function editIdea(id, title, description, category, status) {
     document.getElementById('editIdeaForm').action = '/empresas/{{ company.id }}/ideas/edit/' + id;
     populateEditModal({title, description, category, status}, 'editIdeaForm');
     openModal('editIdeaModal');
+}
+
+// Email template preview — rellena subject/body al elegir plantilla
+function previewTemplate() {
+    const tpl = document.getElementById('tplSelect');
+    const subj = document.getElementById('emailSubject');
+    const body = document.getElementById('emailBody');
+    if (!tpl || !subj || !body) return;
+    const opt = tpl.options[tpl.selectedIndex];
+    const s = opt.getAttribute('data-subject') || '';
+    const b = opt.getAttribute('data-body') || '';
+    if (s) subj.value = s;
+    if (b) body.value = b;
+}
+
+// Auto-log a call interaction when LLAMAR is clicked (fire-and-forget;
+// the tel: link still fires because we don't preventDefault).
+function logCallClick() {
+    try {
+        const fd = new FormData();
+        fd.append('type', 'call');
+        fd.append('subject', 'Llamada (botón LLAMAR)');
+        fd.append('body', 'Llamada iniciada desde el panel.');
+        fetch('{{ url_for("company_emails.log_interaction", cid=company.id) }}', {
+            method: 'POST', body: fd, credentials: 'same-origin'
+        }).catch(() => {});
+    } catch (e) {}
+}
+
+// Log modal (call / meeting / note)
+function openLogModal(type) {
+    const titles = {call: '📞 Registrar llamada', meeting: '🤝 Registrar reunión', note: '📝 Añadir nota'};
+    const subjects = {call: 'Llamada', meeting: 'Reunión', note: 'Nota'};
+    document.getElementById('logType').value = type;
+    document.getElementById('logModalTitle').textContent = titles[type] || 'Registrar interacción';
+    document.getElementById('logSubject').value = subjects[type] || '';
+    openModal('logInteractionModal');
 }
 </script>
 {% endblock %}

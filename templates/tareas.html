@@ -72,6 +72,42 @@
     {% endif %}
 </div>
 
+<!-- Quick-filter chips -->
+{% set _qs_base = {'view': view} %}
+<div class="task-quick-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+    <a href="{{ url_for('tasks.index', view=view) }}"
+       class="chip" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid var(--border-color);background:{{ 'var(--accent)' if not (sel_status or sel_priority or sel_assigned) else 'transparent' }};color:{{ '#fff' if not (sel_status or sel_priority or sel_assigned) else 'var(--text-secondary)' }}">
+        Todas <span class="tabular" style="opacity:.7">{{ stats.total }}</span>
+    </a>
+    <a href="{{ url_for('tasks.index', view=view, priority='alta') }}"
+       class="chip" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid {{ '#ef4444' if sel_priority == 'alta' else 'var(--border-color)' }};background:{{ 'rgba(239,68,68,.12)' if sel_priority == 'alta' else 'transparent' }};color:{{ '#ef4444' if sel_priority == 'alta' else 'var(--text-secondary)' }}">
+        ● Alta
+    </a>
+    <a href="{{ url_for('tasks.index', view=view, priority='media') }}"
+       class="chip" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid {{ '#f59e0b' if sel_priority == 'media' else 'var(--border-color)' }};background:{{ 'rgba(245,158,11,.12)' if sel_priority == 'media' else 'transparent' }};color:{{ '#f59e0b' if sel_priority == 'media' else 'var(--text-secondary)' }}">
+        ● Media
+    </a>
+    <a href="{{ url_for('tasks.index', view=view, priority='baja') }}"
+       class="chip" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid {{ '#059669' if sel_priority == 'baja' else 'var(--border-color)' }};background:{{ 'rgba(5,150,105,.12)' if sel_priority == 'baja' else 'transparent' }};color:{{ '#059669' if sel_priority == 'baja' else 'var(--text-secondary)' }}">
+        ● Baja
+    </a>
+    <span style="width:1px;background:var(--border-color);margin:0 4px"></span>
+    <a href="{{ url_for('tasks.index', view=view, status='pendiente') }}"
+       class="chip" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid var(--border-color);background:{{ 'var(--accent)' if sel_status == 'pendiente' else 'transparent' }};color:{{ '#fff' if sel_status == 'pendiente' else 'var(--text-secondary)' }}">
+        Pendientes <span class="tabular" style="opacity:.8">{{ stats.pending }}</span>
+    </a>
+    <a href="{{ url_for('tasks.index', view=view, status='en_progreso') }}"
+       class="chip" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid var(--border-color);background:{{ 'var(--accent)' if sel_status == 'en_progreso' else 'transparent' }};color:{{ '#fff' if sel_status == 'en_progreso' else 'var(--text-secondary)' }}">
+        En progreso <span class="tabular" style="opacity:.8">{{ stats.in_progress }}</span>
+    </a>
+    {% if stats.overdue %}
+    <a href="{{ url_for('tasks.index', view='list') }}#overdue"
+       class="chip" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;text-decoration:none;border:1px solid #ef4444;background:rgba(239,68,68,.12);color:#ef4444">
+        ⚠ Vencidas <span class="tabular">{{ stats.overdue }}</span>
+    </a>
+    {% endif %}
+</div>
+
 <!-- Filters -->
 <form class="task-filter-bar" method="GET">
     <input type="hidden" name="view" value="{{ view }}">

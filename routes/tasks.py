@@ -10,6 +10,24 @@ from services.sync import push_change, push_change_now, sync_locked
 tasks_bp = Blueprint("tasks", __name__)
 
 
+def _gcal_push_item(item_type, item):
+    try:
+        from services import gcal as gcal_svc
+        if gcal_svc.is_configured() and gcal_svc.is_connected(g.user.id):
+            gcal_svc.push_item(item_type, item, g.user.id)
+    except Exception:
+        pass
+
+
+def _gcal_delete_item(item_type, item_id):
+    try:
+        from services import gcal as gcal_svc
+        if gcal_svc.is_configured() and gcal_svc.is_connected(g.user.id):
+            gcal_svc.delete_item_event(item_type, item_id, g.user.id)
+    except Exception:
+        pass
+
+
 @tasks_bp.route("/tareas")
 @login_required
 def index():
@@ -18,7 +36,7 @@ def index():
     priority = request.args.get("priority", "")
     assigned = request.args.get("assigned_to", "")
 
-    q = Task.query.options(joinedload(Task.assignees), joinedload(Task.project))
+    q = Task.query.options(joinedload(Task.assignees), joinedload(Task.project), joinedload(Task.company))
     if status:
         q = q.filter_by(status=status)
     if priority:
@@ -26,6 +44,18 @@ def index():
     if assigned:
         q = q.filter(Task.assignees.any(User.id == int(assigned)))
     tasks = q.order_by(Task.kanban_order.asc(), Task.due_date.asc().nullslast(), Task.created_at.desc()).all()
+
+    # For list view: re-sort by priority (alta first), then nearest due_date, then newest
+    if view == "list":
+        _PRIO_RANK = {"alta": 0, "media": 1, "baja": 2}
+        _today = date.today()
+        def _key(t):
+            prio = _PRIO_RANK.get(t.priority or "media", 1)
+            d = t.safe_due_date
+            days = (d - _today).days if d else 9999
+            ts = -(t.created_at.timestamp() if t.created_at else 0)
+            return (prio, days, ts)
+        tasks = sorted(tasks, key=_key)
 
     # Group by status for Kanban
     kanban = {
@@ -96,6 +126,7 @@ def create():
 
         log_activity("create", "task", details=f"Nueva tarea: {t.title}")
         db.session.commit()
+        _gcal_push_item("task", t)
         from services.sync import push_change
         push_change("tasks", t.id)
         for ta in TaskAssignment.query.filter_by(task_id=t.id).all():
@@ -160,6 +191,7 @@ def edit(tid):
 
         log_activity("update", "task", t.id, f"Editada: {t.title}")
         db.session.commit()
+        _gcal_push_item("task", t)
         from services.sync import push_change
         push_change("tasks", t.id)
         for ta in TaskAssignment.query.filter_by(task_id=t.id).all():
@@ -229,6 +261,13 @@ def toggle(tid):
             clone = _maybe_clone_recurring(t)
 
         db.session.commit()
+        # Completed tasks leave GCal; pending/in-progress get (re)synced
+        if t.status == "completada":
+            _gcal_delete_item("task", t.id)
+        else:
+            _gcal_push_item("task", t)
+        if clone:
+            _gcal_push_item("task", clone)
         from services.sync import push_change
         push_change("tasks", t.id)
         if clone:
@@ -276,8 +315,7 @@ def delete(tid):
     t = db.session.get(Task, tid)
     if t:
         tid_val = t.id
-        # Hold the sync lock so the background pull thread can't re-insert
-        # the row between our local delete and the remote push.
+        _gcal_delete_item("task", tid_val)
         with sync_locked():
             log_activity("delete", "task", t.id, f"Eliminada: {t.title}")
             db.session.delete(t)

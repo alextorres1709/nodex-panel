@@ -1,0 +1,703 @@
+/* ═══════════════════════════════════════════════════════════════════
+   NodexAI Panel — SaaSLauncher Theme (Indigo Dashboard Aesthetic)
+   Based on the reference screenshot: pure-black bg, indigo #4A3AFD
+   primary, pill-everything, mixed pastel accent pills on stat cards,
+   radial indigo glow backdrop, Archivo headings + Inter body.
+   Loads AFTER styles.css in base.html.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Archivo:wght@400;500;600;700;800;900&family=Geist:wght@300;400;500;600;700&display=swap');
+
+/* Rotating gradient border (saaslauncher animated-border signature) */
+@property --ss-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+}
+@keyframes ss-border-rotate { to { --ss-angle: 360deg; } }
+
+/* ═══════════════════════════════════════════════════════════
+   TOKENS — Indigo scheme from screenshot + theme.json
+   ═══════════════════════════════════════════════════════════ */
+html, body,
+:root,
+[data-theme="dark"],
+[data-theme="light"] {
+    --ss-primary:        #4A3AFD;
+    --ss-primary-light:  #6F79FF;
+    --ss-primary-dark:   #1A1452;
+    --ss-secondary:      #4938FE;
+
+    /* Pastel accent pills used on stat cards in the demo */
+    --ss-pill-sales:    #22D3EE; /* cyan      */
+    --ss-pill-download: #A8E600; /* lime      */
+    --ss-pill-active:   #B983FF; /* violet    */
+    --ss-pill-success:  #34D399; /* green     */
+    --ss-pill-warning:  #FBBF24; /* amber     */
+    --ss-pill-danger:   #FB7185; /* rose      */
+
+    --ss-bg:         #000000;
+    --ss-bg-lift:    #050505;
+    --ss-surface:    #0A0A0C;
+    --ss-surface-hi: #111116;
+    --ss-elevated:   #16161E;
+
+    --ss-border:      rgba(255, 255, 255, 0.06);
+    --ss-border-soft: rgba(255, 255, 255, 0.04);
+    --ss-border-hi:   rgba(111, 121, 255, 0.32);
+
+    --ss-heading:   #FFFFFE;
+    --ss-text:      #E8E8EE;
+    --ss-text-alt:  #C9C9D4;
+    --ss-meta:      #8C8C9A;
+
+    --ss-shadow-btn:      0 8px 24px rgba(74, 58, 253, 0.38);
+    --ss-shadow-btn-hover:0 12px 32px rgba(74, 58, 253, 0.48);
+    --ss-shadow-card:     0 1px 0 rgba(255,255,255,0.02) inset, 0 2px 8px rgba(0,0,0,0.6);
+    --ss-shadow-elev:     0 2px 0 rgba(255,255,255,0.03) inset, 0 10px 32px rgba(0,0,0,0.75);
+
+    /* Map to panel variables */
+    --brand-primary:       var(--ss-primary);
+    --brand-primary-light: var(--ss-primary-light);
+    --brand-primary-dark:  var(--ss-primary-dark);
+    --brand-purple:        var(--ss-pill-active);
+    --brand-cyan:          var(--ss-pill-sales);
+    --brand-amber:         var(--ss-pill-warning);
+
+    --bg-primary:    var(--ss-bg);
+    --bg-secondary:  var(--ss-bg-lift);
+    --bg-tertiary:   var(--ss-surface);
+    --bg-card:       var(--ss-surface);
+    --bg-card-hover: var(--ss-surface-hi);
+    --bg-elev:       var(--ss-surface);
+
+    --border-color: var(--ss-border);
+    --border:       var(--ss-border);
+    --border-hover: var(--ss-border-hi);
+    --border-focus: rgba(74, 58, 253, 0.55);
+
+    --text-primary:   var(--ss-heading);
+    --text-secondary: var(--ss-text);
+    --text-tertiary:  var(--ss-meta);
+    --text:           var(--ss-text);
+    --muted:          var(--ss-meta);
+
+    --accent:        var(--ss-primary-light);
+    --accent-strong: var(--ss-primary);
+
+    --radius-sm: 10px;
+    --radius-md: 16px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+    --radius-pill: 999px;
+
+    --shadow-card:     var(--ss-shadow-card);
+    --shadow-elevated: var(--ss-shadow-elev);
+    --shadow-lg:       var(--ss-shadow-elev);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GLOBAL — pure black canvas, Inter body, Archivo headings
+   ═══════════════════════════════════════════════════════════ */
+html, body {
+    background: var(--ss-bg) !important;
+    color: var(--ss-text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    font-feature-settings: 'ss01', 'cv11';
+    letter-spacing: -0.006em;
+}
+
+h1, h2, h3, h4, h5, h6,
+.page-header h1,
+.sidebar-brand h2,
+.header-title,
+.modal-header h2,
+.modal-header h3 {
+    font-family: 'Archivo', 'Inter', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ss-heading);
+}
+
+.tabular, .kpi-value, code, kbd,
+input[type="number"], input[type="date"],
+.pomodoro-time, #globalTimerDisplay {
+    font-family: 'Geist', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+.page-subtitle, small, .sidebar-user-role {
+    color: var(--ss-meta);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RADIAL INDIGO GLOW BACKDROP — demo signature
+   (big violet halo rising from the hero into the dashboard)
+   ═══════════════════════════════════════════════════════════ */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        radial-gradient(42% 30% at 50% 4%, rgba(74, 58, 253, 0.26) 0%, rgba(74, 58, 253, 0.08) 40%, transparent 72%),
+        radial-gradient(28% 22% at 8% 96%, rgba(74, 58, 253, 0.12) 0%, transparent 70%),
+        radial-gradient(32% 24% at 94% 92%, rgba(111, 121, 255, 0.10) 0%, transparent 68%);
+}
+.app-layout { position: relative; z-index: 1; }
+
+/* Decorative stars — matches the subtle glinting stars in the demo */
+.main-content::before,
+.main-content::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    background: radial-gradient(circle, rgba(255,255,255,.9) 0%, rgba(255,255,255,0) 60%);
+    pointer-events: none;
+    opacity: .55;
+}
+.main-content::before { top: 60px;  left: 90px;  transform: rotate(18deg); }
+.main-content::after  { top: 180px; right: 110px; transform: rotate(-12deg); }
+
+/* ═══════════════════════════════════════════════════════════
+   SIDEBAR — darker, cleaner, pill-style active items
+   ═══════════════════════════════════════════════════════════ */
+.sidebar {
+    background: linear-gradient(180deg, #05050A 0%, #000000 100%) !important;
+    border-right: 1px solid var(--ss-border) !important;
+}
+
+.sidebar-brand h2 {
+    font-family: 'Archivo', 'Inter', sans-serif;
+    font-weight: 700;
+    background: linear-gradient(90deg, #FFFFFE 0%, #B1AAFF 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.sidebar-nav { padding: 6px 10px; }
+
+.sidebar-nav a {
+    position: relative;
+    margin: 2px 0;
+    padding: 9px 12px !important;
+    border-radius: var(--radius-pill) !important;
+    border-left: 0 !important;
+    color: var(--ss-text-alt);
+    font-size: 13px;
+    font-weight: 500;
+    transition: background .18s ease, color .18s ease;
+}
+
+.sidebar-nav a:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--ss-heading);
+}
+
+.sidebar-nav a.active {
+    background: linear-gradient(90deg, rgba(74, 58, 253, 0.22) 0%, rgba(74, 58, 253, 0.06) 100%);
+    color: var(--ss-heading);
+    box-shadow: inset 0 0 0 1px rgba(111, 121, 255, 0.22);
+}
+
+.sidebar-nav a.active .nav-icon,
+.sidebar-nav a:hover .nav-icon { color: var(--ss-primary-light); }
+
+.sidebar-nav .nav-icon { stroke-width: 1.6; }
+
+.sidebar-label {
+    color: var(--ss-meta);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 14px 12px 6px;
+}
+
+.sidebar-user {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--ss-border);
+    border-radius: var(--radius-lg);
+    padding: 10px 12px;
+}
+
+/* Avatar circle with indigo ring + status dot (demo signature) */
+.sidebar-user-avatar {
+    position: relative;
+    background: radial-gradient(80% 80% at 30% 20%, var(--ss-primary-light) 0%, var(--ss-primary) 100%);
+    color: #FFFFFE;
+    font-weight: 700;
+    box-shadow: 0 0 0 2px rgba(111, 121, 255, 0.28), 0 4px 16px rgba(74, 58, 253, 0.4);
+}
+.sidebar-user-avatar::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--ss-pill-download);
+    border: 2px solid #000;
+}
+
+.sidebar-user-name { color: var(--ss-heading); font-weight: 600; font-size: 13px; }
+
+.sidebar-footer a {
+    color: var(--ss-meta);
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: var(--radius-pill);
+}
+.sidebar-footer a:hover { color: var(--ss-heading); background: rgba(255,255,255,.04); }
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER — slim + pill search + indigo tinted blur
+   ═══════════════════════════════════════════════════════════ */
+.header {
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: saturate(160%) blur(16px);
+    -webkit-backdrop-filter: saturate(160%) blur(16px);
+    border-bottom: 1px solid var(--ss-border) !important;
+}
+
+.header-title { font-size: 14px; font-weight: 600; color: var(--ss-text); }
+
+.notif-bell {
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--ss-border);
+    color: var(--ss-text-alt);
+    transition: all .18s ease;
+}
+.notif-bell:hover {
+    background: rgba(74, 58, 253, 0.12);
+    border-color: var(--ss-border-hi);
+    color: var(--ss-heading);
+}
+
+.notif-badge {
+    background: var(--ss-primary) !important;
+    color: #FFFFFE !important;
+    border: 2px solid #000;
+}
+
+.sync-indicator {
+    border-radius: var(--radius-pill);
+    padding: 4px 12px;
+    background: rgba(255,255,255,.03);
+    border: 1px solid var(--ss-border);
+}
+.sync-indicator.idle .sync-dot {
+    background: var(--ss-pill-download);
+    box-shadow: 0 0 8px var(--ss-pill-download);
+}
+.sync-indicator.syncing .sync-dot {
+    background: var(--ss-primary-light);
+    box-shadow: 0 0 8px var(--ss-primary-light);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARDS — deep surface, soft inner highlight
+   ═══════════════════════════════════════════════════════════ */
+.table-card,
+.project-card,
+.modal,
+.kpi-card,
+.cmd-palette,
+.notif-panel {
+    background: linear-gradient(180deg, #0C0C12 0%, #07070A 100%) !important;
+    border: 1px solid var(--ss-border) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--ss-shadow-card) !important;
+}
+
+.table-card:hover,
+.project-card:hover {
+    border-color: var(--ss-border-hi) !important;
+}
+
+.table-card-header,
+.modal-header {
+    border-bottom: 1px solid var(--ss-border) !important;
+    padding: 16px 20px;
+}
+.table-card-header h3,
+.modal-header h3 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.modal-footer {
+    border-top: 1px solid var(--ss-border) !important;
+    background: rgba(0,0,0,.3);
+}
+
+.modal-overlay {
+    background: rgba(0, 0, 0, 0.72) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   KPI CARDS — stat-card style with pill label + arrow
+   (mimics the 3 cards in the demo: Sales / Download / Active)
+   ═══════════════════════════════════════════════════════════ */
+.kpi-card {
+    position: relative;
+    padding: 18px 20px !important;
+    overflow: hidden;
+}
+
+/* Top-right arrow chevron — uses CSS content, pure symbol */
+.kpi-card::after {
+    content: '→';
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--ss-border);
+    color: var(--ss-text-alt);
+    font-size: 13px;
+    transition: all .18s ease;
+}
+.kpi-card:hover::after {
+    background: var(--ss-primary);
+    border-color: transparent;
+    color: #FFFFFE;
+    transform: translateX(2px);
+}
+
+.kpi-label {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    margin-bottom: 14px;
+    background: rgba(255,255,255,.05);
+    color: var(--ss-text);
+}
+
+/* Colored pills by accent class — matches demo's Sales/Download/Active */
+.kpi-card.accent-blue   .kpi-label { background: rgba(34, 211, 238, 0.14);  color: var(--ss-pill-sales);    }
+.kpi-card.accent-cyan   .kpi-label { background: rgba(34, 211, 238, 0.14);  color: var(--ss-pill-sales);    }
+.kpi-card.accent-purple .kpi-label { background: rgba(185, 131, 255, 0.14); color: var(--ss-pill-active);   }
+.kpi-card.accent-yellow .kpi-label { background: rgba(251, 191, 36, 0.14);  color: var(--ss-pill-warning);  }
+.kpi-card.accent-green  .kpi-label,
+.kpi-card.accent-emerald .kpi-label { background: rgba(168, 230, 0, 0.14);  color: var(--ss-pill-download); }
+
+.kpi-value {
+    font-family: 'Archivo', 'Inter', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--ss-heading);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BUTTONS — pill with indigo glow (demo "Signup Today" + "Start Free Trial")
+   ═══════════════════════════════════════════════════════════ */
+.btn {
+    border-radius: var(--radius-pill) !important;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: -0.003em;
+    padding: 9px 18px;
+    transition: all .2s ease;
+}
+
+.btn-sm {
+    padding: 6px 14px;
+    font-size: 12px;
+}
+
+.btn-primary {
+    position: relative;
+    background: linear-gradient(180deg, var(--ss-primary-light) 0%, var(--ss-primary) 100%) !important;
+    color: #FFFFFE !important;
+    font-weight: 600;
+    border: 0 !important;
+    box-shadow: var(--ss-shadow-btn), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    pointer-events: none;
+}
+
+.btn-primary:hover {
+    filter: brightness(1.08);
+    box-shadow: var(--ss-shadow-btn-hover), inset 0 1px 0 rgba(255,255,255,0.3);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid var(--ss-border) !important;
+    color: var(--ss-text) !important;
+}
+.btn-secondary:hover {
+    background: rgba(74, 58, 253, 0.08) !important;
+    border-color: var(--ss-border-hi) !important;
+    color: var(--ss-heading) !important;
+}
+
+.btn-danger {
+    background: rgba(251, 113, 133, 0.1) !important;
+    border: 1px solid rgba(251, 113, 133, 0.36) !important;
+    color: var(--ss-pill-danger) !important;
+}
+.btn-danger:hover {
+    background: rgba(251, 113, 133, 0.2) !important;
+    border-color: rgba(251, 113, 133, 0.6) !important;
+}
+
+.btn-success {
+    background: linear-gradient(180deg, #4AE288 0%, #16A34A 100%) !important;
+    color: #001910 !important;
+    border: 0 !important;
+    font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BADGES & STATUS PILLS
+   ═══════════════════════════════════════════════════════════ */
+.badge {
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.01em;
+    padding: 3px 10px;
+    border: 1px solid transparent;
+    background: rgba(255,255,255,.05);
+    color: var(--ss-text);
+}
+
+.badge-activo, .badge-cliente, .badge-completado,
+.badge-pago_recibido, .badge-cerrado_ganado, .badge-entregado {
+    background: rgba(52, 211, 153, 0.12);
+    color: var(--ss-pill-success);
+    border-color: rgba(52, 211, 153, 0.28);
+}
+
+.badge-pausado, .badge-en_progreso, .badge-negociacion,
+.badge-propuesta_enviada, .badge-demo_realizada, .badge-welcome_enviado {
+    background: rgba(111, 121, 255, 0.12);
+    color: var(--ss-primary-light);
+    border-color: rgba(111, 121, 255, 0.28);
+}
+
+.badge-cancelado, .badge-cerrado_perdido, .badge-perdido {
+    background: rgba(251, 113, 133, 0.12);
+    color: var(--ss-pill-danger);
+    border-color: rgba(251, 113, 133, 0.28);
+}
+
+.badge-danger { background: rgba(251, 113, 133, 0.14); color: var(--ss-pill-danger); border-color: rgba(251, 113, 133, 0.32); }
+
+/* ═══════════════════════════════════════════════════════════
+   FORMS
+   ═══════════════════════════════════════════════════════════ */
+input, textarea, select, .form-control {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid var(--ss-border) !important;
+    color: var(--ss-text) !important;
+    border-radius: 12px !important;
+    padding: 9px 14px;
+    font-family: 'Inter', sans-serif;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: var(--ss-primary-light) !important;
+    box-shadow: 0 0 0 3px rgba(74, 58, 253, 0.22) !important;
+    outline: none !important;
+}
+
+input::placeholder, textarea::placeholder {
+    color: var(--ss-meta);
+}
+
+/* Search-style pill input — demo reference */
+.filter-bar input[type="search"],
+.filter-bar input[type="text"],
+.cmd-palette-input-wrap input {
+    border-radius: var(--radius-pill) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TABLES
+   ═══════════════════════════════════════════════════════════ */
+.data-table { border-collapse: separate; border-spacing: 0; width: 100%; }
+
+.data-table th {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--ss-meta);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--ss-border);
+    padding: 12px 16px;
+}
+
+.data-table td {
+    border-bottom: 1px solid var(--ss-border-soft);
+    color: var(--ss-text);
+    padding: 12px 16px;
+}
+
+.data-table tr:hover td { background: rgba(74, 58, 253, 0.04); }
+
+/* ═══════════════════════════════════════════════════════════
+   PROGRESS BARS — demo uses segmented/chunked horizontal stripes
+   ═══════════════════════════════════════════════════════════ */
+.progress-bar {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: var(--radius-pill);
+    height: 6px;
+    overflow: hidden;
+}
+.progress-fill {
+    background: linear-gradient(90deg, var(--ss-primary) 0%, var(--ss-primary-light) 100%);
+    border-radius: inherit;
+    box-shadow: 0 0 12px rgba(111, 121, 255, 0.5);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LINKS & ACCENT TEXT
+   ═══════════════════════════════════════════════════════════ */
+a { color: var(--ss-primary-light); }
+a:hover { color: var(--ss-heading); }
+
+/* ═══════════════════════════════════════════════════════════
+   SCROLLBARS
+   ═══════════════════════════════════════════════════════════ */
+::-webkit-scrollbar       { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--ss-bg); }
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(111, 121, 255, 0.45), rgba(74, 58, 253, 0.18));
+    border-radius: 10px;
+    border: 2px solid var(--ss-bg);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(111, 121, 255, 0.6), rgba(74, 58, 253, 0.3));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   POMODORO + NOTIF PANEL
+   ═══════════════════════════════════════════════════════════ */
+.pomodoro-overlay {
+    background: rgba(0, 0, 0, 0.92) !important;
+    border: 1px solid var(--ss-border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(10px);
+}
+#pomodoroArc { stroke: var(--ss-primary-light) !important; }
+
+.notif-panel { padding: 6px; }
+.notif-item  { border-radius: var(--radius-md); padding: 10px 12px; }
+.notif-item:hover { background: rgba(74, 58, 253, 0.08); }
+
+/* ═══════════════════════════════════════════════════════════
+   CMD PALETTE
+   ═══════════════════════════════════════════════════════════ */
+.cmd-palette-overlay { background: rgba(0, 0, 0, 0.72) !important; backdrop-filter: blur(10px); }
+.cmd-palette         { box-shadow: var(--ss-shadow-elev); border-radius: var(--radius-lg); }
+.cmd-palette-input-wrap input { background: transparent !important; border: 0 !important; }
+.cmd-palette-item:hover { background: rgba(74, 58, 253, 0.1); border-radius: var(--radius-md); }
+.cmd-palette-item      { padding: 10px 14px; border-radius: var(--radius-md); }
+
+/* ═══════════════════════════════════════════════════════════
+   FLASH MESSAGES
+   ═══════════════════════════════════════════════════════════ */
+.flash-message {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--ss-border);
+    background: var(--ss-surface);
+    color: var(--ss-text);
+    padding: 12px 16px;
+}
+.flash-success { border-color: rgba(52, 211, 153, 0.4);  background: rgba(52, 211, 153, 0.06); }
+.flash-error   { border-color: rgba(251, 113, 133, 0.4); background: rgba(251, 113, 133, 0.08); color: var(--ss-pill-danger); }
+.flash-warning { border-color: rgba(251, 191, 36, 0.4);  background: rgba(251, 191, 36, 0.06); color: var(--ss-pill-warning); }
+
+/* ═══════════════════════════════════════════════════════════
+   PAGE HEADER — big h1 with subtle gradient
+   ═══════════════════════════════════════════════════════════ */
+.page-header {
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--ss-border);
+    margin-bottom: 26px;
+}
+.page-header h1 {
+    font-family: 'Archivo', 'Inter', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+.page-subtitle {
+    color: var(--ss-meta);
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FILTER BAR — horizontal pill-form toolbar
+   ═══════════════════════════════════════════════════════════ */
+.filter-bar {
+    background: var(--ss-surface);
+    border: 1px solid var(--ss-border);
+    border-radius: var(--radius-pill);
+    padding: 6px 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 18px;
+}
+.filter-bar select,
+.filter-bar input {
+    background: transparent !important;
+    border: 0 !important;
+    padding: 6px 12px;
+    min-height: 34px;
+    font-size: 13px;
+}
+.filter-bar .btn { padding: 6px 16px; font-size: 12px; }
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMATED GRADIENT BORDER (saaslauncher signature)
+   Add class `.ss-animated-border` to any card to enable.
+   ═══════════════════════════════════════════════════════════ */
+.ss-animated-border {
+    border: 1px solid transparent !important;
+    background:
+        linear-gradient(var(--ss-surface), var(--ss-surface)) padding-box,
+        linear-gradient(var(--ss-angle), var(--ss-primary) 30%, var(--ss-heading) 49%, var(--ss-primary) 73%) border-box !important;
+    animation: ss-border-rotate 10s linear infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   KEEP LEGACY COLOURS SANE (tasks page, kanban chips, etc.)
+   ═══════════════════════════════════════════════════════════ */
+[class*="priority-alta"],  .priority-alta  { color: var(--ss-pill-danger); }
+[class*="priority-media"], .priority-media { color: var(--ss-pill-warning); }
+[class*="priority-baja"],  .priority-baja  { color: var(--ss-meta); }
+
+hr, .divider { border-color: var(--ss-border); }

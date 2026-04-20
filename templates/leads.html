@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Leads{% endblock %}
+{% block page_title %}Leads{% endblock %}
+
+{% block content %}
+{% set prio_meta = {
+    'alta':  {'label':'Alta',  'color':'#ef4444'},
+    'media': {'label':'Media', 'color':'#f59e0b'},
+    'baja':  {'label':'Baja',  'color':'#64748b'},
+} %}
+
+<div class="page-header">
+    <div>
+        <h1>Leads</h1>
+        <p class="page-subtitle">{{ leads|length }} lead{{ 's' if leads|length != 1 }} · pipeline comercial</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a href="{{ url_for('sequences.index') }}" class="btn btn-secondary">Secuencias →</a>
+        <a href="{{ url_for('leads.export_csv') }}" class="btn btn-secondary" title="Exportar CSV">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar
+        </a>
+        <button class="btn btn-secondary" onclick="openModal('importModal')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Importar
+        </button>
+        <button class="btn btn-primary" onclick="openModal('createLeadModal')">+ Nuevo lead</button>
+    </div>
+</div>
+
+<!-- KPI strip -->
+<div class="kpi-grid" style="margin-bottom:20px">
+    <div class="kpi-card">
+        <div class="kpi-label">Total</div>
+        <div class="kpi-value tabular">{{ kpi.total }}</div>
+    </div>
+    <div class="kpi-card accent-purple">
+        <div class="kpi-label">Prioridad alta</div>
+        <div class="kpi-value tabular">{{ kpi.alta }}</div>
+    </div>
+    <div class="kpi-card accent-red">
+        <div class="kpi-label">Vencidos</div>
+        <div class="kpi-value tabular">{{ kpi.overdue }}</div>
+    </div>
+    <div class="kpi-card accent-cyan">
+        <div class="kpi-label">Esta semana</div>
+        <div class="kpi-value tabular">{{ kpi.this_week }}</div>
+    </div>
+    <div class="kpi-card accent-green">
+        <div class="kpi-label">Clientes</div>
+        <div class="kpi-value tabular">{{ kpi.by_status.get('cliente', 0) }}</div>
+    </div>
+</div>
+
+<!-- Pipeline pills (clickable filters) -->
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+    <a href="{{ url_for('leads.index') }}"
+       class="chip {{ 'active' if not sel_status }}"
+       style="padding:6px 12px;border-radius:999px;border:1px solid var(--border);font-size:12px;text-decoration:none;color:var(--text)">
+        Todos · <span class="tabular">{{ kpi.total }}</span>
+    </a>
+    {% for key, label, color in pipeline %}
+    <a href="{{ url_for('leads.index', status=key) }}"
+       class="chip {{ 'active' if sel_status == key }}"
+       style="padding:6px 12px;border-radius:999px;border:1px solid {{ color }}55;background:{{ color }}11;font-size:12px;text-decoration:none;color:var(--text);display:inline-flex;align-items:center;gap:6px">
+        <span style="width:6px;height:6px;border-radius:50%;background:{{ color }};display:inline-block"></span>
+        {{ label }} · <span class="tabular">{{ kpi.by_status.get(key, 0) }}</span>
+    </a>
+    {% endfor %}
+</div>
+
+<!-- Toolbar -->
+<form method="get" class="task-filter-bar" style="margin-bottom:14px">
+    <input type="hidden" name="status" value="{{ sel_status }}">
+    <input type="text" name="q" placeholder="Buscar por nombre, email, empresa, cargo..."
+           value="{{ search }}" style="flex:1;min-width:240px">
+    <select name="priority">
+        <option value="">Prioridad: todas</option>
+        {% for k, m in prio_meta.items() %}
+        <option value="{{ k }}" {% if sel_priority == k %}selected{% endif %}>{{ m.label }}</option>
+        {% endfor %}
+    </select>
+    <select name="assigned">
+        <option value="">Asignado: todos</option>
+        {% for u in users %}
+        <option value="{{ u.id }}" {% if sel_assigned == u.id|string %}selected{% endif %}>{{ u.name or u.email }}</option>
+        {% endfor %}
+    </select>
+    <select name="company_id">
+        <option value="">Empresa: todas</option>
+        {% for c in companies %}
+        <option value="{{ c.id }}" {% if sel_company == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+    </select>
+    <select name="sequence_id">
+        <option value="">Secuencia: todas</option>
+        {% for s in sequences %}
+        <option value="{{ s.id }}" {% if sel_sequence == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+    </select>
+    <select name="sort">
+        <option value="priority"     {% if sel_sort == 'priority' %}selected{% endif %}>Prioridad</option>
+        <option value="next_contact" {% if sel_sort == 'next_contact' %}selected{% endif %}>Próximo contacto</option>
+        <option value="recent"       {% if sel_sort == 'recent' %}selected{% endif %}>Recientes</option>
+        <option value="name"         {% if sel_sort == 'name' %}selected{% endif %}>Nombre</option>
+    </select>
+    <button type="submit" class="btn btn-secondary">Filtrar</button>
+</form>
+
+<!-- DENSE TABLE (Apollo-style) -->
+<div class="table-card">
+    {% if leads %}
+    <table class="dense-table" style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+            <tr style="background:var(--bg-elev);border-bottom:1px solid var(--border)">
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.5px">Lead</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.5px">Empresa</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.5px">Estado</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.5px">Prio</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.5px">Próx. contacto</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.5px">Asignado</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.5px">Secuencias</th>
+                <th style="padding:10px 12px;text-align:right;font-weight:600;color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.5px">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for l in leads %}
+            {% set color = pipeline_colors.get(l.status, '#64748b') %}
+            {% set prio = prio_meta.get(l.priority or 'media', prio_meta['media']) %}
+            <tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg-elev)'" onmouseout="this.style.background=''">
+                <td style="padding:10px 12px">
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,{{ color }},{{ color }}88);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:12px;flex-shrink:0">
+                            {{ ((l.first_name[:1] if l.first_name else '') + (l.last_name[:1] if l.last_name else '')).upper() or '?' }}
+                        </div>
+                        <div style="min-width:0">
+                            <a href="{{ url_for('leads.view', lid=l.id) }}" style="color:var(--text);text-decoration:none;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">{{ l.full_name }}</a>
+                            <div style="color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">
+                                {% if l.position %}{{ l.position }}{% if l.email %} · {% endif %}{% endif %}{% if l.email %}<a href="mailto:{{ l.email }}" style="color:var(--muted)">{{ l.email }}</a>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td style="padding:10px 12px;color:var(--text)">
+                    {% if l.company %}
+                    <a href="{{ url_for('companies.view', cid=l.company.id) }}" style="color:var(--text);text-decoration:none">{{ l.company.name }}</a>
+                    {% else %}
+                    <span style="color:var(--muted)">{{ l.company_name_cached or '—' }}</span>
+                    {% endif %}
+                </td>
+                <td style="padding:10px 12px">
+                    <span style="display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:6px;background:{{ color }}15;color:{{ color }};font-size:11px;font-weight:600">
+                        <span style="width:5px;height:5px;border-radius:50%;background:{{ color }}"></span>
+                        {{ pipeline_labels.get(l.status, l.status) }}
+                    </span>
+                </td>
+                <td style="padding:10px 12px">
+                    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ prio.color }}" title="{{ prio.label }}"></span>
+                    <span style="color:{{ prio.color }};font-size:11px;font-weight:600;margin-left:4px">{{ prio.label }}</span>
+                </td>
+                <td style="padding:10px 12px">
+                    {% if l.next_contact_date %}
+                        {% set overdue = l.next_contact_date < today %}
+                        <span class="tabular" style="color:{{ '#ef4444' if overdue else 'var(--text)' }};font-size:12px">
+                            {{ l.next_contact_date.strftime('%d/%m/%Y') }}
+                        </span>
+                    {% else %}
+                        <span style="color:var(--muted)">—</span>
+                    {% endif %}
+                </td>
+                <td style="padding:10px 12px;color:var(--muted);font-size:12px">
+                    {{ l.assignee.name if l.assignee else '—' }}
+                </td>
+                <td style="padding:10px 12px">
+                    {% set ens = enroll_by_lead.get(l.id, []) %}
+                    {% if ens %}
+                        {% for e in ens %}
+                        <span style="display:inline-block;padding:2px 6px;border-radius:4px;background:rgba(124,58,237,.12);color:#a78bfa;font-size:10px;margin-right:3px"
+                              title="{{ e.status }}">{{ e.sequence.name if e.sequence else '?' }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span style="color:var(--muted);font-size:11px">—</span>
+                    {% endif %}
+                </td>
+                <td style="padding:10px 12px;text-align:right;white-space:nowrap">
+                    {% if l.phone %}
+                    <a href="tel:{{ l.phone }}" class="btn btn-icon" title="Llamar"
+                       style="background:rgba(34,197,94,.12);color:#22c55e;border:none;padding:6px 8px;border-radius:6px">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+                    </a>
+                    {% endif %}
+                    {% if l.email %}
+                    <a href="mailto:{{ l.email }}" class="btn btn-icon" title="Email"
+                       style="background:var(--bg-elev);color:var(--text);border:1px solid var(--border);padding:6px 8px;border-radius:6px">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('leads.view', lid=l.id) }}" class="btn btn-secondary" style="padding:5px 10px;font-size:12px">Abrir</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="padding:60px 20px;text-align:center;color:var(--muted)">
+        <p style="margin:0 0 12px 0">No hay leads {% if search %}para "{{ search }}"{% endif %}.</p>
+        <button class="btn btn-primary" onclick="openModal('createLeadModal')">Crear el primero</button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══ Crear Lead Modal ═══ -->
+<div id="createLeadModal" class="modal-overlay" onclick="if(event.target===this)closeModal('createLeadModal')">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h2>Nuevo lead</h2>
+      <button onclick="closeModal('createLeadModal')" class="modal-close">×</button>
+    </div>
+    <form method="post" action="{{ url_for('leads.create') }}" class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label>Nombre</label><input type="text" name="first_name" required></div>
+        <div><label>Apellidos</label><input type="text" name="last_name"></div>
+        <div><label>Email</label><input type="email" name="email"></div>
+        <div><label>Teléfono</label><input type="tel" name="phone"></div>
+        <div><label>Cargo</label><input type="text" name="position" placeholder="CEO, CTO, Marketing Manager..."></div>
+        <div><label>LinkedIn</label><input type="url" name="linkedin" placeholder="https://linkedin.com/in/..."></div>
+        <div>
+          <label>Empresa (existente)</label>
+          <select name="company_id">
+            <option value="">— Ninguna —</option>
+            {% for c in companies %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>O nombre de empresa libre</label>
+          <input type="text" name="company_name" placeholder="Si no está en la lista">
+        </div>
+        <div>
+          <label>Estado</label>
+          <select name="status">
+            {% for k, lbl, _ in pipeline %}
+            <option value="{{ k }}">{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Prioridad</label>
+          <select name="priority">
+            <option value="alta">Alta</option>
+            <option value="media" selected>Media</option>
+            <option value="baja">Baja</option>
+          </select>
+        </div>
+        <div><label>Origen</label><input type="text" name="source" placeholder="apollo, linkedin, referido..."></div>
+        <div>
+          <label>Asignado a</label>
+          <select name="assigned_to">
+            <option value="">—</option>
+            {% for u in users %}<option value="{{ u.id }}">{{ u.name or u.email }}</option>{% endfor %}
+          </select>
+        </div>
+        <div><label>Próximo contacto</label><input type="date" name="next_contact_date"></div>
+        <div><label>Tags</label><input type="text" name="tags" placeholder="separados por comas"></div>
+        <div style="grid-column:1/-1"><label>Notas</label><textarea name="notes" rows="3"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('createLeadModal')">Cancelar</button>
+        <button type="submit" name="redirect_to_detail" value="1" class="btn btn-secondary">Crear y abrir</button>
+        <button type="submit" class="btn btn-primary">Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ Importar CSV Modal ═══ -->
+<div id="importModal" class="modal-overlay" onclick="if(event.target===this)closeModal('importModal')">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h2>Importar leads desde CSV</h2>
+      <button onclick="closeModal('importModal')" class="modal-close">×</button>
+    </div>
+    <form method="post" action="{{ url_for('leads.import_csv') }}" enctype="multipart/form-data" class="modal-body">
+      <p style="color:var(--muted);font-size:13px;margin:0 0 12px 0">
+        Columnas reconocidas: <code>first_name, last_name, email, phone, position, linkedin, company_name, status, priority, source, next_contact_date, tags, notes</code> (o equivalentes en español).
+      </p>
+      <p style="color:var(--muted);font-size:12px;margin:0 0 14px 0">
+        Detecta delimitador <code>,</code> o <code>;</code>. Upsert por <strong>email</strong>.
+      </p>
+      <input type="file" name="csv_file" accept=".csv,text/csv" required>
+      <div class="modal-footer" style="margin-top:14px">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('importModal')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Importar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openModal(id){const m=document.getElementById(id);if(m)m.classList.add('open');}
+function closeModal(id){const m=document.getElementById(id);if(m)m.classList.remove('open');}
+</script>
+{% endblock %}

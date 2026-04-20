@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Secuencias{% endblock %}
+{% block page_title %}Secuencias{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Secuencias</h1>
+        <p class="page-subtitle">Cadencias automáticas de email + tareas (Apollo-style) · {{ sequences|length }} secuencia{{ 's' if sequences|length != 1 }}</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('createSeqModal')">+ Nueva secuencia</button>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
+{% for s in sequences %}
+    {% set c = counts.get(s.id, {}) %}
+    <a href="{{ url_for('sequences.view', sid=s.id) }}"
+       style="background:var(--bg-elev);border:1px solid var(--border);border-radius:10px;padding:16px;text-decoration:none;color:var(--text);display:block;transition:transform .12s, box-shadow .12s"
+       onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,0,0,.18)'"
+       onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+            <div>
+                <h3 style="margin:0;font-size:15px">{{ s.name }}</h3>
+                {% if s.description %}<div style="color:var(--muted);font-size:12px;margin-top:3px">{{ s.description[:90] }}{% if s.description|length > 90 %}...{% endif %}</div>{% endif %}
+            </div>
+            <span style="padding:3px 8px;border-radius:4px;background:{{ 'rgba(34,197,94,.12)' if s.active else 'rgba(100,116,139,.12)' }};color:{{ '#22c55e' if s.active else '#64748b' }};font-size:11px;font-weight:600">{{ 'ACTIVA' if s.active else 'PAUSADA' }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <div>
+                <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Pasos</div>
+                <div class="tabular" style="font-size:18px;font-weight:600">{{ c.steps or 0 }}</div>
+            </div>
+            <div>
+                <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Activos</div>
+                <div class="tabular" style="font-size:18px;font-weight:600">{{ c.enrolled or 0 }}</div>
+            </div>
+            <div>
+                <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Finalizados</div>
+                <div class="tabular" style="font-size:18px;font-weight:600;color:var(--muted)">{{ c.finished or 0 }}</div>
+            </div>
+        </div>
+    </a>
+{% else %}
+    <div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--muted);background:var(--bg-elev);border-radius:10px;border:1px dashed var(--border)">
+        <p>Sin secuencias todavía. Crea la primera para empezar a automatizar emails y tareas de seguimiento sobre tus leads.</p>
+        <button class="btn btn-primary" onclick="openModal('createSeqModal')" style="margin-top:10px">+ Nueva secuencia</button>
+    </div>
+{% endfor %}
+</div>
+
+<!-- Crear secuencia modal -->
+<div id="createSeqModal" class="modal-overlay" onclick="if(event.target===this)closeModal('createSeqModal')">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h2>Nueva secuencia</h2>
+      <button onclick="closeModal('createSeqModal')" class="modal-close">×</button>
+    </div>
+    <form method="post" action="{{ url_for('sequences.create') }}" class="modal-body">
+      <label>Nombre</label>
+      <input type="text" name="name" required placeholder="Ej: Outbound CEOs SaaS Q2">
+      <label>Descripción</label>
+      <textarea name="description" rows="3" placeholder="Para quién va dirigida y qué pasos incluirá..."></textarea>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px">
+        <input type="checkbox" name="active" checked> Activa
+      </label>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('createSeqModal')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Crear y abrir</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openModal(id){const m=document.getElementById(id);if(m)m.classList.add('open');}
+function closeModal(id){const m=document.getElementById(id);if(m)m.classList.remove('open');}
+</script>
+{% endblock %}

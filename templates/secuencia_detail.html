@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}{{ sequence.name }}{% endblock %}
+{% block page_title %}{{ sequence.name }}{% endblock %}
+
+{% block content %}
+{% set step_icons = {
+    'email':  {'icon':'📧', 'color':'#0ea5e9', 'label':'Email'},
+    'call':   {'icon':'📞', 'color':'#22c55e', 'label':'Llamada'},
+    'manual': {'icon':'✍️', 'color':'#a855f7', 'label':'Manual'},
+    'wait':   {'icon':'⏱',  'color':'#64748b', 'label':'Esperar'},
+} %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px">
+    <div>
+        <a href="{{ url_for('sequences.index') }}" style="color:var(--muted);text-decoration:none;font-size:13px">← Secuencias</a>
+        <h1 style="margin:6px 0 2px 0">{{ sequence.name }}</h1>
+        {% if sequence.description %}<p style="color:var(--muted);font-size:13px;margin:0">{{ sequence.description }}</p>{% endif %}
+    </div>
+    <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="openModal('editSeqModal')">Editar</button>
+        <form method="post" action="{{ url_for('sequences.delete', sid=sequence.id) }}" style="display:inline">
+            <button class="btn btn-secondary" onclick="return confirm('Eliminar secuencia y todos sus pasos? Los enrollments quedarán cancelados.')" style="color:#ef4444">Eliminar</button>
+        </form>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:18px">
+
+<!-- ═══ STEPS BUILDER ═══ -->
+<div>
+    <div class="table-card" style="padding:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <h2 style="margin:0;font-size:16px">Pasos ({{ steps|length }})</h2>
+            <button class="btn btn-primary" onclick="openModal('addStepModal')">+ Añadir paso</button>
+        </div>
+
+        {% if steps %}
+        <div style="display:flex;flex-direction:column;gap:10px">
+        {% for st in steps %}
+            {% set meta = step_icons.get(st.step_type, step_icons['manual']) %}
+            <div style="display:flex;gap:12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg)">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
+                    <div style="width:34px;height:34px;border-radius:50%;background:{{ meta.color }}22;color:{{ meta.color }};display:flex;align-items:center;justify-content:center;font-size:16px">{{ meta.icon }}</div>
+                    <span class="tabular" style="font-size:11px;color:var(--muted);font-weight:600">#{{ st.step_order }}</span>
+                </div>
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                        <strong style="font-size:13px">{{ meta.label }}</strong>
+                        {% if st.wait_days %}
+                        <span style="color:var(--muted);font-size:11px">esperar <span class="tabular">{{ st.wait_days }}</span> día{{ 's' if st.wait_days != 1 }}</span>
+                        {% endif %}
+                        {% if st.template %}
+                        <span style="padding:2px 6px;border-radius:4px;background:rgba(124,58,237,.12);color:#a78bfa;font-size:11px">plantilla: {{ st.template.name }}</span>
+                        {% endif %}
+                    </div>
+                    {% if st.subject %}<div style="font-size:13px;color:var(--text);margin-top:4px"><strong>Asunto:</strong> {{ st.subject }}</div>{% endif %}
+                    {% if st.task_title %}<div style="font-size:13px;color:var(--text);margin-top:4px"><strong>Tarea:</strong> {{ st.task_title }}</div>{% endif %}
+                    {% if st.body %}<div style="font-size:12px;color:var(--muted);margin-top:6px;white-space:pre-wrap;max-height:120px;overflow:auto">{{ st.body[:400] }}{% if st.body|length > 400 %}...{% endif %}</div>{% endif %}
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px" onclick="openEditStep({{ st.id }})">Editar</button>
+                    <form method="post" action="{{ url_for('sequences.step_delete', sid=sequence.id, stid=st.id) }}" style="display:inline">
+                        <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;color:#ef4444" onclick="return confirm('Eliminar paso?')">×</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Edit modal por paso -->
+            <div id="editStep_{{ st.id }}" class="modal-overlay" onclick="if(event.target===this)closeModal('editStep_{{ st.id }}')">
+              <div class="modal" style="max-width:560px">
+                <div class="modal-header">
+                  <h2>Editar paso #{{ st.step_order }}</h2>
+                  <button onclick="closeModal('editStep_{{ st.id }}')" class="modal-close">×</button>
+                </div>
+                <form method="post" action="{{ url_for('sequences.step_edit', sid=sequence.id, stid=st.id) }}" class="modal-body">
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                    <div>
+                      <label>Tipo</label>
+                      <select name="step_type">
+                        {% for k, lbl in step_types %}<option value="{{ k }}" {% if st.step_type == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                      </select>
+                    </div>
+                    <div><label>Esperar (días)</label><input type="number" min="0" name="wait_days" value="{{ st.wait_days }}"></div>
+                    <div><label>Orden</label><input type="number" min="1" name="step_order" value="{{ st.step_order }}"></div>
+                  </div>
+                  <label>Plantilla email (opcional)</label>
+                  <select name="template_id">
+                    <option value="">— Sin plantilla / usar campos abajo —</option>
+                    {% for t in templates %}<option value="{{ t.id }}" {% if st.template_id == t.id %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+                  </select>
+                  <label>Asunto</label>
+                  <input type="text" name="subject" value="{{ st.subject }}" placeholder="{empresa} {contacto} {nombre_remitente}">
+                  <label>Cuerpo</label>
+                  <textarea name="body" rows="6">{{ st.body }}</textarea>
+                  <label>Título de tarea (call/manual)</label>
+                  <input type="text" name="task_title" value="{{ st.task_title }}">
+                  <label>Notas internas</label>
+                  <textarea name="notes" rows="2">{{ st.notes }}</textarea>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editStep_{{ st.id }}')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+        {% endfor %}
+        </div>
+        {% else %}
+        <div style="padding:30px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:8px">
+            Sin pasos. Añade el primero (típicamente email inicial con 0 días de espera).
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ═══ Sidebar: enrollments ═══ -->
+<div>
+    <div class="table-card" style="padding:14px">
+        <h3 style="margin:0 0 10px 0;font-size:14px">Inscritos ({{ enrollments|length }})</h3>
+        {% if enrollments %}
+        <div style="max-height:520px;overflow-y:auto">
+        {% for e in enrollments %}
+            {% set st_color = {'active':'#22c55e','paused':'#f59e0b','finished':'#0ea5e9','cancelled':'#64748b'}.get(e.status, '#64748b') %}
+            <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+                <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+                    <div style="min-width:0">
+                        {% if e.lead %}
+                        <a href="{{ url_for('leads.view', lid=e.lead.id) }}" style="color:var(--text);text-decoration:none;font-weight:500;font-size:13px">{{ e.lead.full_name }}</a>
+                        <div style="color:var(--muted);font-size:11px">{{ e.lead.display_company }}</div>
+                        {% endif %}
+                    </div>
+                    <span style="padding:2px 6px;border-radius:4px;background:{{ st_color }}15;color:{{ st_color }};font-size:10px;font-weight:600">{{ e.status }}</span>
+                </div>
+                <div style="font-size:11px;color:var(--muted);margin-top:4px">
+                    paso {{ e.current_step + 1 }}{% if e.next_run_at %} · próximo: <span class="tabular">{{ e.next_run_at.strftime('%d/%m %H:%M') }}</span>{% endif %}
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+        {% else %}
+        <div style="color:var(--muted);font-size:12px;text-align:center;padding:14px">Sin inscritos. Inscribe leads desde la ficha de cada lead.</div>
+        {% endif %}
+    </div>
+</div>
+
+</div>
+
+<!-- ═══ Add step modal ═══ -->
+<div id="addStepModal" class="modal-overlay" onclick="if(event.target===this)closeModal('addStepModal')">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h2>Añadir paso</h2>
+      <button onclick="closeModal('addStepModal')" class="modal-close">×</button>
+    </div>
+    <form method="post" action="{{ url_for('sequences.step_create', sid=sequence.id) }}" class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div>
+          <label>Tipo</label>
+          <select name="step_type" id="newStepType" onchange="toggleStepFields()">
+            {% for k, lbl in step_types %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}
+          </select>
+        </div>
+        <div><label>Esperar (días)</label><input type="number" min="0" name="wait_days" value="0"></div>
+        <div><label>Orden</label><input type="number" min="1" name="step_order" placeholder="auto"></div>
+      </div>
+      <div id="emailFields">
+        <label>Plantilla (opcional)</label>
+        <select name="template_id">
+          <option value="">— sin plantilla —</option>
+          {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+        </select>
+        <label>Asunto</label>
+        <input type="text" name="subject" placeholder="Placeholders: {empresa} {contacto} {nombre_remitente}">
+        <label>Cuerpo</label>
+        <textarea name="body" rows="6"></textarea>
+      </div>
+      <div id="taskFields" style="display:none">
+        <label>Título de la tarea</label>
+        <input type="text" name="task_title" placeholder="Llamar a {contacto}">
+      </div>
+      <label>Notas internas</label>
+      <textarea name="notes" rows="2"></textarea>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('addStepModal')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Añadir</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ Edit sequence modal ═══ -->
+<div id="editSeqModal" class="modal-overlay" onclick="if(event.target===this)closeModal('editSeqModal')">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h2>Editar secuencia</h2>
+      <button onclick="closeModal('editSeqModal')" class="modal-close">×</button>
+    </div>
+    <form method="post" action="{{ url_for('sequences.edit', sid=sequence.id) }}" class="modal-body">
+      <label>Nombre</label>
+      <input type="text" name="name" value="{{ sequence.name }}" required>
+      <label>Descripción</label>
+      <textarea name="description" rows="3">{{ sequence.description }}</textarea>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px">
+        <input type="checkbox" name="active" {% if sequence.active %}checked{% endif %}> Activa
+      </label>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('editSeqModal')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openModal(id){const m=document.getElementById(id);if(m)m.classList.add('open');}
+function closeModal(id){const m=document.getElementById(id);if(m)m.classList.remove('open');}
+function openEditStep(id){openModal('editStep_'+id);}
+function toggleStepFields(){
+    const t = document.getElementById('newStepType').value;
+    const isEmail = t === 'email';
+    const isTask = t === 'call' || t === 'manual';
+    document.getElementById('emailFields').style.display = isEmail ? '' : 'none';
+    document.getElementById('taskFields').style.display = isTask ? '' : 'none';
+}
+toggleStepFields();
+</script>
+{% endblock %}

@@ -62,6 +62,7 @@ class Project(db.Model):
     name = db.Column(db.String(200), nullable=False)
     client_name = db.Column(db.String(200), default="")
     company_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey("leads.id"), nullable=True, index=True)
     status = db.Column(db.String(20), default="activo")  # activo, pausado, completado, cancelado
     type = db.Column(db.String(30), default="web")  # web, app, bot, otro
     budget = db.Column(db.Float, default=0)
@@ -72,6 +73,7 @@ class Project(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     company = db.relationship("Company", foreign_keys=[company_id])
+    lead = db.relationship("Lead", foreign_keys=[lead_id])
 
 
 class Company(db.Model):
@@ -85,7 +87,16 @@ class Company(db.Model):
     problem = db.Column(db.Text, default="")  # problema detectado en la empresa
     solution = db.Column(db.Text, default="")  # soluciones que podemos ofrecer
     notes = db.Column(db.Text, default="")
+    # ─── Lead-like fields (CRM B2B) ───
+    priority = db.Column(db.String(10), default="media")  # alta, media, baja
+    next_contact_date = db.Column(db.Date, nullable=True, index=True)
+    source = db.Column(db.String(100), default="")  # apollo, linkedin, referido, web, evento...
+    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    phone = db.Column(db.String(50), default="")  # teléfono principal de la empresa (centralita)
+    email = db.Column(db.String(200), default="")  # email genérico (info@/contacto@)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    assignee = db.relationship("User", foreign_keys=[assigned_to])
 
 
 class CompanyContact(db.Model):
@@ -100,6 +111,72 @@ class CompanyContact(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     company = db.relationship("Company", foreign_keys=[company_id])
+
+
+# ═══════════════════════════════════════════
+# EMAIL TEMPLATES (Apollo-style outbound CRM)
+# ═══════════════════════════════════════════
+
+EMAIL_TEMPLATE_CATEGORIES = [
+    ("intro", "Presentación inicial"),
+    ("follow_up", "Follow-up"),
+    ("value", "Aportar valor"),
+    ("meeting", "Solicitud de reunión"),
+    ("breakup", "Break-up / cierre"),
+    ("other", "Otro"),
+]
+
+
+class EmailTemplate(db.Model):
+    __tablename__ = "email_templates"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    category = db.Column(db.String(30), default="intro")  # intro, follow_up, value, meeting, breakup, other
+    step_order = db.Column(db.Integer, default=1)  # posición en la secuencia
+    subject = db.Column(db.String(300), default="")
+    body = db.Column(db.Text, default="")
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+# ═══════════════════════════════════════════
+# COMPANY INTERACTIONS — timeline of emails/calls/meetings/notes
+# ═══════════════════════════════════════════
+
+INTERACTION_TYPES = [
+    ("email", "Email"),
+    ("call", "Llamada"),
+    ("meeting", "Reunión"),
+    ("note", "Nota"),
+]
+
+INTERACTION_STATUSES = [
+    ("queued", "En cola"),       # email esperando a n8n
+    ("sent", "Enviado"),
+    ("done", "Hecho"),           # llamadas/reuniones completadas
+    ("failed", "Fallido"),
+]
+
+
+class CompanyInteraction(db.Model):
+    __tablename__ = "company_interactions"
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=False, index=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey("company_contacts.id"), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)  # quién registró
+    type = db.Column(db.String(20), nullable=False, default="note")  # email, call, meeting, note
+    status = db.Column(db.String(20), default="done")  # queued, sent, done, failed
+    subject = db.Column(db.String(300), default="")
+    body = db.Column(db.Text, default="")
+    to_email = db.Column(db.String(200), default="")  # solo emails
+    template_id = db.Column(db.Integer, db.ForeignKey("email_templates.id"), nullable=True)
+    sent_at = db.Column(db.DateTime, nullable=True)  # cuando n8n confirma envío
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    company = db.relationship("Company", foreign_keys=[company_id])
+    contact = db.relationship("CompanyContact", foreign_keys=[contact_id])
+    user = db.relationship("User", foreign_keys=[user_id])
+    template = db.relationship("EmailTemplate", foreign_keys=[template_id])
 
 
 class ProjectContact(db.Model):
@@ -368,7 +445,8 @@ class Invoice(db.Model):
     __tablename__ = "invoices"
     id = db.Column(db.Integer, primary_key=True)
     number = db.Column(db.String(30), unique=True, nullable=False)
-    client_id = db.Column(db.Integer, db.ForeignKey("clients.id"), nullable=True)
+    client_id = db.Column(db.Integer, db.ForeignKey("clients.id"), nullable=True)  # legacy
+    lead_id = db.Column(db.Integer, db.ForeignKey("leads.id"), nullable=True, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
     items = db.Column(db.Text, default="[]")  # JSON: [{description, qty, unit_price}]
     subtotal = db.Column(db.Float, default=0)
@@ -383,6 +461,7 @@ class Invoice(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     client = db.relationship("Client", foreign_keys=[client_id])
+    lead = db.relationship("Lead", foreign_keys=[lead_id])
     project = db.relationship("Project", foreign_keys=[project_id])
 
 
@@ -410,6 +489,7 @@ class Document(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
     client_id = db.Column(db.Integer, db.ForeignKey("clients.id"), nullable=True)
     company_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey("leads.id"), nullable=True, index=True)
     task_id = db.Column(db.Integer, db.ForeignKey("tasks.id"), nullable=True)
     idea_id = db.Column(db.Integer, db.ForeignKey("ideas.id"), nullable=True)
     uploaded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
@@ -419,6 +499,7 @@ class Document(db.Model):
     project = db.relationship("Project", foreign_keys=[project_id])
     client = db.relationship("Client", foreign_keys=[client_id])
     company = db.relationship("Company", foreign_keys=[company_id])
+    lead = db.relationship("Lead", foreign_keys=[lead_id])
     task = db.relationship("Task", foreign_keys=[task_id])
     idea = db.relationship("Idea", foreign_keys=[idea_id])
     uploader = db.relationship("User", foreign_keys=[uploaded_by])
@@ -581,12 +662,196 @@ class ObjectiveSnapshot(db.Model):
 # PERMISSIONS (v2.0)
 # ═══════════════════════════════════════
 
+# ═══════════════════════════════════════
+# GCAL ITEM SYNC — maps tasks/payments/projects/invoices to GCal event IDs
+# New table: created automatically by db.create_all() on startup.
+# ═══════════════════════════════════════
+
+class GcalItemSync(db.Model):
+    __tablename__ = "gcal_item_sync"
+    id = db.Column(db.Integer, primary_key=True)
+    item_type = db.Column(db.String(20), nullable=False)   # task|payment|project|invoice
+    item_id = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    gcal_event_id = db.Column(db.String(200), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        db.UniqueConstraint("item_type", "item_id", "user_id", name="uq_gcal_item"),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
+# LEADS — personas/contactos comerciales (Apollo-style)
+# Un Lead pertenece opcionalmente a una Company (Empresa a contactar).
+# Status transita: nuevo → contactado → interesado → qualified →
+# propuesta → negociacion → cliente / perdido.
+# Cuando status == "cliente" el Lead reemplaza al antiguo modelo
+# Client (la sección "Clientes" del nav desaparece).
+# ═══════════════════════════════════════════════════════════════
+
+LEAD_STATUSES = [
+    ("nuevo", "Nuevo"),
+    ("contactado", "Contactado"),
+    ("interesado", "Interesado"),
+    ("qualified", "Cualificado"),
+    ("propuesta", "Propuesta"),
+    ("negociacion", "Negociación"),
+    ("cliente", "Cliente"),
+    ("perdido", "Perdido"),
+]
+
+
+class Lead(db.Model):
+    __tablename__ = "leads"
+    id = db.Column(db.Integer, primary_key=True)
+    first_name = db.Column(db.String(120), default="")
+    last_name = db.Column(db.String(120), default="")
+    email = db.Column(db.String(200), default="", index=True)
+    phone = db.Column(db.String(50), default="")
+    position = db.Column(db.String(150), default="")
+    linkedin = db.Column(db.String(300), default="")
+    company_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=True, index=True)
+    company_name_cached = db.Column(db.String(200), default="")  # si no se enlaza a una company
+    status = db.Column(db.String(30), default="nuevo", index=True)
+    priority = db.Column(db.String(10), default="media")  # alta, media, baja
+    source = db.Column(db.String(100), default="")  # apollo, linkedin, referido, web, evento...
+    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    next_contact_date = db.Column(db.Date, nullable=True, index=True)
+    notes = db.Column(db.Text, default="")
+    tags = db.Column(db.String(300), default="")
+    converted_at = db.Column(db.DateTime, nullable=True)  # cuando pasó a cliente
+    lost_reason = db.Column(db.String(300), default="")
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    company = db.relationship("Company", foreign_keys=[company_id])
+    assignee = db.relationship("User", foreign_keys=[assigned_to])
+
+    @property
+    def full_name(self):
+        n = (self.first_name or "").strip() + " " + (self.last_name or "").strip()
+        return n.strip() or self.email or "(sin nombre)"
+
+    @property
+    def display_company(self):
+        if self.company_id and self.company:
+            return self.company.name
+        return self.company_name_cached or ""
+
+    @property
+    def is_client(self):
+        return self.status == "cliente"
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECUENCIAS (Apollo-style cadences) — listas de pasos email/call/wait
+# que se ejecutan automáticamente sobre Leads inscritos.
+# El scheduler (n8n) lee enrollments con next_run_at <= now().
+# ═══════════════════════════════════════════════════════════════
+
+class Sequence(db.Model):
+    __tablename__ = "sequences"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, default="")
+    active = db.Column(db.Boolean, default=True, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    creator = db.relationship("User", foreign_keys=[created_by])
+
+
+SEQUENCE_STEP_TYPES = [
+    ("email", "Email automático"),
+    ("call", "Tarea de llamada"),
+    ("manual", "Tarea manual"),
+    ("wait", "Esperar (días)"),
+]
+
+
+class SequenceStep(db.Model):
+    __tablename__ = "sequence_steps"
+    id = db.Column(db.Integer, primary_key=True)
+    sequence_id = db.Column(db.Integer, db.ForeignKey("sequences.id"), nullable=False, index=True)
+    step_order = db.Column(db.Integer, default=1, index=True)
+    step_type = db.Column(db.String(20), default="email")  # email, call, manual, wait
+    wait_days = db.Column(db.Integer, default=0)  # días a esperar ANTES de ejecutar este paso
+    template_id = db.Column(db.Integer, db.ForeignKey("email_templates.id"), nullable=True)
+    subject = db.Column(db.String(300), default="")  # override si no hay template
+    body = db.Column(db.Text, default="")
+    task_title = db.Column(db.String(300), default="")  # para call/manual
+    notes = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    sequence = db.relationship(
+        "Sequence",
+        backref=db.backref(
+            "steps", lazy="dynamic",
+            cascade="all, delete-orphan",
+            order_by="SequenceStep.step_order",
+        ),
+    )
+    template = db.relationship("EmailTemplate", foreign_keys=[template_id])
+
+
+SEQUENCE_ENROLL_STATUSES = [
+    ("active", "Activo"),
+    ("paused", "Pausado"),
+    ("finished", "Finalizado"),
+    ("cancelled", "Cancelado"),
+]
+
+
+class SequenceEnrollment(db.Model):
+    __tablename__ = "sequence_enrollments"
+    id = db.Column(db.Integer, primary_key=True)
+    sequence_id = db.Column(db.Integer, db.ForeignKey("sequences.id"), nullable=False, index=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey("leads.id"), nullable=False, index=True)
+    current_step = db.Column(db.Integer, default=0)  # índice del próximo paso a ejecutar (0-based)
+    next_run_at = db.Column(db.DateTime, nullable=True, index=True)  # cuando el scheduler debe ejecutar el próximo paso
+    status = db.Column(db.String(20), default="active", index=True)  # active, paused, finished, cancelled
+    enrolled_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    last_step_at = db.Column(db.DateTime, nullable=True)
+    finished_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    sequence = db.relationship("Sequence", foreign_keys=[sequence_id])
+    lead = db.relationship("Lead", foreign_keys=[lead_id])
+    enroller = db.relationship("User", foreign_keys=[enrolled_by])
+
+
+# ═══════════════════════════════════════════════════════════════
+# LEAD INTERACTIONS — timeline unificado por lead (emails/llamadas/notas)
+# Análogo a CompanyInteraction pero anclado al Lead.
+# ═══════════════════════════════════════════════════════════════
+
+class LeadInteraction(db.Model):
+    __tablename__ = "lead_interactions"
+    id = db.Column(db.Integer, primary_key=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey("leads.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    enrollment_id = db.Column(db.Integer, db.ForeignKey("sequence_enrollments.id"), nullable=True)
+    step_id = db.Column(db.Integer, db.ForeignKey("sequence_steps.id"), nullable=True)
+    type = db.Column(db.String(20), nullable=False, default="note")  # email, call, meeting, note, status_change
+    status = db.Column(db.String(20), default="done")  # queued, sent, done, failed
+    subject = db.Column(db.String(300), default="")
+    body = db.Column(db.Text, default="")
+    to_email = db.Column(db.String(200), default="")
+    template_id = db.Column(db.Integer, db.ForeignKey("email_templates.id"), nullable=True)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    lead = db.relationship("Lead", foreign_keys=[lead_id])
+    user = db.relationship("User", foreign_keys=[user_id])
+    template = db.relationship("EmailTemplate", foreign_keys=[template_id])
+
+
 MODULES = [
-    "dashboard", "pagos", "ingresos", "clientes", "proyectos",
+    "dashboard", "pagos", "ingresos", "leads", "proyectos",
     "tareas", "herramientas", "ideas", "cowork", "credenciales",
     "facturas", "timetracking", "calendario", "documentos",
     "reportes", "automatizaciones", "usuarios", "configuracion",
-    "objetivos",
+    "objetivos", "secuencias",
 ]
 
 # Roles: admin has all, editor has most, viewer is read-only

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Plantillas de email{% endblock %}
+{% block page_title %}Plantillas de email{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Plantillas de email</h1>
+        <p class="page-subtitle">Secuencias tipo Apollo para outbound B2B. Variables: <code>{empresa}</code> · <code>{contacto}</code> · <code>{nombre_remitente}</code></p>
+    </div>
+    <div style="display:flex;gap:8px">
+        <a href="{{ url_for('companies.index') }}" class="btn btn-secondary">← Empresas</a>
+        <button class="btn btn-primary" onclick="openModal('createTplModal')">+ Nueva plantilla</button>
+    </div>
+</div>
+
+<!-- Filtro por categoría -->
+<form method="GET" class="toolbar" style="margin-bottom:16px">
+    <select name="category" onchange="this.form.submit()" style="padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary)">
+        <option value="">Todas las categorías</option>
+        {% for k, label in categories %}
+        <option value="{{ k }}" {% if selected_category == k %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+</form>
+
+<div class="table-card">
+    {% if templates %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width:50px">Paso</th>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Asunto</th>
+                <th style="width:80px">Activa</th>
+                <th style="width:140px">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tpl in templates %}
+            <tr>
+                <td><span class="badge">{{ tpl.step_order }}</span></td>
+                <td>
+                    <strong>{{ tpl.name }}</strong>
+                    <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                        {{ tpl.body[:100] }}{% if tpl.body|length > 100 %}…{% endif %}
+                    </div>
+                </td>
+                <td>
+                    {% set label_map = {'intro':'Presentación','follow_up':'Follow-up','value':'Valor','meeting':'Reunión','breakup':'Break-up','other':'Otro'} %}
+                    <span class="badge">{{ label_map.get(tpl.category, tpl.category) }}</span>
+                </td>
+                <td style="font-size:13px;color:var(--text-secondary)">{{ tpl.subject }}</td>
+                <td>
+                    {% if tpl.active %}
+                    <span class="badge badge-success">Sí</span>
+                    {% else %}
+                    <span class="badge" style="background:rgba(107,114,128,0.15);color:#6b7280">No</span>
+                    {% endif %}
+                </td>
+                <td style="text-align:right">
+                    <button class="btn btn-sm btn-secondary"
+                            onclick="editTpl({{ tpl.id }}, {{ tpl.name|tojson }}, {{ tpl.category|tojson }}, {{ tpl.step_order }}, {{ tpl.subject|tojson }}, {{ tpl.body|tojson }}, {{ tpl.active|tojson }})">
+                        Editar
+                    </button>
+                    <form method="POST" action="{{ url_for('email_templates.delete', tid=tpl.id) }}" style="display:inline" onsubmit="return confirm('¿Eliminar plantilla?')">
+                        <button type="submit" class="btn btn-sm btn-danger">×</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:40px;text-align:center">
+        <p style="color:var(--text-tertiary)">No hay plantillas. Crea la primera para empezar.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createTplModal">
+    <div class="modal" style="max-width:620px">
+        <div class="modal-header"><h3>Nueva plantilla</h3><button class="modal-close" onclick="closeModal('createTplModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('email_templates.create') }}">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group" style="flex:2">
+                        <label>Nombre</label>
+                        <input type="text" name="name" required placeholder="Ej: Intro — Presentación">
+                    </div>
+                    <div class="form-group">
+                        <label>Paso</label>
+                        <input type="number" name="step_order" value="1" min="1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <select name="category">
+                        {% for k, label in categories %}
+                        <option value="{{ k }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Asunto</label>
+                    <input type="text" name="subject" placeholder="Ideas para automatizar {empresa}">
+                </div>
+                <div class="form-group">
+                    <label>Cuerpo</label>
+                    <textarea name="body" rows="8" placeholder="Hola {contacto},&#10;&#10;Soy {nombre_remitente}..."></textarea>
+                    <small style="color:var(--text-tertiary);font-size:11px">Variables: <code>{empresa}</code> · <code>{contacto}</code> · <code>{nombre_remitente}</code></small>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createTplModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editTplModal">
+    <div class="modal" style="max-width:620px">
+        <div class="modal-header"><h3>Editar plantilla</h3><button class="modal-close" onclick="closeModal('editTplModal')">&times;</button></div>
+        <form method="POST" id="editTplForm">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group" style="flex:2">
+                        <label>Nombre</label>
+                        <input type="text" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Paso</label>
+                        <input type="number" name="step_order" min="1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <select name="category">
+                        {% for k, label in categories %}
+                        <option value="{{ k }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Asunto</label>
+                    <input type="text" name="subject">
+                </div>
+                <div class="form-group">
+                    <label>Cuerpo</label>
+                    <textarea name="body" rows="8"></textarea>
+                    <small style="color:var(--text-tertiary);font-size:11px">Variables: <code>{empresa}</code> · <code>{contacto}</code> · <code>{nombre_remitente}</code></small>
+                </div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="active"> Activa</label>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editTplModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editTpl(id, name, category, step, subject, body, active) {
+    const f = document.getElementById('editTplForm');
+    f.action = '/plantillas-email/edit/' + id;
+    f.name.value = name;
+    f.category.value = category;
+    f.step_order.value = step;
+    f.subject.value = subject;
+    f.body.value = body;
+    f.active.checked = !!active;
+    openModal('editTplModal');
+}
+</script>
+{% endblock %}

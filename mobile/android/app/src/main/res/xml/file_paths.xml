@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Cache directory used for temporary document previews.
+         FileProvider maps getCacheDir() to content:// URIs so other apps
+         (PDF viewers, image viewers) can open them via Intent.ACTION_VIEW. -->
+    <cache-path name="doc_preview" path="doc_preview/" />
+</paths>

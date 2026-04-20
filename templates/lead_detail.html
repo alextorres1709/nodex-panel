@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+{% block title %}{{ lead.full_name }}{% endblock %}
+{% block page_title %}{{ lead.full_name }}{% endblock %}
+
+{% block content %}
+{% set color = pipeline_colors.get(lead.status, '#64748b') %}
+{% set prio_meta = {
+    'alta':  {'label':'Alta',  'color':'#ef4444'},
+    'media': {'label':'Media', 'color':'#f59e0b'},
+    'baja':  {'label':'Baja',  'color':'#64748b'},
+} %}
+{% set prio = prio_meta.get(lead.priority or 'media', prio_meta['media']) %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:14px">
+        <a href="{{ url_for('leads.index') }}" style="color:var(--muted);text-decoration:none;font-size:13px">← Leads</a>
+        <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,{{ color }},{{ color }}88);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:16px">
+            {{ ((lead.first_name[:1] if lead.first_name else '') + (lead.last_name[:1] if lead.last_name else '')).upper() or '?' }}
+        </div>
+        <div>
+            <h1 style="margin:0">{{ lead.full_name }}</h1>
+            <div style="color:var(--muted);font-size:13px">
+                {{ lead.position }}{% if lead.position and lead.display_company %} · {% endif %}
+                {% if lead.company %}<a href="{{ url_for('companies.view', cid=lead.company.id) }}" style="color:var(--muted)">{{ lead.company.name }}</a>{% else %}{{ lead.company_name_cached }}{% endif %}
+            </div>
+        </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+        {% if lead.phone %}
+        <a href="tel:{{ lead.phone }}" class="btn"
+           style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;padding:10px 18px;font-weight:700;border-radius:8px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(34,197,94,.3)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+            LLAMAR <span class="tabular" style="opacity:.85">{{ lead.phone }}</span>
+        </a>
+        {% endif %}
+        {% if lead.email %}
+        <a href="mailto:{{ lead.email }}" class="btn btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="vertical-align:-2px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Email</a>
+        {% endif %}
+        {% if lead.linkedin %}
+        <a href="{{ lead.linkedin }}" target="_blank" rel="noopener" class="btn btn-secondary">LinkedIn ↗</a>
+        {% endif %}
+        <button class="btn btn-secondary" onclick="openModal('enrollModal')">+ Inscribir en secuencia</button>
+        <button class="btn btn-secondary" onclick="openModal('editLeadModal')">Editar</button>
+        {% if lead.status != 'cliente' %}
+        <form method="post" action="{{ url_for('leads.convert_client', lid=lead.id) }}" style="display:inline">
+            <button class="btn btn-primary" onclick="return confirm('Convertir este lead en cliente?')">Convertir a cliente</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ═══ Lead summary bar — inline-edit ═══ -->
+<div style="background:var(--bg-elev);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px">
+    <div>
+        <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Estado</div>
+        <select id="statusSelect" onchange="updateField('quick-status', 'status', this.value)"
+                style="width:100%;padding:6px 8px;border-radius:6px;background:{{ color }}15;color:{{ color }};border:1px solid {{ color }}55;font-weight:600;font-size:12px">
+            {% for k, lbl, _ in pipeline %}
+            <option value="{{ k }}" {% if lead.status == k %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Prioridad</div>
+        <select id="priSelect" onchange="updateField('quick-priority', 'priority', this.value)"
+                style="width:100%;padding:6px 8px;border-radius:6px;background:{{ prio.color }}15;color:{{ prio.color }};border:1px solid {{ prio.color }}55;font-weight:600;font-size:12px">
+            {% for k, m in prio_meta.items() %}
+            <option value="{{ k }}" {% if (lead.priority or 'media') == k %}selected{% endif %}>{{ m.label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Próximo contacto</div>
+        <input type="date" id="nextContact" value="{{ lead.next_contact_date.isoformat() if lead.next_contact_date else '' }}"
+               onchange="updateField('quick-next-contact', 'next_contact_date', this.value)"
+               style="width:100%;padding:6px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:12px">
+    </div>
+    <div>
+        <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Asignado</div>
+        <select id="assignedSelect" onchange="updateField('quick-assigned', 'assigned_to', this.value)"
+                style="width:100%;padding:6px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:12px">
+            <option value="">—</option>
+            {% for u in users %}
+            <option value="{{ u.id }}" {% if lead.assigned_to == u.id %}selected{% endif %}>{{ u.name or u.email }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Origen</div>
+        <div style="font-size:13px;color:var(--text);padding-top:6px">{{ lead.source or '—' }}</div>
+    </div>
+    <div>
+        <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Email</div>
+        <div style="font-size:13px;color:var(--text);padding-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            {% if lead.email %}<a href="mailto:{{ lead.email }}" style="color:var(--text)">{{ lead.email }}</a>{% else %}—{% endif %}
+        </div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:18px">
+
+<!-- ═══ MAIN COLUMN: timeline + interaction logger ═══ -->
+<div>
+    <div class="table-card" style="padding:14px;margin-bottom:18px">
+        <h3 style="margin:0 0 10px 0;font-size:14px">Registrar interacción</h3>
+        <form method="post" action="{{ url_for('leads.log_interaction', lid=lead.id) }}" style="display:grid;grid-template-columns:auto 1fr 1fr auto;gap:8px;align-items:end">
+            <div>
+                <label style="font-size:11px;color:var(--muted)">Tipo</label>
+                <select name="type">
+                    <option value="call">Llamada</option>
+                    <option value="meeting">Reunión</option>
+                    <option value="note">Nota</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:11px;color:var(--muted)">Asunto</label>
+                <input type="text" name="subject" placeholder="Resumen breve">
+            </div>
+            <div>
+                <label style="font-size:11px;color:var(--muted)">Detalle</label>
+                <input type="text" name="body" placeholder="Notas...">
+            </div>
+            <button type="submit" class="btn btn-primary">Registrar</button>
+        </form>
+    </div>
+
+    <div class="table-card" style="padding:0">
+        <div style="padding:14px;border-bottom:1px solid var(--border)">
+            <h3 style="margin:0;font-size:14px">Timeline ({{ interactions|length }})</h3>
+        </div>
+        {% if interactions %}
+        <div style="max-height:520px;overflow-y:auto">
+        {% for i in interactions %}
+            {% set type_color = {'email':'#0ea5e9','call':'#22c55e','meeting':'#a855f7','note':'#64748b','status_change':'#f59e0b'}.get(i.type, '#64748b') %}
+            <div style="padding:14px;border-bottom:1px solid var(--border);display:flex;gap:12px">
+                <div style="width:30px;height:30px;border-radius:50%;background:{{ type_color }}22;color:{{ type_color }};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    {% if i.type == 'email' %}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    {% elif i.type == 'call' %}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+                    {% elif i.type == 'meeting' %}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    {% else %}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    {% endif %}
+                </div>
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;align-items:baseline;gap:8px;justify-content:space-between">
+                        <strong style="font-size:13px">{{ i.subject or i.type|capitalize }}</strong>
+                        <span class="tabular" style="color:var(--muted);font-size:11px">{{ i.created_at.strftime('%d %b %Y · %H:%M') if i.created_at else '' }}</span>
+                    </div>
+                    {% if i.body %}<div style="color:var(--muted);font-size:12px;margin-top:4px;white-space:pre-wrap">{{ i.body }}</div>{% endif %}
+                    <div style="font-size:11px;color:var(--muted);margin-top:6px">
+                        {% if i.user %}{{ i.user.name or i.user.email }}{% endif %}
+                        {% if i.status %} · <span style="color:{{ '#22c55e' if i.status in ('sent','done') else ('#ef4444' if i.status == 'failed' else 'var(--muted)') }}">{{ i.status }}</span>{% endif %}
+                    </div>
+                </div>
+                <form method="post" action="{{ url_for('leads.delete_interaction', lid=lead.id, iid=i.id) }}" style="display:inline">
+                    <button class="btn-icon" onclick="return confirm('Eliminar?')" style="background:transparent;color:var(--muted);border:none;cursor:pointer">×</button>
+                </form>
+            </div>
+        {% endfor %}
+        </div>
+        {% else %}
+        <div style="padding:40px 20px;text-align:center;color:var(--muted);font-size:13px">Sin interacciones aún.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ═══ SIDEBAR: secuencias activas, proyectos, tasks, notas ═══ -->
+<div>
+    <div class="table-card" style="padding:14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <h3 style="margin:0;font-size:14px">Secuencias</h3>
+            <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px" onclick="openModal('enrollModal')">+ Inscribir</button>
+        </div>
+        {% if enrollments %}
+        {% for e in enrollments %}
+        <div style="padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <strong style="font-size:13px">{{ e.sequence.name if e.sequence else '?' }}</strong>
+                    <div style="color:var(--muted);font-size:11px">paso {{ e.current_step + 1 }} · {{ e.status }}</div>
+                </div>
+                <div style="display:flex;gap:4px">
+                {% if e.status == 'active' %}
+                    <form method="post" action="{{ url_for('sequences.enrollment_pause', eid=e.id) }}" style="display:inline">
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px">Pausar</button>
+                    </form>
+                {% elif e.status == 'paused' %}
+                    <form method="post" action="{{ url_for('sequences.enrollment_resume', eid=e.id) }}" style="display:inline">
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px">Reanudar</button>
+                    </form>
+                {% endif %}
+                {% if e.status in ('active', 'paused') %}
+                    <form method="post" action="{{ url_for('sequences.enrollment_cancel', eid=e.id) }}" style="display:inline">
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;color:#ef4444" onclick="return confirm('Cancelar?')">×</button>
+                    </form>
+                {% endif %}
+                </div>
+            </div>
+            {% if e.next_run_at %}
+            <div style="color:var(--muted);font-size:11px;margin-top:4px">próximo: <span class="tabular">{{ e.next_run_at.strftime('%d/%m %H:%M') }}</span></div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div style="color:var(--muted);font-size:12px;text-align:center;padding:14px">Sin secuencias activas</div>
+        {% endif %}
+    </div>
+
+    <div class="table-card" style="padding:14px;margin-bottom:14px">
+        <h3 style="margin:0 0 10px 0;font-size:14px">Proyectos vinculados ({{ projects|length }})</h3>
+        {% if projects %}
+            {% for p in projects %}
+            <div style="padding:8px 0;border-bottom:1px solid var(--border)">
+                <a href="{{ url_for('projects.view', pid=p.id) }}" style="color:var(--text);text-decoration:none;font-size:13px;font-weight:500">{{ p.name }}</a>
+                <div style="color:var(--muted);font-size:11px">{{ p.status }} · {{ p.progress }}%</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="color:var(--muted);font-size:12px;text-align:center;padding:8px">Sin proyectos</div>
+        {% endif %}
+    </div>
+
+    {% if tasks %}
+    <div class="table-card" style="padding:14px;margin-bottom:14px">
+        <h3 style="margin:0 0 10px 0;font-size:14px">Tareas relacionadas ({{ tasks|length }})</h3>
+        {% for t in tasks %}
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+            <div style="font-weight:500">{{ t.title }}</div>
+            <div style="color:var(--muted);font-size:11px">{{ t.status }}{% if t.safe_due_date %} · <span class="tabular">{{ t.safe_due_date.strftime('%d/%m') }}</span>{% endif %}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if lead.notes %}
+    <div class="table-card" style="padding:14px">
+        <h3 style="margin:0 0 8px 0;font-size:14px">Notas</h3>
+        <div style="font-size:13px;color:var(--text);white-space:pre-wrap">{{ lead.notes }}</div>
+    </div>
+    {% endif %}
+</div>
+
+</div>
+
+<!-- ═══ Inscribir en secuencia modal ═══ -->
+<div id="enrollModal" class="modal-overlay" onclick="if(event.target===this)closeModal('enrollModal')">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2>Inscribir en secuencia</h2>
+      <button onclick="closeModal('enrollModal')" class="modal-close">×</button>
+    </div>
+    {% if sequences %}
+    <form method="post" id="enrollForm" class="modal-body">
+      <input type="hidden" name="lead_ids" value="{{ lead.id }}">
+      <input type="hidden" name="next" value="{{ url_for('leads.view', lid=lead.id) }}">
+      <label>Secuencia</label>
+      <select id="enrollSeq" required>
+        <option value="">— elegir —</option>
+        {% for s in sequences %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+      </select>
+      <p style="color:var(--muted);font-size:12px;margin-top:8px">El lead se añadirá al primer paso de la secuencia.</p>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('enrollModal')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Inscribir</button>
+      </div>
+    </form>
+    <script>
+    document.getElementById('enrollForm').addEventListener('submit', function(ev){
+        ev.preventDefault();
+        const sid = document.getElementById('enrollSeq').value;
+        if(!sid) return;
+        this.action = "{{ url_for('sequences.enroll', sid=0) }}".replace('/0/', '/'+sid+'/');
+        this.submit();
+    });
+    </script>
+    {% else %}
+    <div class="modal-body">
+      <p>No hay secuencias activas. <a href="{{ url_for('sequences.index') }}">Crea una primero</a>.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ═══ Editar Lead modal ═══ -->
+<div id="editLeadModal" class="modal-overlay" onclick="if(event.target===this)closeModal('editLeadModal')">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h2>Editar lead</h2>
+      <button onclick="closeModal('editLeadModal')" class="modal-close">×</button>
+    </div>
+    <form method="post" action="{{ url_for('leads.edit', lid=lead.id) }}" class="modal-body">
+      <input type="hidden" name="next" value="{{ url_for('leads.view', lid=lead.id) }}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label>Nombre</label><input type="text" name="first_name" value="{{ lead.first_name }}" required></div>
+        <div><label>Apellidos</label><input type="text" name="last_name" value="{{ lead.last_name }}"></div>
+        <div><label>Email</label><input type="email" name="email" value="{{ lead.email }}"></div>
+        <div><label>Teléfono</label><input type="tel" name="phone" value="{{ lead.phone }}"></div>
+        <div><label>Cargo</label><input type="text" name="position" value="{{ lead.position }}"></div>
+        <div><label>LinkedIn</label><input type="url" name="linkedin" value="{{ lead.linkedin }}"></div>
+        <div>
+          <label>Empresa</label>
+          <select name="company_id">
+            <option value="">—</option>
+            {% for c in companies %}<option value="{{ c.id }}" {% if lead.company_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div><label>Empresa libre</label><input type="text" name="company_name" value="{{ lead.company_name_cached }}"></div>
+        <div>
+          <label>Estado</label>
+          <select name="status">
+            {% for k, lbl, _ in pipeline %}<option value="{{ k }}" {% if lead.status == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Prioridad</label>
+          <select name="priority">
+            {% for k, m in prio_meta.items() %}<option value="{{ k }}" {% if (lead.priority or 'media') == k %}selected{% endif %}>{{ m.label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div><label>Origen</label><input type="text" name="source" value="{{ lead.source }}"></div>
+        <div>
+          <label>Asignado</label>
+          <select name="assigned_to">
+            <option value="">—</option>
+            {% for u in users %}<option value="{{ u.id }}" {% if lead.assigned_to == u.id %}selected{% endif %}>{{ u.name or u.email }}</option>{% endfor %}
+          </select>
+        </div>
+        <div><label>Próx. contacto</label><input type="date" name="next_contact_date" value="{{ lead.next_contact_date.isoformat() if lead.next_contact_date else '' }}"></div>
+        <div><label>Tags</label><input type="text" name="tags" value="{{ lead.tags }}"></div>
+        <div style="grid-column:1/-1"><label>Notas</label><textarea name="notes" rows="4">{{ lead.notes }}</textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('editLeadModal')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openModal(id){const m=document.getElementById(id);if(m)m.classList.add('open');}
+function closeModal(id){const m=document.getElementById(id);if(m)m.classList.remove('open');}
+
+async function updateField(endpoint, field, value){
+    const fd = new FormData();
+    fd.append(field, value || '');
+    try {
+        const r = await fetch(`/leads/{{ lead.id }}/${endpoint}`, {method:'POST', body: fd});
+        if (r.ok) {
+            // Recarga ligera tras un cambio de status para repintar colores
+            if (endpoint === 'quick-status') setTimeout(()=>location.reload(), 200);
+        }
+    } catch(e){ console.error(e); }
+}
+</script>
+{% endblock %}

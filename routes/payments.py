@@ -1,11 +1,29 @@
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, g
 from models import db, Payment
 from routes.auth import login_required
 from services.activity import log_activity
 from services.sync import push_change, push_change_now, sync_locked
 
 payments_bp = Blueprint("payments", __name__)
+
+
+def _gcal_push_item(item):
+    try:
+        from services import gcal as gcal_svc
+        if gcal_svc.is_configured() and gcal_svc.is_connected(g.user.id):
+            gcal_svc.push_item("payment", item, g.user.id)
+    except Exception:
+        pass
+
+
+def _gcal_delete_item(item_id):
+    try:
+        from services import gcal as gcal_svc
+        if gcal_svc.is_configured() and gcal_svc.is_connected(g.user.id):
+            gcal_svc.delete_item_event("payment", item_id, g.user.id)
+    except Exception:
+        pass
 
 
 @payments_bp.route("/pagos")
@@ -55,6 +73,7 @@ def create():
         db.session.add(p)
         log_activity("create", "payment", details=f"Nuevo pago: {p.name}")
         db.session.commit()
+        _gcal_push_item(p)
         push_change("payments", p.id)
         flash("Pago creado", "success")
     except Exception as e:
@@ -82,6 +101,7 @@ def edit(pid):
         p.notes = request.form.get("notes", "").strip()
         log_activity("update", "payment", p.id, f"Editado: {p.name}")
         db.session.commit()
+        _gcal_push_item(p)
         push_change("payments", p.id)
         flash("Pago actualizado", "success")
     except Exception as e:
@@ -96,6 +116,7 @@ def delete(pid):
     p = db.session.get(Payment, pid)
     if p:
         pid = p.id
+        _gcal_delete_item(pid)
         with sync_locked():
             log_activity("delete", "payment", p.id, f"Eliminado: {p.name}")
             db.session.delete(p)

@@ -28,23 +28,85 @@ function updateToggleIcon(theme) {
 function getChartTheme() {
     const isDark = document.body.getAttribute('data-theme') === 'dark';
     return {
-        text: isDark ? '#e2e8f0' : '#0f172a',
-        grid: isDark ? '#1e293b' : '#e2e8f0',
+        text: isDark ? 'rgba(245,245,245,0.78)' : '#0a0a0a',
+        textSoft: isDark ? 'rgba(245,245,245,0.48)' : '#737373',
+        grid: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(10,10,10,0.06)',
+        border: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(10,10,10,0.08)',
+        tooltipBg: isDark ? '#0a0a0a' : '#0a0a0a',
+        tooltipText: '#fafafa',
         colors: isDark
-            ? ['#4ccd5c', '#36b446', '#6edb7a', '#22d3ee', '#fbbf24', '#a78bfa', '#ef4444', '#14b8a6']
-            : ['#7c3aed', '#6d28d9', '#8b5cf6', '#06b6d4', '#f59e0b', '#a855f7', '#ef4444', '#14b8a6'],
+            ? ['#a78bfa', '#22d3ee', '#4ade80', '#fbbf24', '#f87171', '#f472b6', '#60a5fa', '#34d399']
+            : ['#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626', '#db2777', '#2563eb', '#0d9488'],
     };
 }
 
+function applyChartDefaults() {
+    if (typeof Chart === 'undefined') return;
+    const t = getChartTheme();
+    Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif";
+    Chart.defaults.font.size = 11;
+    Chart.defaults.font.weight = '500';
+    Chart.defaults.color = t.textSoft;
+    Chart.defaults.borderColor = t.border;
+    Chart.defaults.plugins.tooltip.backgroundColor = t.tooltipBg;
+    Chart.defaults.plugins.tooltip.titleColor = t.tooltipText;
+    Chart.defaults.plugins.tooltip.bodyColor = t.tooltipText;
+    Chart.defaults.plugins.tooltip.borderColor = 'rgba(255,255,255,0.08)';
+    Chart.defaults.plugins.tooltip.borderWidth = 1;
+    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.cornerRadius = 8;
+    Chart.defaults.plugins.tooltip.boxPadding = 6;
+    Chart.defaults.plugins.tooltip.titleFont = { size: 12, weight: '600' };
+    Chart.defaults.plugins.tooltip.bodyFont = { size: 12, weight: '500' };
+    Chart.defaults.plugins.tooltip.displayColors = true;
+    Chart.defaults.plugins.legend.labels.usePointStyle = true;
+    Chart.defaults.plugins.legend.labels.pointStyle = 'circle';
+    Chart.defaults.plugins.legend.labels.boxWidth = 6;
+    Chart.defaults.plugins.legend.labels.boxHeight = 6;
+    Chart.defaults.plugins.legend.labels.padding = 14;
+    Chart.defaults.elements.arc.borderWidth = 0;
+    Chart.defaults.elements.line.borderWidth = 2;
+    Chart.defaults.elements.line.tension = 0.32;
+    Chart.defaults.elements.point.radius = 0;
+    Chart.defaults.elements.point.hoverRadius = 5;
+    Chart.defaults.elements.point.hoverBorderWidth = 2;
+    Chart.defaults.elements.bar.borderRadius = 6;
+    Chart.defaults.elements.bar.borderSkipped = false;
+}
+applyChartDefaults();
+
 const chartInstances = {};
+
+function hexToRgba(hex, a) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+}
 
 function createChart(canvasId, type, labels, data, label) {
     const ctx = document.getElementById(canvasId);
     if (!ctx) return;
     if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
 
+    applyChartDefaults();
     const theme = getChartTheme();
     const isDoughnut = type === 'doughnut' || type === 'pie';
+    const isLine = type === 'line';
+    const primary = theme.colors[0];
+
+    let bg;
+    if (isDoughnut) {
+        bg = theme.colors.slice(0, data.length);
+    } else if (isLine) {
+        const grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 220);
+        grad.addColorStop(0, hexToRgba(primary, 0.22));
+        grad.addColorStop(1, hexToRgba(primary, 0.0));
+        bg = grad;
+    } else {
+        bg = primary;
+    }
 
     chartInstances[canvasId] = new Chart(ctx, {
         type: type,
@@ -53,27 +115,45 @@ function createChart(canvasId, type, labels, data, label) {
             datasets: [{
                 label: label || '',
                 data: data,
-                backgroundColor: isDoughnut ? theme.colors.slice(0, data.length) : theme.colors[0],
-                borderColor: isDoughnut ? 'transparent' : theme.colors[0],
+                backgroundColor: bg,
+                borderColor: isDoughnut ? 'transparent' : primary,
                 borderWidth: isDoughnut ? 0 : 2,
-                borderRadius: isDoughnut ? 0 : 4,
-                tension: 0.4,
-                fill: type === 'line' ? { target: 'origin', alpha: 0.1 } : false,
+                borderRadius: isDoughnut ? 0 : 6,
+                tension: 0.32,
+                fill: isLine,
+                pointBackgroundColor: primary,
+                pointBorderColor: '#fff',
+                pointHoverBorderColor: '#fff',
+                spanGaps: true,
+                cubicInterpolationMode: isLine ? 'monotone' : 'default',
             }],
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: { top: 6, right: 4, bottom: 0, left: 0 } },
+            interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: {
                     display: isDoughnut,
                     position: 'bottom',
-                    labels: { color: theme.text, padding: 16, usePointStyle: true },
+                    labels: { color: theme.textSoft, padding: 14, usePointStyle: true, boxWidth: 6, boxHeight: 6, font: { size: 11 } },
                 },
+                tooltip: { enabled: true },
             },
+            cutout: isDoughnut ? '68%' : undefined,
             scales: isDoughnut ? {} : {
-                x: { ticks: { color: theme.text }, grid: { color: theme.grid } },
-                y: { ticks: { color: theme.text }, grid: { color: theme.grid }, beginAtZero: true },
+                x: {
+                    ticks: { color: theme.textSoft, font: { size: 10 }, padding: 6 },
+                    grid: { display: false, drawBorder: false },
+                    border: { display: false },
+                },
+                y: {
+                    ticks: { color: theme.textSoft, font: { size: 10 }, padding: 8, maxTicksLimit: 5 },
+                    grid: { color: theme.grid, drawBorder: false, drawTicks: false },
+                    border: { display: false },
+                    beginAtZero: true,
+                },
             },
         },
     });

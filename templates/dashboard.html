@@ -429,7 +429,18 @@
     var expense6m  = {{ expense_6m|tojson }};
     var canvas = document.getElementById('trendChart');
     if (!canvas || typeof Chart === 'undefined') return;
-    new Chart(canvas.getContext('2d'), {
+    if (typeof applyChartDefaults === 'function') applyChartDefaults();
+    var ctx2d = canvas.getContext('2d');
+    var gIn = ctx2d.createLinearGradient(0, 0, 0, 220);
+    gIn.addColorStop(0, 'rgba(34,197,94,0.22)');
+    gIn.addColorStop(1, 'rgba(34,197,94,0)');
+    var gEx = ctx2d.createLinearGradient(0, 0, 0, 220);
+    gEx.addColorStop(0, 'rgba(239,68,68,0.18)');
+    gEx.addColorStop(1, 'rgba(239,68,68,0)');
+    var isDark = document.body.getAttribute('data-theme') === 'dark';
+    var grid = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(10,10,10,0.06)';
+    var textSoft = isDark ? 'rgba(245,245,245,0.48)' : '#737373';
+    new Chart(ctx2d, {
         type: 'line',
         data: {
             labels: monthLabels,
@@ -438,31 +449,69 @@
                     label: 'Ingresos',
                     data: income6m,
                     borderColor: '#22c55e',
-                    backgroundColor: 'rgba(34,197,94,0.12)',
+                    backgroundColor: gIn,
                     fill: true,
-                    tension: 0.35,
+                    tension: 0.32,
                     borderWidth: 2,
-                    pointRadius: 3,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: '#22c55e',
+                    pointBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
+                    cubicInterpolationMode: 'monotone',
                 },
                 {
                     label: 'Gastos',
                     data: expense6m,
-                    borderColor: '#f59e0b',
-                    backgroundColor: 'rgba(245,158,11,0.10)',
+                    borderColor: '#ef4444',
+                    backgroundColor: gEx,
                     fill: true,
-                    tension: 0.35,
+                    tension: 0.32,
                     borderWidth: 2,
-                    pointRadius: 3,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: '#ef4444',
+                    pointBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
+                    cubicInterpolationMode: 'monotone',
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+            interaction: { mode: 'index', intersect: false },
+            layout: { padding: { top: 8, right: 4, bottom: 0, left: 0 } },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    align: 'end',
+                    labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 6, boxHeight: 6, padding: 14, color: textSoft, font: { size: 11, weight: '500' } }
+                },
+                tooltip: {
+                    backgroundColor: '#0a0a0a', titleColor: '#fafafa', bodyColor: '#fafafa',
+                    padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 6,
+                    callbacks: {
+                        label: function(c) {
+                            return ' ' + c.dataset.label + ': ' + new Intl.NumberFormat('es-ES',{maximumFractionDigits:0}).format(c.parsed.y) + ' €';
+                        }
+                    }
+                }
+            },
             scales: {
-                y: { beginAtZero: true, ticks: { font: { size: 10 } } },
-                x: { ticks: { font: { size: 10 } } }
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: textSoft, font: { size: 10 }, padding: 8, maxTicksLimit: 5,
+                        callback: function(v) { return new Intl.NumberFormat('es-ES',{notation:'compact',maximumFractionDigits:1}).format(v) + '€'; }
+                    },
+                    grid: { color: grid, drawBorder: false, drawTicks: false },
+                    border: { display: false }
+                },
+                x: {
+                    ticks: { color: textSoft, font: { size: 10 }, padding: 6 },
+                    grid: { display: false, drawBorder: false },
+                    border: { display: false }
+                }
             }
         }
     });

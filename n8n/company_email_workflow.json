@@ -1,0 +1,191 @@
+{
+  "name": "NodexAI — Company Email Outbox + Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "minutes", "minutesInterval": 5 }
+          ]
+        }
+      },
+      "id": "cron-outbox",
+      "name": "Cada 5 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 180],
+      "notes": "Busca emails nuevos en la cola de empresas cada 5 minutos."
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.NODEX_PANEL_URL }}/api/companies/outbox",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.NODEX_PANEL_API_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-outbox",
+      "name": "GET /api/companies/outbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 180],
+      "notes": "Devuelve emails encolados desde el modal 'Enviar email' de las empresas."
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "id": "split-outbox",
+      "name": "Split por email",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [660, 180]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to_email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "send-email",
+      "name": "Enviar email (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [880, 180],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_GMAIL_CREDENTIAL_ID",
+          "name": "Gmail (NodexAI)"
+        }
+      },
+      "notes": "Puede sustituirse por el nodo SMTP si no usas Gmail. Las variables {empresa}/{contacto}/{nombre_remitente} YA vienen renderizadas desde el panel."
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.NODEX_PANEL_URL }}/api/companies/mark-sent/{{ $('Split por email').item.json.interaction_id }}",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.NODEX_PANEL_API_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "mark-sent",
+      "name": "POST /mark-sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 180]
+    },
+
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "hours", "hoursInterval": 1, "triggerAtMinute": 0 }
+          ]
+        }
+      },
+      "id": "cron-reminders",
+      "name": "Cada hora",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 440],
+      "notes": "Consulta empresas con seguimiento atrasado (>=3 días sin interacción) cada hora."
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.NODEX_PANEL_URL }}/api/companies/due-reminders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.NODEX_PANEL_API_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-reminders",
+      "name": "GET /due-reminders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 440]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "id": "split-reminders",
+      "name": "Split por empresa",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [660, 440]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_SALES_CHANNEL || '#sales' }}",
+        "text": "=🏢 *Seguimiento atrasado*: {{ $json.empresa_name }} — {{ $json.contacto_nombre || 'contacto' }}\\nEstado: *{{ $json.status }}* · Sin interacción hace {{ $json.days_stale || '3+' }} días\\n→ {{ $env.NODEX_PANEL_URL }}/empresas/{{ $json.id }}",
+        "otherOptions": {}
+      },
+      "id": "slack-notify",
+      "name": "Slack alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [880, 440],
+      "credentials": {
+        "slackApi": {
+          "id": "REPLACE_WITH_SLACK_CREDENTIAL_ID",
+          "name": "Slack (NodexAI)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cada 5 min": {
+      "main": [[{ "node": "GET /api/companies/outbox", "type": "main", "index": 0 }]]
+    },
+    "GET /api/companies/outbox": {
+      "main": [[{ "node": "Split por email", "type": "main", "index": 0 }]]
+    },
+    "Split por email": {
+      "main": [[{ "node": "Enviar email (Gmail)", "type": "main", "index": 0 }]]
+    },
+    "Enviar email (Gmail)": {
+      "main": [[{ "node": "POST /mark-sent", "type": "main", "index": 0 }]]
+    },
+    "Cada hora": {
+      "main": [[{ "node": "GET /due-reminders", "type": "main", "index": 0 }]]
+    },
+    "GET /due-reminders": {
+      "main": [[{ "node": "Split por empresa", "type": "main", "index": 0 }]]
+    },
+    "Split por empresa": {
+      "main": [[{ "node": "Slack alert", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all"
+  },
+  "tags": [
+    { "name": "nodexai" },
+    { "name": "crm" }
+  ]
+}

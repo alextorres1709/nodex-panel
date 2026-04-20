@@ -1,9 +1,11 @@
 package es.nodexai.panel
 
 import android.annotation.SuppressLint
+import android.app.DownloadManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.Network
@@ -12,9 +14,12 @@ import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
 import android.view.View
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
+import android.webkit.URLUtil
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -23,11 +28,18 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.messaging.FirebaseMessaging
+import java.io.File
+import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
@@ -73,6 +85,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var offlineOverlay: LinearLayout
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
 
+    // Pending download info captured when the user taps "Descargar" and
+    // handed off to the ACTION_CREATE_DOCUMENT picker result.
+    private var pendingDownloadUrl: String? = null
+    private var pendingDownloadName: String? = null
+
+    // Executor for HTTP downloads (bridge-initiated previews & saves)
+    private val ioExecutor = Executors.newCachedThreadPool()
+
     private val fileChooserLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -82,6 +102,36 @@ class MainActivity : AppCompatActivity() {
         } else null
         fileUploadCallback?.onReceiveValue(results)
         fileUploadCallback = null
+    }
+
+    // Launcher for ACTION_CREATE_DOCUMENT — user picks where to save
+    private val createDocumentLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uri = result.data?.data
+        val url = pendingDownloadUrl
+        pendingDownloadUrl = null
+        pendingDownloadName = null
+        if (result.resultCode != RESULT_OK || uri == null || url == null) {
+            return@registerForActivityResult
+        }
+        Toast.makeText(this, "Descargando...", Toast.LENGTH_SHORT).show()
+        ioExecutor.execute {
+            try {
+                val bytes = downloadBytes(url)
+                contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(bytes)
+                }
+                runOnUiThread {
+                    Toast.makeText(this, "Archivo guardado", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e("NodexSave", "Save failed: ${e.message}", e)
+                runOnUiThread {
+                    Toast.makeText(this, "Error al guardar: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -228,6 +278,71 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
         }
+
+        // Expose a JS bridge so the /documentos page can call into native
+        // code for previews (Intent.ACTION_VIEW with a FileProvider Uri) and
+        // downloads-with-picker (Intent.ACTION_CREATE_DOCUMENT).
+        webView.addJavascriptInterface(NodexJSBridge(), "NodexAndroid")
+
+        // Handle authenticated downloads (e.g. /documentos/<id>/download).
+        // The WebView swallows Content-Disposition responses by default, so
+        // we route them through the system DownloadManager and forward the
+        // session cookie + user-agent so the Flask backend authorizes the
+        // request.
+        webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
+            // On Android <= 9 we need WRITE_EXTERNAL_STORAGE to write into the
+            // public Downloads folder. On Android 10+ scoped storage applies
+            // and DownloadManager handles it for us.
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED
+                ) {
+                    requestPermissions(
+                        arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE), 1002
+                    )
+                    Toast.makeText(
+                        this,
+                        "Concede permiso de almacenamiento y vuelve a pulsar Descargar",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@setDownloadListener
+                }
+            }
+
+            try {
+                val filename = URLUtil.guessFileName(url, contentDisposition, mimeType)
+                val request = DownloadManager.Request(Uri.parse(url)).apply {
+                    setMimeType(mimeType)
+                    addRequestHeader("User-Agent", userAgent)
+                    // Forward the WebView's session cookie so the backend
+                    // recognizes the user.
+                    val cookie = CookieManager.getInstance().getCookie(url)
+                    if (!cookie.isNullOrEmpty()) {
+                        addRequestHeader("Cookie", cookie)
+                    }
+                    setTitle(filename)
+                    setDescription("Descargando desde NodexAI Panel")
+                    setNotificationVisibility(
+                        DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                    )
+                    setDestinationInExternalPublicDir(
+                        Environment.DIRECTORY_DOWNLOADS, filename
+                    )
+                    allowScanningByMediaScanner()
+                }
+
+                val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+                dm.enqueue(request)
+                Toast.makeText(this, "Descargando $filename...", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("NodexDownload", "Download failed: ${e.message}", e)
+                Toast.makeText(
+                    this,
+                    "Error al descargar: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 
     private fun createNotificationChannel() {
@@ -319,5 +434,123 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         webView.onPause()
         super.onPause()
+    }
+
+    // ─── JS bridge helpers ───────────────────────────────────────────
+
+    /** Resolve a possibly-relative URL (e.g. /documentos/1/preview) into
+     *  an absolute one using the WebView's current origin. */
+    private fun resolveUrl(raw: String): String {
+        return if (raw.startsWith("http://") || raw.startsWith("https://")) {
+            raw
+        } else {
+            BASE_URL.trimEnd('/') + "/" + raw.trimStart('/')
+        }
+    }
+
+    /** Blocking HTTP GET that forwards the WebView session cookie. */
+    private fun downloadBytes(url: String): ByteArray {
+        val conn = URL(url).openConnection() as HttpURLConnection
+        conn.connectTimeout = 15000
+        conn.readTimeout = 60000
+        conn.instanceFollowRedirects = true
+        val cookie = CookieManager.getInstance().getCookie(url)
+        if (!cookie.isNullOrEmpty()) {
+            conn.setRequestProperty("Cookie", cookie)
+        }
+        conn.setRequestProperty("User-Agent", webView.settings.userAgentString)
+        try {
+            conn.inputStream.use { return it.readBytes() }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /** Download the URL to cache/doc_preview/<name> and open with
+     *  Intent.ACTION_VIEW via FileProvider so the user's preferred
+     *  viewer (PDF reader, image viewer, etc.) handles it. */
+    private fun openPreview(url: String, name: String, mime: String) {
+        Toast.makeText(this, "Abriendo vista previa...", Toast.LENGTH_SHORT).show()
+        ioExecutor.execute {
+            try {
+                val bytes = downloadBytes(url)
+                val dir = File(cacheDir, "doc_preview").apply { mkdirs() }
+                val safeName = name.replace("/", "_").ifBlank { "documento" }
+                val file = File(dir, safeName)
+                FileOutputStream(file).use { it.write(bytes) }
+
+                val uri = FileProvider.getUriForFile(
+                    this, "$packageName.fileprovider", file
+                )
+                val resolvedMime = mime.ifBlank { contentResolver.getType(uri) ?: "*/*" }
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, resolvedMime)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                runOnUiThread {
+                    try {
+                        startActivity(
+                            Intent.createChooser(intent, "Abrir con")
+                        )
+                    } catch (e: Exception) {
+                        Toast.makeText(
+                            this,
+                            "No hay app para abrir este archivo",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("NodexPreview", "Preview failed: ${e.message}", e)
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        "Error al cargar vista previa: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
+    /** Launch ACTION_CREATE_DOCUMENT so the user picks where to save.
+     *  The actual HTTP download happens in the launcher callback. */
+    private fun launchSavePicker(url: String, name: String, mime: String) {
+        pendingDownloadUrl = url
+        pendingDownloadName = name
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = mime.ifBlank { "*/*" }
+            putExtra(Intent.EXTRA_TITLE, name)
+        }
+        try {
+            createDocumentLauncher.launch(intent)
+        } catch (e: Exception) {
+            pendingDownloadUrl = null
+            pendingDownloadName = null
+            Toast.makeText(
+                this,
+                "No se pudo abrir el selector: ${e.message}",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    /** JS interface exposed as `window.NodexAndroid` to the WebView.
+     *  All methods marshal onto the UI thread because they launch
+     *  activities or show toasts. */
+    inner class NodexJSBridge {
+        @JavascriptInterface
+        fun previewDocument(url: String, name: String, mime: String) {
+            val resolved = resolveUrl(url)
+            runOnUiThread { openPreview(resolved, name, mime) }
+        }
+
+        @JavascriptInterface
+        fun saveDocument(url: String, name: String) {
+            val resolved = resolveUrl(url)
+            runOnUiThread { launchSavePicker(resolved, name, "") }
+        }
     }
 }

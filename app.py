@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone, date, timedelta
 from flask import Flask, g
 from config import Config, BASE_DIR, REMOTE_DATABASE_URL, APP_VERSION, HOSTED_MODE
-from models import db, User, Payment, Project, Tool, Task, Idea, Credential, CompanyInfo, CalendarEvent, PushToken, GoogleOAuthToken
+from models import db, User, Payment, Project, Tool, Task, Idea, Credential, CompanyInfo, CalendarEvent, PushToken, GoogleOAuthToken, EmailTemplate
 
 # Logging estructurado: timestamp + nivel + módulo + mensaje
 logging.basicConfig(
@@ -32,14 +32,115 @@ MIGRATIONS = [
     ("companies", "interest", "VARCHAR(300) DEFAULT ''"),
     ("companies", "problem", "TEXT DEFAULT ''"),
     ("companies", "solution", "TEXT DEFAULT ''"),
+    # Lead-like fields (CRM B2B)
+    ("companies", "priority", "VARCHAR(10) DEFAULT 'media'"),
+    ("companies", "next_contact_date", "DATE"),
+    ("companies", "source", "VARCHAR(100) DEFAULT ''"),
+    ("companies", "assigned_to", "INTEGER"),
+    ("companies", "phone", "VARCHAR(50) DEFAULT ''"),
+    ("companies", "email", "VARCHAR(200) DEFAULT ''"),
     ("projects", "company_id", "INTEGER"),
+    ("projects", "lead_id", "INTEGER"),
     ("documents", "drive_file_id", "VARCHAR(100) DEFAULT ''"),
     ("documents", "company_id", "INTEGER"),
     ("documents", "task_id", "INTEGER"),
     ("documents", "idea_id", "INTEGER"),
+    ("documents", "lead_id", "INTEGER"),
+    ("invoices", "lead_id", "INTEGER"),
     ("resources", "drive_file_id", "VARCHAR(100) DEFAULT ''"),
     ("calendar_events", "gcal_event_id", "VARCHAR(200)"),
 ]
+
+
+# ═══════════════════════════════════════
+# Apollo-style email template seeds — usados en primer arranque
+# ═══════════════════════════════════════
+EMAIL_TEMPLATE_SEEDS = [
+    {
+        "name": "Intro — Presentación NodexAI",
+        "category": "intro",
+        "step_order": 1,
+        "subject": "Ideas para automatizar {empresa}",
+        "body": (
+            "Hola {contacto},\n\n"
+            "Soy {nombre_remitente} de NodexAI. Ayudamos a empresas como la vuestra a "
+            "automatizar procesos repetitivos con IA (atención al cliente, captación, "
+            "reporting interno).\n\n"
+            "¿Tendrías 15 min esta semana para ver si encaja con algún proceso de {empresa}?\n\n"
+            "Un saludo,\n{nombre_remitente}"
+        ),
+    },
+    {
+        "name": "Follow-up 1 — Valor concreto",
+        "category": "follow_up",
+        "step_order": 2,
+        "subject": "¿Sigue sobre la mesa, {contacto}?",
+        "body": (
+            "Hola {contacto},\n\n"
+            "Por si mi anterior email se perdió. Para no robarte tiempo, "
+            "te dejo lo que solemos entregar a clientes como {empresa}:\n\n"
+            "• Agente IA propio con tu tono y tu información\n"
+            "• Integraciones (WhatsApp, email, Slack, CRM)\n"
+            "• Panel de control y métricas en vivo\n\n"
+            "Si te interesa, propongo un café virtual de 15 min.\n\n"
+            "Saludos,\n{nombre_remitente}"
+        ),
+    },
+    {
+        "name": "Follow-up 2 — Caso de uso",
+        "category": "value",
+        "step_order": 3,
+        "subject": "Cómo automatizamos 80% del soporte de un cliente",
+        "body": (
+            "Hola {contacto},\n\n"
+            "Un cliente nuestro pasó de atender 300 tickets/semana a 40 después de "
+            "desplegar un agente IA con su base de conocimiento. El resto se resuelve solo, "
+            "con escalado a humano cuando hace falta.\n\n"
+            "¿Te interesaría que prepare una propuesta ligera para {empresa}? "
+            "Sin compromiso — 15 min y decides.\n\n"
+            "Un saludo,\n{nombre_remitente}"
+        ),
+    },
+    {
+        "name": "Reunión — Solicitud de agenda",
+        "category": "meeting",
+        "step_order": 4,
+        "subject": "¿Te viene bien el martes o miércoles?",
+        "body": (
+            "Hola {contacto},\n\n"
+            "Para cerrar una llamada corta sobre {empresa}, ¿te viene mejor martes 11:00 o miércoles 17:00?\n\n"
+            "Si prefieres otro hueco, dímelo y lo encajamos.\n\n"
+            "Gracias,\n{nombre_remitente}"
+        ),
+    },
+    {
+        "name": "Break-up — Último contacto",
+        "category": "breakup",
+        "step_order": 5,
+        "subject": "¿Cierro el hilo, {contacto}?",
+        "body": (
+            "Hola {contacto},\n\n"
+            "Entiendo que quizá no sea el momento para {empresa}. Si no me dices lo contrario, "
+            "cierro el hilo y no te molesto más.\n\n"
+            "Si en el futuro te encaja, aquí estoy.\n\n"
+            "Un saludo,\n{nombre_remitente}"
+        ),
+    },
+]
+
+
+def _seed_email_templates():
+    """Siembra las plantillas Apollo-style en primer arranque."""
+    try:
+        if EmailTemplate.query.first():
+            return
+        for seed in EMAIL_TEMPLATE_SEEDS:
+            db.session.add(EmailTemplate(**seed))
+        db.session.commit()
+        log.info(f"Seeded {len(EMAIL_TEMPLATE_SEEDS)} email templates")
+    except Exception as e:
+        db.session.rollback()
+        log.warning(f"Email template seed skipped: {e}")
 
 
 def _auto_migrate(app):
@@ -154,6 +255,7 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        _seed_email_templates()
 
         if HOSTED_MODE:
             log.info("Hosted mode — using PostgreSQL directly, sync disabled")
@@ -187,6 +289,11 @@ def create_app():
     from services.gdrive import init_gdrive
     init_gdrive()
 
+    # Start Google Calendar auto-sync (every 5 min, catches up unsynced items)
+    if not HOSTED_MODE:
+        from services.gcal import start_autosync
+        start_autosync(app)
+
     # Blueprints
     from routes.auth import auth_bp, _load_current_user
     from routes.dashboard import dashboard_bp
@@ -218,6 +325,11 @@ def create_app():
     from routes.resources import resources_bp
     from routes.captacion import captacion_bp
     from routes.objetivos import objetivos_bp
+    from routes.company_emails import company_emails_bp
+    from routes.email_templates import email_templates_bp
+    # Apollo-style Leads + Sequences
+    from routes.leads import leads_bp
+    from routes.sequences import sequences_bp
 
     for bp in [auth_bp, dashboard_bp, payments_bp, incomes_bp, companies_bp, projects_bp,
                tools_bp, tasks_bp, ideas_bp, info_bp, activity_bp, users_bp,
@@ -226,7 +338,11 @@ def create_app():
                # Enterprise v2.0
                invoices_bp, balance_bp, timetracking_bp, calendar_bp,
                documents_bp, reports_bp, automations_bp, ai_bp, resources_bp,
-               captacion_bp, objetivos_bp]:
+               captacion_bp, objetivos_bp,
+               # CRM outbound (Apollo-style email + n8n)
+               company_emails_bp, email_templates_bp,
+               # Apollo-style Leads + Sequences
+               leads_bp, sequences_bp]:
         app.register_blueprint(bp)
 
     @app.before_request

@@ -1,13 +1,31 @@
 import json
 from datetime import datetime, date
 from io import BytesIO
-from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, session, g
 from models import db, Invoice, Client, Project, CompanyInfo
 from routes.auth import login_required
 from services.activity import log_activity
 from services.sync import push_change, push_change_now, sync_locked
 
 invoices_bp = Blueprint("invoices", __name__)
+
+
+def _gcal_push_item(item):
+    try:
+        from services import gcal as gcal_svc
+        if gcal_svc.is_configured() and gcal_svc.is_connected(g.user.id):
+            gcal_svc.push_item("invoice", item, g.user.id)
+    except Exception:
+        pass
+
+
+def _gcal_delete_item(item_id):
+    try:
+        from services import gcal as gcal_svc
+        if gcal_svc.is_configured() and gcal_svc.is_connected(g.user.id):
+            gcal_svc.delete_item_event("invoice", item_id, g.user.id)
+    except Exception:
+        pass
 
 
 def next_invoice_number():
@@ -78,6 +96,7 @@ def create():
         db.session.add(inv)
         log_activity("create", "invoice", details=f"Factura {inv.number}")
         db.session.commit()
+        _gcal_push_item(inv)
         push_change("invoices", inv.id)
         flash("Factura creada", "success")
     except Exception as e:
@@ -118,6 +137,7 @@ def edit(iid):
 
         log_activity("update", "invoice", inv.id, f"Factura {inv.number}")
         db.session.commit()
+        _gcal_push_item(inv)
         push_change("invoices", inv.id)
         flash("Factura actualizada", "success")
     except Exception as e:
@@ -136,6 +156,11 @@ def change_status(iid, status):
             inv.paid_date = date.today()
         log_activity("update", "invoice", inv.id, f"Estado → {status}: {inv.number}")
         db.session.commit()
+        # Remove from GCal when paid/draft; keep when outstanding
+        if status in ("cobrada", "borrador"):
+            _gcal_delete_item(inv.id)
+        else:
+            _gcal_push_item(inv)
         push_change("invoices", inv.id)
         flash(f"Factura marcada como {status}", "success")
     return redirect(url_for("invoices.index"))
@@ -147,6 +172,7 @@ def delete(iid):
     inv = db.session.get(Invoice, iid)
     if inv:
         inv_id = inv.id
+        _gcal_delete_item(inv_id)
         with sync_locked():
             log_activity("delete", "invoice", inv.id, f"Eliminada: {inv.number}")
             db.session.delete(inv)

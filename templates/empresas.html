@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Empresas a contactar{% endblock %}
-{% block page_title %}Empresas a contactar{% endblock %}
+{% block title %}Empresas / Leads{% endblock %}
+{% block page_title %}Empresas / Leads{% endblock %}
 
 {% block content %}
 {% set status_labels = {
@@ -20,14 +20,27 @@
     'entregado':'Entregado',
     'seguimiento':'Seguimiento'
 } %}
+{% set priority_meta = {
+    'alta':  {'label':'Alta',  'color':'#ef4444', 'bg':'rgba(239,68,68,.10)'},
+    'media': {'label':'Media', 'color':'#f59e0b', 'bg':'rgba(245,158,11,.10)'},
+    'baja':  {'label':'Baja',  'color':'#64748b', 'bg':'rgba(100,116,139,.10)'},
+} %}
 
 <div class="page-header">
     <div>
-        <h1>Empresas a contactar</h1>
+        <h1>Empresas / Leads</h1>
         <p class="page-subtitle">Pipeline comercial · {{ companies|length }} empresa{{ 's' if companies|length != 1 }}</p>
     </div>
-    <div style="display:flex;gap:8px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
         <a href="{{ url_for('captacion.index') }}" class="btn btn-secondary">Proceso →</a>
+        <a href="{{ url_for('companies.export_csv') }}" class="btn btn-secondary" title="Exportar CSV">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar
+        </a>
+        <button class="btn btn-secondary" onclick="openModal('importModal')" title="Importar CSV">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Importar
+        </button>
         <button class="btn btn-primary" onclick="openModal('createModal')">+ Nueva empresa</button>
     </div>
 </div>
@@ -38,156 +51,214 @@
 {% set neg_statuses = ['propuesta_enviada','negociacion','cerrado_ganado','cerrado_perdido'] %}
 {% set post_statuses = ['pago_recibido','welcome_enviado','en_implementacion','entregado','seguimiento'] %}
 {% set all_statuses = pre_statuses + neg_statuses + post_statuses %}
-{% set ns = namespace(pre=0, neg=0, post=0) %}
+{% set ns = namespace(pre=0, neg=0, post=0, alta=0, due=0) %}
 {% for c in companies %}
     {% if c.status in pre_statuses %}{% set ns.pre = ns.pre + 1 %}
     {% elif c.status in neg_statuses %}{% set ns.neg = ns.neg + 1 %}
     {% elif c.status in post_statuses %}{% set ns.post = ns.post + 1 %}
     {% endif %}
+    {% if c.priority == 'alta' %}{% set ns.alta = ns.alta + 1 %}{% endif %}
+    {% if c.next_contact_date and c.next_contact_date <= today %}{% set ns.due = ns.due + 1 %}{% endif %}
 {% endfor %}
-{% set pre_count = ns.pre %}
-{% set neg_count = ns.neg %}
-{% set post_count = ns.post %}
 {% set ganados = companies|selectattr('status','equalto','cerrado_ganado')|list|length %}
-{% set perdidos = companies|selectattr('status','equalto','cerrado_perdido')|list|length %}
 
-<!-- Phase Summary Cards -->
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
-    <!-- PRE-VENTA -->
-    <div class="table-card" style="padding:20px;border-top:3px solid #3b82f6">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-            <div>
-                <div style="font-size:11px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Pre-venta</div>
-                <div style="font-size:32px;font-weight:800;color:var(--text-primary);line-height:1">{{ pre_count }}</div>
-            </div>
-            <div style="width:44px;height:44px;border-radius:12px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
-        </div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap">
-            {% for s in pre_statuses %}
-            {% set sc = companies|selectattr('status','equalto',s)|list|length %}
-            {% if sc > 0 %}
-            <a href="?status={{ s }}" style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(59,130,246,.08);color:#3b82f6;text-decoration:none;white-space:nowrap">{{ status_labels[s] }} <strong>{{ sc }}</strong></a>
-            {% endif %}
-            {% endfor %}
-        </div>
+<!-- KPI strip -->
+<div class="kpi-grid" style="margin-bottom:20px">
+    <div class="kpi-card accent-blue">
+        <div class="kpi-label">Pre-venta</div>
+        <div class="kpi-value tabular">{{ ns.pre }}</div>
     </div>
-
-    <!-- NEGOCIACIÓN -->
-    <div class="table-card" style="padding:20px;border-top:3px solid #f59e0b">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-            <div>
-                <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Negociación</div>
-                <div style="font-size:32px;font-weight:800;color:var(--text-primary);line-height:1">{{ neg_count }}</div>
-            </div>
-            <div style="width:44px;height:44px;border-radius:12px;background:rgba(245,158,11,.1);display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
-        </div>
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-            {% if ganados > 0 %}<span style="font-size:12px;color:#22c55e;font-weight:600">✓ {{ ganados }} ganado{{ 's' if ganados != 1 }}</span>{% endif %}
-            {% if perdidos > 0 %}<span style="font-size:12px;color:#ef4444;font-weight:600">✗ {{ perdidos }} perdido{{ 's' if perdidos != 1 }}</span>{% endif %}
-        </div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap">
-            {% for s in neg_statuses %}
-            {% set sc = companies|selectattr('status','equalto',s)|list|length %}
-            {% if sc > 0 %}
-            <a href="?status={{ s }}" style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(245,158,11,.08);color:#f59e0b;text-decoration:none;white-space:nowrap">{{ status_labels[s] }} <strong>{{ sc }}</strong></a>
-            {% endif %}
-            {% endfor %}
-        </div>
+    <div class="kpi-card accent-yellow">
+        <div class="kpi-label">Negociación</div>
+        <div class="kpi-value tabular">{{ ns.neg }}</div>
     </div>
-
-    <!-- POST-VENTA -->
-    <div class="table-card" style="padding:20px;border-top:3px solid #22c55e">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-            <div>
-                <div style="font-size:11px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Post-venta</div>
-                <div style="font-size:32px;font-weight:800;color:var(--text-primary);line-height:1">{{ post_count }}</div>
-            </div>
-            <div style="width:44px;height:44px;border-radius:12px;background:rgba(34,197,94,.1);display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-        </div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap">
-            {% for s in post_statuses %}
-            {% set sc = companies|selectattr('status','equalto',s)|list|length %}
-            {% if sc > 0 %}
-            <a href="?status={{ s }}" style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(34,197,94,.08);color:#22c55e;text-decoration:none;white-space:nowrap">{{ status_labels[s] }} <strong>{{ sc }}</strong></a>
-            {% endif %}
-            {% endfor %}
-        </div>
+    <div class="kpi-card accent-cyan">
+        <div class="kpi-label">Post-venta</div>
+        <div class="kpi-value tabular">{{ ns.post }}</div>
+    </div>
+    <div class="kpi-card accent-purple">
+        <div class="kpi-label">Prioridad alta</div>
+        <div class="kpi-value tabular">{{ ns.alta }}</div>
+        {% if ns.alta %}<div style="font-size:11px;color:var(--text-tertiary);margin-top:4px"><a href="?priority=alta" style="color:var(--accent)">Ver →</a></div>{% endif %}
+    </div>
+    <div class="kpi-card" style="border-left:3px solid #ef4444">
+        <div class="kpi-label">Contactos vencidos</div>
+        <div class="kpi-value tabular" style="color:{{ '#ef4444' if ns.due else '' }}">{{ ns.due }}</div>
+        {% if ns.due %}<div style="font-size:11px;color:var(--text-tertiary);margin-top:4px"><a href="?sort=next_contact" style="color:#ef4444">Ver →</a></div>{% endif %}
     </div>
 </div>
 
-<!-- Pipeline Funnel + Conversion -->
-<div class="table-card" style="padding:20px;margin-bottom:20px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div style="font-size:13px;font-weight:700;color:var(--text-primary)">Pipeline comercial</div>
-        {% if total > 0 %}
-        <div style="font-size:12px;color:var(--text-tertiary)">
-            Conversión: <strong style="color:{{ '#22c55e' if ganados > 0 else 'var(--text-secondary)' }}">{{ "%.0f"|format(ganados / total * 100) if total > 0 else 0 }}%</strong>
-        </div>
-        {% endif %}
+<!-- Toolbar: filtros + sort + vista -->
+<form method="GET" action="{{ url_for('companies.index') }}" class="table-card" style="padding:14px 16px;margin-bottom:16px;display:grid;grid-template-columns:1fr auto auto auto auto auto;gap:10px;align-items:end">
+    <div class="form-group" style="margin:0">
+        <label style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px">Buscar</label>
+        <input type="search" name="q" value="{{ search }}" placeholder="Nombre, web, email, teléfono..." style="height:36px">
     </div>
+    <div class="form-group" style="margin:0">
+        <label style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px">Estado</label>
+        <select name="status" style="height:36px;min-width:150px">
+            <option value="">Todos</option>
+            {% for k, lbl in status_labels.items() %}
+            <option value="{{ k }}" {% if sel_status == k %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group" style="margin:0">
+        <label style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px">Prioridad</label>
+        <select name="priority" style="height:36px;min-width:110px">
+            <option value="">Todas</option>
+            <option value="alta"  {% if sel_priority == 'alta'  %}selected{% endif %}>Alta</option>
+            <option value="media" {% if sel_priority == 'media' %}selected{% endif %}>Media</option>
+            <option value="baja"  {% if sel_priority == 'baja'  %}selected{% endif %}>Baja</option>
+        </select>
+    </div>
+    <div class="form-group" style="margin:0">
+        <label style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px">Asignado</label>
+        <select name="assigned" style="height:36px;min-width:130px">
+            <option value="">Todos</option>
+            {% for u in users %}
+            <option value="{{ u.id }}" {% if sel_assigned == (u.id|string) %}selected{% endif %}>{{ u.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group" style="margin:0">
+        <label style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px">Ordenar</label>
+        <select name="sort" style="height:36px;min-width:140px">
+            <option value="priority"     {% if sel_sort == 'priority'     %}selected{% endif %}>Prioridad</option>
+            <option value="next_contact" {% if sel_sort == 'next_contact' %}selected{% endif %}>Próximo contacto</option>
+            <option value="recent"       {% if sel_sort == 'recent'       %}selected{% endif %}>Recientes</option>
+            <option value="name"         {% if sel_sort == 'name'         %}selected{% endif %}>Nombre A-Z</option>
+        </select>
+    </div>
+    <input type="hidden" name="view" value="{{ view_mode }}">
+    <div style="display:flex;gap:6px">
+        <button type="submit" class="btn btn-primary" style="height:36px">Aplicar</button>
+        <a href="{{ url_for('companies.index') }}" class="btn btn-secondary" style="height:36px" title="Limpiar">✕</a>
+    </div>
+</form>
 
-    <!-- Funnel bars -->
-    {% if total > 0 %}
-    <div style="display:flex;flex-direction:column;gap:6px">
-        {% for s in all_statuses %}
-        {% set sc = companies|selectattr('status','equalto',s)|list|length %}
-        {% if sc > 0 %}
-        {% set pct = (sc / total * 100)|round(0)|int %}
-        {% set bar_color = '#3b82f6' if s in pre_statuses else '#f59e0b' if s in neg_statuses else '#22c55e' %}
-        {% if s == 'cerrado_perdido' %}{% set bar_color = '#ef4444' %}{% endif %}
-        <a href="?status={{ s }}" style="display:flex;align-items:center;gap:12px;text-decoration:none;padding:4px 0">
-            <div style="width:130px;font-size:12px;color:var(--text-secondary);text-align:right;flex-shrink:0">{{ status_labels[s] }}</div>
-            <div style="flex:1;height:24px;background:var(--bg-tertiary, rgba(255,255,255,.04));border-radius:6px;overflow:hidden;position:relative">
-                <div style="height:100%;width:{{ pct }}%;min-width:20px;background:{{ bar_color }};border-radius:6px;transition:width .5s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px">
-                    <span style="font-size:11px;font-weight:700;color:#fff">{{ sc }}</span>
-                </div>
-            </div>
-            <div style="width:36px;font-size:11px;color:var(--text-tertiary);text-align:right;flex-shrink:0">{{ pct }}%</div>
+<!-- View toggle: list ↔ kanban -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap">
+    <div style="display:flex;gap:4px;background:var(--bg-tertiary,rgba(255,255,255,.04));padding:3px;border-radius:8px">
+        <a href="?{% if sel_status %}status={{ sel_status }}&{% endif %}{% if sel_priority %}priority={{ sel_priority }}&{% endif %}{% if sel_assigned %}assigned={{ sel_assigned }}&{% endif %}{% if search %}q={{ search }}&{% endif %}sort={{ sel_sort }}&view=list"
+           class="btn btn-sm" style="background:{{ 'var(--accent)' if view_mode == 'list' else 'transparent' }};color:{{ '#fff' if view_mode == 'list' else 'var(--text-secondary)' }};border:none">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-1px"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            Lista
         </a>
-        {% endif %}
-        {% endfor %}
+        <a href="?{% if sel_status %}status={{ sel_status }}&{% endif %}{% if sel_priority %}priority={{ sel_priority }}&{% endif %}{% if sel_assigned %}assigned={{ sel_assigned }}&{% endif %}{% if search %}q={{ search }}&{% endif %}sort={{ sel_sort }}&view=kanban"
+           class="btn btn-sm" style="background:{{ 'var(--accent)' if view_mode == 'kanban' else 'transparent' }};color:{{ '#fff' if view_mode == 'kanban' else 'var(--text-secondary)' }};border:none">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-1px"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="11" rx="1"/></svg>
+            Kanban
+        </a>
     </div>
-    {% else %}
-    <div style="text-align:center;padding:20px;color:var(--text-tertiary);font-size:13px">Añade empresas para ver el pipeline</div>
+    {% if total > 0 %}
+    <div style="font-size:12px;color:var(--text-tertiary)">
+        Conversión: <strong class="tabular" style="color:{{ '#22c55e' if ganados else 'var(--text-secondary)' }}">{{ "%.0f"|format(ganados / total * 100) }}%</strong>
+        · Ganados: <strong class="tabular">{{ ganados }}</strong>
+    </div>
     {% endif %}
 </div>
 
-<!-- Filter pills (if filtered) -->
-{% if sel_status %}
-<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
-    <span style="font-size:12px;color:var(--text-secondary);padding:6px 0">Filtrado por: <strong>{{ status_labels[sel_status] }}</strong></span>
-    <a href="{{ url_for('companies.index') }}" style="display:flex;align-items:center;gap:4px;padding:6px 12px;border-radius:8px;font-size:12px;text-decoration:none;color:var(--text-tertiary);border:1px dashed var(--border-color)">✕ Limpiar filtro</a>
+{% if view_mode == 'kanban' %}
+<!-- ═══ KANBAN ═══ -->
+<div style="display:grid;grid-auto-flow:column;grid-auto-columns:280px;gap:14px;overflow-x:auto;padding-bottom:8px">
+    {% for status_key, status_label, items in kanban_columns %}
+    <div class="table-card" style="padding:12px;background:var(--bg-secondary,rgba(255,255,255,.02))">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border-color)">
+            <div style="font-size:12px;font-weight:700;color:var(--text-primary);text-transform:uppercase;letter-spacing:.5px">{{ status_label }}</div>
+            <span class="tabular" style="font-size:11px;color:var(--text-tertiary);background:var(--bg-tertiary,rgba(255,255,255,.05));padding:2px 8px;border-radius:10px">{{ items|length }}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;max-height:65vh;overflow-y:auto">
+            {% for c in items %}
+            {% set p = priority_meta.get(c.priority or 'media') %}
+            <a href="{{ url_for('companies.view', cid=c.id) }}" class="table-card" style="padding:10px;border-left:3px solid {{ p.color }};text-decoration:none;display:block">
+                <div style="font-weight:600;color:var(--text-primary);font-size:13px;line-height:1.3;margin-bottom:4px">{{ c.name }}</div>
+                <div style="font-size:11px;color:var(--text-tertiary)">{{ c.industry or '—' }}</div>
+                <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+                    <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:{{ p.bg }};color:{{ p.color }};font-weight:600">{{ p.label }}</span>
+                    {% if c.next_contact_date %}
+                    {% set overdue = c.next_contact_date <= today %}
+                    <span class="tabular" style="font-size:10px;padding:2px 6px;border-radius:4px;background:{{ 'rgba(239,68,68,.10)' if overdue else 'rgba(59,130,246,.10)' }};color:{{ '#ef4444' if overdue else '#3b82f6' }};font-weight:600">
+                        📅 {{ c.next_contact_date.strftime('%d/%m') }}
+                    </span>
+                    {% endif %}
+                    {% if c.assignee %}
+                    <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(168,85,247,.10);color:#a855f7;font-weight:600">{{ c.assignee.name|truncate(10) }}</span>
+                    {% endif %}
+                </div>
+                {% if c.phone or contact_counts.get(c.id, 0) %}
+                <div style="display:flex;gap:8px;margin-top:6px;font-size:11px;color:var(--text-tertiary)">
+                    {% if c.phone %}<span>📞</span>{% endif %}
+                    {% if contact_counts.get(c.id, 0) %}<span>👥 {{ contact_counts[c.id] }}</span>{% endif %}
+                </div>
+                {% endif %}
+            </a>
+            {% endfor %}
+            {% if not items %}
+            <div style="padding:24px 8px;text-align:center;font-size:11px;color:var(--text-tertiary)">—</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
 </div>
-{% endif %}
 
-<!-- Table list -->
+{% else %}
+<!-- ═══ LISTA ═══ -->
 <div class="table-card">
     <table class="data-table">
         <thead>
             <tr>
+                <th style="width:36px"></th>
                 <th>Empresa</th>
-                <th>Industria</th>
                 <th>Estado</th>
-                <th>Problema</th>
-                <th>Contactos</th>
+                <th>Próx. contacto</th>
+                <th>Asignado</th>
+                <th>Teléfono</th>
                 <th></th>
             </tr>
         </thead>
         <tbody>
             {% for c in companies %}
-            <tr style="cursor:pointer" onclick="window.location='{{ url_for('companies.view', cid=c.id) }}'">
+            {% set p = priority_meta.get(c.priority or 'media') %}
+            {% set overdue = c.next_contact_date and c.next_contact_date <= today %}
+            <tr>
+                <td style="padding-left:12px">
+                    <span title="Prioridad {{ p.label }}" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{{ p.color }}"></span>
+                </td>
                 <td>
-                    <div style="font-weight:600;color:var(--text-primary)">{{ c.name }}</div>
-                    {% if c.website %}<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px"><a href="{{ c.website }}" target="_blank" style="color:var(--accent)" onclick="event.stopPropagation()">{{ c.website|truncate(35) }}</a></div>{% endif %}
+                    <a href="{{ url_for('companies.view', cid=c.id) }}" style="text-decoration:none">
+                        <div style="font-weight:600;color:var(--text-primary)">{{ c.name }}</div>
+                        <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">
+                            {{ c.industry or '—' }}
+                            {% if c.website %} · <a href="{{ c.website }}" target="_blank" style="color:var(--accent)" onclick="event.stopPropagation()">{{ c.website|replace('https://','')|replace('http://','')|truncate(28) }}</a>{% endif %}
+                        </div>
+                    </a>
                 </td>
-                <td style="color:var(--text-secondary);font-size:13px">{{ c.industry or '—' }}</td>
                 <td><span class="badge badge-{{ c.status }}">{{ status_labels.get(c.status, c.status|replace('_',' ')) }}</span></td>
-                <td style="font-size:12px;color:var(--text-secondary);max-width:250px">
-                    {% if c.problem %}{{ c.problem[:80] }}{% if c.problem|length > 80 %}...{% endif %}{% else %}<span style="color:var(--text-tertiary)">—</span>{% endif %}
+                <td class="tabular" style="white-space:nowrap">
+                    {% if c.next_contact_date %}
+                    <span style="font-size:12px;color:{{ '#ef4444' if overdue else 'var(--text-secondary)' }};font-weight:{{ '600' if overdue else '500' }}">
+                        {{ c.next_contact_date.strftime('%d/%m/%Y') }}
+                    </span>
+                    {% else %}
+                    <span style="color:var(--text-tertiary);font-size:12px">—</span>
+                    {% endif %}
                 </td>
-                <td style="text-align:center;font-size:13px;color:var(--text-secondary)">{{ contact_counts.get(c.id, 0) }}</td>
+                <td style="font-size:12px;color:var(--text-secondary)">{{ c.assignee.name if c.assignee else '—' }}</td>
+                <td style="font-size:12px">
+                    {% if c.phone %}
+                    <a href="tel:{{ c.phone }}" style="color:var(--accent);text-decoration:none" class="tabular" onclick="event.stopPropagation()">{{ c.phone }}</a>
+                    {% else %}<span style="color:var(--text-tertiary)">—</span>{% endif %}
+                </td>
                 <td style="text-align:right;white-space:nowrap" onclick="event.stopPropagation()">
-                    <button class="btn btn-sm btn-secondary" onclick="editCompany(this)" data-company='{{ {"id": c.id, "name": c.name, "industry": c.industry, "website": c.website, "status": c.status, "interest": c.interest, "problem": c.problem or "", "solution": c.solution or "", "notes": c.notes or ""}|tojson|e }}'>Editar</button>
+                    {% if c.phone %}
+                    <a href="tel:{{ c.phone }}" class="btn btn-sm" style="background:#22c55e;color:#fff;border:none" title="Llamar a {{ c.phone }}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+                        Llamar
+                    </a>
+                    {% endif %}
+                    <button class="btn btn-sm btn-secondary" onclick="editCompany(this)"
+                            data-company='{{ {"id": c.id, "name": c.name, "industry": c.industry, "website": c.website, "status": c.status, "interest": c.interest, "problem": c.problem or "", "solution": c.solution or "", "notes": c.notes or "", "priority": c.priority or "media", "next_contact_date": c.next_contact_date.isoformat() if c.next_contact_date else "", "source": c.source or "", "assigned_to": c.assigned_to or "", "phone": c.phone or "", "email": c.email or ""}|tojson|e }}'>Editar</button>
                     <form method="POST" action="{{ url_for('companies.delete', cid=c.id) }}" style="display:inline" onsubmit="return confirm('Eliminar empresa?')">
                         <button type="submit" class="btn btn-sm btn-danger">✕</button>
                     </form>
@@ -197,13 +268,14 @@
         </tbody>
     </table>
     {% if not companies %}
-    <div style="padding:48px;text-align:center;color:var(--text-tertiary)">No hay empresas{% if sel_status %} con este estado{% endif %}</div>
+    <div style="padding:48px;text-align:center;color:var(--text-tertiary)">No hay empresas con estos filtros</div>
     {% endif %}
 </div>
+{% endif %}
 
 <!-- Create Modal -->
 <div class="modal-overlay" id="createModal">
-    <div class="modal" style="max-width:620px">
+    <div class="modal" style="max-width:680px">
         <div class="modal-header"><h3>Nueva empresa</h3><button class="modal-close" onclick="closeModal('createModal')">&times;</button></div>
         <form method="POST" action="{{ url_for('companies.create') }}">
             <div class="modal-body">
@@ -213,6 +285,27 @@
                     <div class="form-group"><label>Web</label><input type="url" name="website" placeholder="https://..."></div>
                 </div>
                 <div class="form-row">
+                    <div class="form-group"><label>Teléfono</label><input type="tel" name="phone" placeholder="+34 ..."></div>
+                    <div class="form-group"><label>Email</label><input type="email" name="email" placeholder="info@empresa.com"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Prioridad</label>
+                        <select name="priority">
+                            <option value="alta">Alta</option>
+                            <option value="media" selected>Media</option>
+                            <option value="baja">Baja</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Próximo contacto</label><input type="date" name="next_contact_date"></div>
+                    <div class="form-group"><label>Origen</label><input type="text" name="source" placeholder="LinkedIn, evento, referido..."></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Asignado a</label>
+                        <select name="assigned_to">
+                            <option value="">— Sin asignar —</option>
+                            {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+                        </select>
+                    </div>
                     <div class="form-group"><label>Estado</label>
                         <select name="status">
                             <optgroup label="Pre-venta">
@@ -238,10 +331,10 @@
                             </optgroup>
                         </select>
                     </div>
-                    <div class="form-group"><label>Interés</label><input type="text" name="interest" placeholder="Qué les podría interesar..."></div>
                 </div>
-                <div class="form-group"><label><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Problema detectado</label><textarea name="problem" rows="3" placeholder="Qué problema hemos detectado en su negocio..."></textarea></div>
-                <div class="form-group"><label><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 014 12.7V17H8v-2.3A7 7 0 0112 2z"/></svg>Soluciones que ofrecemos</label><textarea name="solution" rows="3" placeholder="Qué podemos hacer por ellos..."></textarea></div>
+                <div class="form-group"><label>Interés</label><input type="text" name="interest" placeholder="Qué les podría interesar..."></div>
+                <div class="form-group"><label>Problema detectado</label><textarea name="problem" rows="2" placeholder="Qué problema hemos detectado..."></textarea></div>
+                <div class="form-group"><label>Soluciones que ofrecemos</label><textarea name="solution" rows="2" placeholder="Qué podemos hacer por ellos..."></textarea></div>
                 <div class="form-group"><label>Notas</label><textarea name="notes" rows="2" placeholder="Notas internas..."></textarea></div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button><button type="submit" class="btn btn-primary">Crear</button></div>
@@ -251,7 +344,7 @@
 
 <!-- Edit Modal -->
 <div class="modal-overlay" id="editModal">
-    <div class="modal" style="max-width:620px">
+    <div class="modal" style="max-width:680px">
         <div class="modal-header"><h3>Editar empresa</h3><button class="modal-close" onclick="closeModal('editModal')">&times;</button></div>
         <form method="POST" id="editForm" action="">
             <div class="modal-body">
@@ -261,6 +354,27 @@
                     <div class="form-group"><label>Web</label><input type="url" name="website"></div>
                 </div>
                 <div class="form-row">
+                    <div class="form-group"><label>Teléfono</label><input type="tel" name="phone"></div>
+                    <div class="form-group"><label>Email</label><input type="email" name="email"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Prioridad</label>
+                        <select name="priority">
+                            <option value="alta">Alta</option>
+                            <option value="media">Media</option>
+                            <option value="baja">Baja</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Próximo contacto</label><input type="date" name="next_contact_date"></div>
+                    <div class="form-group"><label>Origen</label><input type="text" name="source"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Asignado a</label>
+                        <select name="assigned_to">
+                            <option value="">— Sin asignar —</option>
+                            {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+                        </select>
+                    </div>
                     <div class="form-group"><label>Estado</label>
                         <select name="status">
                             <optgroup label="Pre-venta">
@@ -286,13 +400,37 @@
                             </optgroup>
                         </select>
                     </div>
-                    <div class="form-group"><label>Interés</label><input type="text" name="interest"></div>
                 </div>
-                <div class="form-group"><label><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Problema detectado</label><textarea name="problem" rows="3"></textarea></div>
-                <div class="form-group"><label><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 014 12.7V17H8v-2.3A7 7 0 0112 2z"/></svg>Soluciones que ofrecemos</label><textarea name="solution" rows="3"></textarea></div>
+                <div class="form-group"><label>Interés</label><input type="text" name="interest"></div>
+                <div class="form-group"><label>Problema detectado</label><textarea name="problem" rows="2"></textarea></div>
+                <div class="form-group"><label>Soluciones que ofrecemos</label><textarea name="solution" rows="2"></textarea></div>
                 <div class="form-group"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Import CSV Modal -->
+<div class="modal-overlay" id="importModal">
+    <div class="modal" style="max-width:560px">
+        <div class="modal-header"><h3>Importar empresas (CSV)</h3><button class="modal-close" onclick="closeModal('importModal')">&times;</button></div>
+        <form method="POST" action="{{ url_for('companies.import_csv') }}" enctype="multipart/form-data">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Archivo CSV</label>
+                    <input type="file" name="file" accept=".csv,text/csv" required>
+                </div>
+                <div style="padding:12px;background:rgba(59,130,246,.08);border-radius:6px;font-size:12px;color:var(--text-secondary);line-height:1.6">
+                    <strong>Columnas reconocidas</strong> (cualquier orden, español o inglés):<br>
+                    <code style="font-size:11px">empresa</code>, <code style="font-size:11px">web</code>, <code style="font-size:11px">tel</code>, <code style="font-size:11px">email</code>, <code style="font-size:11px">prioridad</code> (alta/media/baja), <code style="font-size:11px">estado</code>, <code style="font-size:11px">fuente</code>, <code style="font-size:11px">proximo_contacto</code> (YYYY-MM-DD), <code style="font-size:11px">notas</code>, <code style="font-size:11px">contacto</code>, <code style="font-size:11px">contacto_email</code>, <code style="font-size:11px">contacto_tel</code>...<br><br>
+                    Las empresas con el mismo <strong>nombre</strong> se actualizan; las nuevas se crean. Si incluyes datos de un contacto, se añade/actualiza dentro de la empresa.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('importModal')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Importar</button>
+            </div>
         </form>
     </div>
 </div>
@@ -302,9 +440,10 @@
 <script>
 function editCompany(btn) {
     const data = JSON.parse(btn.getAttribute('data-company'));
-    document.getElementById('editForm').action = '/empresas/edit/' + data.id;
     const form = document.getElementById('editForm');
-    ['name', 'industry', 'website', 'status', 'interest', 'problem', 'solution', 'notes'].forEach(f => {
+    form.action = '/empresas/edit/' + data.id;
+    ['name', 'industry', 'website', 'status', 'interest', 'problem', 'solution', 'notes',
+     'priority', 'next_contact_date', 'source', 'assigned_to', 'phone', 'email'].forEach(f => {
         const el = form.querySelector('[name="' + f + '"]');
         if (el) el.value = data[f] || '';
     });

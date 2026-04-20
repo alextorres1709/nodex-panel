@@ -1,7 +1,7 @@
 import logging
 import calendar as cal
 from datetime import date, timedelta
-from flask import Blueprint, render_template, request, redirect, url_for, flash, g, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, g, jsonify, session
 from models import db, Task, Payment, Invoice, Project, CalendarEvent, User
 from routes.auth import login_required
 from services.sync import push_change_now, sync_locked
@@ -293,7 +293,9 @@ def gcal_auth():
     if not gcal_svc.is_configured():
         flash("Google Calendar no está configurado. Añade GOOGLE_OAUTH_CLIENT_ID y GOOGLE_OAUTH_CLIENT_SECRET al .env", "error")
         return redirect(url_for("calendar.index"))
-    auth_url = gcal_svc.get_auth_url(state=str(g.user.id))
+    auth_url, code_verifier = gcal_svc.get_auth_url(state=str(g.user.id))
+    if code_verifier:
+        session["gcal_code_verifier"] = code_verifier
     return redirect(auth_url)
 
 
@@ -319,7 +321,9 @@ def gcal_callback():
         # runs on a random port, not necessarily 5001.
         from flask import request as _req
         callback_uri = _req.host_url.rstrip("/") + "/calendario/gcal/callback"
-        token_dict = gcal_svc.exchange_code(code, redirect_uri=callback_uri)
+        code_verifier = session.pop("gcal_code_verifier", None)
+        token_dict = gcal_svc.exchange_code(code, redirect_uri=callback_uri,
+                                            code_verifier=code_verifier)
         gcal_svc._save_token(g.user.id, token_dict)
         flash("✅ Google Calendar conectado correctamente", "success")
 
@@ -353,6 +357,47 @@ def gcal_sync():
         return jsonify({"error": "No conectado a Google Calendar"}), 400
     synced, failed = gcal_svc.bulk_sync_user(g.user.id)
     return jsonify({"ok": True, "synced": synced, "failed": failed})
+
+
+@calendar_bp.route("/calendario/gcal/diagnose")
+@login_required
+def gcal_diagnose():
+    """Return full GCal diagnostics so we can see the real error."""
+    from services import gcal as gcal_svc
+    import json as _json
+
+    info = {
+        "configured": gcal_svc.is_configured(),
+        "connected": gcal_svc.is_connected(g.user.id),
+        "token_keys": None,
+        "creds_valid": None,
+        "list_test": None,
+        "error": None,
+    }
+
+    token_dict = gcal_svc.get_token(g.user.id)
+    if token_dict:
+        info["token_keys"] = list(token_dict.keys())
+        info["has_refresh_token"] = bool(token_dict.get("refresh_token"))
+        info["scopes"] = token_dict.get("scopes")
+        info["expiry"] = token_dict.get("expiry")
+
+    try:
+        service = gcal_svc._build_service(g.user.id)
+        if service is None:
+            info["error"] = "_build_service returned None (token expired / no refresh token?)"
+        else:
+            info["creds_valid"] = True
+            # Try a real API call — list up to 1 event
+            items = service.events().list(
+                calendarId="primary",
+                maxResults=1,
+            ).execute().get("items", [])
+            info["list_test"] = f"OK — calendar accessible ({len(items)} sample events returned)"
+    except Exception as e:
+        info["error"] = str(e)
+
+    return jsonify(info)
 
 
 # ═══ QUICK TASK (legacy) ═══
