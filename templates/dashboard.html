@@ -68,7 +68,8 @@
         { label: 'Ideas', hint: 'Banco de ideas', url: '{{ url_for("ideas.index") }}' },
         { label: 'Fichar', hint: 'Control de tiempo', url: '{{ url_for("timetracking.index") }}' },
         { label: 'Calendario', hint: 'Agenda y eventos', url: '{{ url_for("calendar.index") }}' },
-        { label: 'Agenda', hint: 'Reuniones', url: '{{ url_for("meetings.index") }}' }
+        { label: 'Captación', hint: 'Pipeline de venta', url: '{{ url_for("captacion.index") }}' },
+        { label: 'Asistente IA', hint: 'Pregunta al panel', url: '{{ url_for("ai_assistant.index") }}' }
     ];
     var idx = -1;
     function norm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
