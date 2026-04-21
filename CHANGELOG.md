@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.5.12 — 2026-04-20
+*Implementado por Alex*
+- **KPI cards más profesionales + acento de color**: añadido `border-top` de color por tipo (azul, cian, morado, verde, ámbar, rojo, rosa) con clase `accent-*`, icon tile tintado en el mismo tono y `kpi-value` a 28px. El resto del card se mantiene limpio.
+- **Paleta un paso más azul**: `--ss-primary` de `#3B4EFD` a `#2E54F0`, `--ss-secondary` a `#2B48F5` — menos índigo, más royal.
+- **Charts estilo TradingView**: `createChart()` y el chart P&L del dashboard reescritos con gradiente profundo (stops 0.38 / 0.08 / 0), y-axis a la derecha con fuente mono y formato compacto (`1.2k`, `2.5M`), tooltip oscuro con borde, padding 12, `caretSize: 0` y body mono, línea 2.25px con cap/join redondeados, crosshair vertical punteado al hover. Paleta de `getChartTheme()` pasa a azul-céntrica.
+- **Leads — dos charts nuevos**: doughnut de distribución por estado del pipeline (colores del propio pipeline) + bar horizontal por prioridad (alta/media/baja). El KPI backend ahora incluye `media` y `baja` además de `alta`.
+
 ## v4.5.11 — 2026-04-21
 *Implementado por Alex*
 - **Fix KPI cards — arrow `→` y píldora del label eliminados**: quitado el `::after` chevron y los backgrounds pill de `.kpi-label` en `theme-saaslauncher.css`. El resto del diseño (sombras, gradientes de card, glow de botones) se mantiene.

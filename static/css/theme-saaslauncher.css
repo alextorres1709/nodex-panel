@@ -20,10 +20,10 @@
    TOKENS — Indigo scheme from screenshot + theme.json
    ═══════════════════════════════════════════════════════════ */
 [data-theme="dark"] {
-    --ss-primary:        #3B4EFD;
-    --ss-primary-light:  #6579FF;
-    --ss-primary-dark:   #1A2152;
-    --ss-secondary:      #3848FE;
+    --ss-primary:        #2E54F0;
+    --ss-primary-light:  #4D74FF;
+    --ss-primary-dark:   #17276E;
+    --ss-secondary:      #2B48F5;
 
     /* Pastel accent pills used on stat cards in the demo */
     --ss-pill-sales:    #22D3EE; /* cyan      */
@@ -348,6 +348,7 @@ body::before {
     position: relative;
     padding: 18px 20px !important;
     overflow: hidden;
+    border-top: 2px solid var(--ss-border) !important;
 }
 
 /* Arrow chevron + colored label pills removed per product feedback;
@@ -355,11 +356,41 @@ body::before {
 
 .kpi-value {
     font-family: 'Archivo', 'Inter', sans-serif;
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 700;
     letter-spacing: -0.025em;
     color: var(--ss-heading);
 }
+
+/* ─── Accent stripe + colored icon tile ─────────────────────── */
+.kpi-card.accent-blue   { border-top-color: #3B82F6 !important; }
+.kpi-card.accent-cyan   { border-top-color: #06B6D4 !important; }
+.kpi-card.accent-purple { border-top-color: #6366F1 !important; }
+.kpi-card.accent-green  { border-top-color: #22C55E !important; }
+.kpi-card.accent-amber  { border-top-color: #F59E0B !important; }
+.kpi-card.accent-red    { border-top-color: #EF4444 !important; }
+.kpi-card.accent-pink   { border-top-color: #EC4899 !important; }
+
+.kpi-card .kpi-icon {
+    background: rgba(59, 78, 253, 0.12) !important;
+    border: 1px solid rgba(59, 78, 253, 0.22);
+}
+.kpi-card .kpi-icon svg { color: var(--ss-primary-light) !important; }
+
+.kpi-card.accent-blue   .kpi-icon { background: rgba(59, 130, 246, 0.14) !important; border-color: rgba(59, 130, 246, 0.26); }
+.kpi-card.accent-blue   .kpi-icon svg { color: #60A5FA !important; }
+.kpi-card.accent-cyan   .kpi-icon { background: rgba(6, 182, 212, 0.14) !important; border-color: rgba(6, 182, 212, 0.26); }
+.kpi-card.accent-cyan   .kpi-icon svg { color: #22D3EE !important; }
+.kpi-card.accent-purple .kpi-icon { background: rgba(99, 102, 241, 0.14) !important; border-color: rgba(99, 102, 241, 0.26); }
+.kpi-card.accent-purple .kpi-icon svg { color: #A5B4FC !important; }
+.kpi-card.accent-green  .kpi-icon { background: rgba(34, 197, 94, 0.14) !important; border-color: rgba(34, 197, 94, 0.26); }
+.kpi-card.accent-green  .kpi-icon svg { color: #4ADE80 !important; }
+.kpi-card.accent-amber  .kpi-icon { background: rgba(245, 158, 11, 0.14) !important; border-color: rgba(245, 158, 11, 0.26); }
+.kpi-card.accent-amber  .kpi-icon svg { color: #FBBF24 !important; }
+.kpi-card.accent-red    .kpi-icon { background: rgba(239, 68, 68, 0.14) !important; border-color: rgba(239, 68, 68, 0.26); }
+.kpi-card.accent-red    .kpi-icon svg { color: #F87171 !important; }
+.kpi-card.accent-pink   .kpi-icon { background: rgba(236, 72, 153, 0.14) !important; border-color: rgba(236, 72, 153, 0.26); }
+.kpi-card.accent-pink   .kpi-icon svg { color: #F472B6 !important; }
 
 /* ═══════════════════════════════════════════════════════════
    BUTTONS — pill with indigo glow (demo "Signup Today" + "Start Free Trial")

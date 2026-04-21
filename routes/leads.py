@@ -207,13 +207,16 @@ def index():
         "total": len(leads),
         "by_status": {k: 0 for k, _, _ in PIPELINE},
         "alta": 0,
+        "media": 0,
+        "baja": 0,
         "overdue": 0,
         "this_week": 0,
     }
     for l in leads:
         kpi["by_status"][l.status or "nuevo"] = kpi["by_status"].get(l.status or "nuevo", 0) + 1
-        if (l.priority or "media") == "alta":
-            kpi["alta"] += 1
+        p = (l.priority or "media")
+        if p in ("alta", "media", "baja"):
+            kpi[p] += 1
         if l.next_contact_date and l.next_contact_date < today:
             kpi["overdue"] += 1
         if l.next_contact_date and 0 <= (l.next_contact_date - today).days <= 7:

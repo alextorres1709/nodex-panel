@@ -31,20 +31,50 @@ function updateToggleIcon(theme) {
     }
 }
 
-// Charts
+// Charts — TradingView-inspired defaults
 function getChartTheme() {
     const isDark = document.body.getAttribute('data-theme') === 'dark';
     return {
-        text: isDark ? 'rgba(245,245,245,0.78)' : '#0a0a0a',
-        textSoft: isDark ? 'rgba(245,245,245,0.48)' : '#737373',
-        grid: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(10,10,10,0.06)',
-        border: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(10,10,10,0.08)',
-        tooltipBg: isDark ? '#0a0a0a' : '#0a0a0a',
-        tooltipText: '#fafafa',
+        text: isDark ? 'rgba(245,245,245,0.82)' : '#0a0a0a',
+        textSoft: isDark ? 'rgba(245,245,245,0.46)' : '#6b7280',
+        grid: isDark ? 'rgba(255,255,255,0.055)' : 'rgba(15,23,42,0.06)',
+        border: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)',
+        crosshair: isDark ? 'rgba(147,197,253,0.5)' : 'rgba(37,99,235,0.45)',
+        tooltipBg: '#0B0F1A',
+        tooltipText: '#F8FAFC',
+        primary: isDark ? '#60A5FA' : '#2563EB',
         colors: isDark
-            ? ['#a78bfa', '#22d3ee', '#4ade80', '#fbbf24', '#f87171', '#f472b6', '#60a5fa', '#34d399']
-            : ['#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626', '#db2777', '#2563eb', '#0d9488'],
+            ? ['#60A5FA', '#22D3EE', '#A5B4FC', '#4ADE80', '#FBBF24', '#F87171', '#F472B6', '#38BDF8']
+            : ['#2563EB', '#06B6D4', '#6366F1', '#16A34A', '#D97706', '#DC2626', '#DB2777', '#0284C7'],
     };
+}
+
+const CrosshairPlugin = {
+    id: 'nodexCrosshair',
+    afterDraw(chart) {
+        const active = chart.tooltip && chart.tooltip.getActiveElements && chart.tooltip.getActiveElements();
+        if (!active || !active.length) return;
+        const { ctx, chartArea } = chart;
+        const x = active[0].element.x;
+        const t = getChartTheme();
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([4, 4]);
+        ctx.moveTo(x, chartArea.top);
+        ctx.lineTo(x, chartArea.bottom);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = t.crosshair;
+        ctx.stroke();
+        ctx.restore();
+    },
+};
+
+function nfmtCompact(v) {
+    if (v == null || isNaN(v)) return v;
+    const abs = Math.abs(v);
+    if (abs >= 1e6) return (v / 1e6).toFixed(abs >= 1e7 ? 0 : 1) + 'M';
+    if (abs >= 1e3) return (v / 1e3).toFixed(abs >= 1e4 ? 0 : 1) + 'k';
+    return String(v);
 }
 
 function applyChartDefaults() {
@@ -58,13 +88,15 @@ function applyChartDefaults() {
     Chart.defaults.plugins.tooltip.backgroundColor = t.tooltipBg;
     Chart.defaults.plugins.tooltip.titleColor = t.tooltipText;
     Chart.defaults.plugins.tooltip.bodyColor = t.tooltipText;
-    Chart.defaults.plugins.tooltip.borderColor = 'rgba(255,255,255,0.08)';
+    Chart.defaults.plugins.tooltip.borderColor = 'rgba(148,163,184,0.18)';
     Chart.defaults.plugins.tooltip.borderWidth = 1;
-    Chart.defaults.plugins.tooltip.padding = 10;
-    Chart.defaults.plugins.tooltip.cornerRadius = 8;
+    Chart.defaults.plugins.tooltip.padding = 12;
+    Chart.defaults.plugins.tooltip.cornerRadius = 10;
     Chart.defaults.plugins.tooltip.boxPadding = 6;
-    Chart.defaults.plugins.tooltip.titleFont = { size: 12, weight: '600' };
-    Chart.defaults.plugins.tooltip.bodyFont = { size: 12, weight: '500' };
+    Chart.defaults.plugins.tooltip.caretSize = 0;
+    Chart.defaults.plugins.tooltip.caretPadding = 12;
+    Chart.defaults.plugins.tooltip.titleFont = { size: 11, weight: '600' };
+    Chart.defaults.plugins.tooltip.bodyFont = { size: 13, weight: '600', family: "'SF Mono', ui-monospace, Menlo, Consolas, monospace" };
     Chart.defaults.plugins.tooltip.displayColors = true;
     Chart.defaults.plugins.legend.labels.usePointStyle = true;
     Chart.defaults.plugins.legend.labels.pointStyle = 'circle';
@@ -72,13 +104,18 @@ function applyChartDefaults() {
     Chart.defaults.plugins.legend.labels.boxHeight = 6;
     Chart.defaults.plugins.legend.labels.padding = 14;
     Chart.defaults.elements.arc.borderWidth = 0;
-    Chart.defaults.elements.line.borderWidth = 2;
-    Chart.defaults.elements.line.tension = 0.32;
+    Chart.defaults.elements.line.borderWidth = 2.25;
+    Chart.defaults.elements.line.tension = 0.35;
+    Chart.defaults.elements.line.borderCapStyle = 'round';
+    Chart.defaults.elements.line.borderJoinStyle = 'round';
     Chart.defaults.elements.point.radius = 0;
     Chart.defaults.elements.point.hoverRadius = 5;
     Chart.defaults.elements.point.hoverBorderWidth = 2;
-    Chart.defaults.elements.bar.borderRadius = 6;
+    Chart.defaults.elements.bar.borderRadius = 4;
     Chart.defaults.elements.bar.borderSkipped = false;
+    if (Chart.register && !Chart.registry.plugins.get('nodexCrosshair')) {
+        Chart.register(CrosshairPlugin);
+    }
 }
 applyChartDefaults();
 
@@ -101,14 +138,16 @@ function createChart(canvasId, type, labels, data, label) {
     const theme = getChartTheme();
     const isDoughnut = type === 'doughnut' || type === 'pie';
     const isLine = type === 'line';
-    const primary = theme.colors[0];
+    const primary = theme.primary;
+    const mono = "'SF Mono', ui-monospace, Menlo, Consolas, monospace";
 
     let bg;
     if (isDoughnut) {
         bg = theme.colors.slice(0, data.length);
     } else if (isLine) {
-        const grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 220);
-        grad.addColorStop(0, hexToRgba(primary, 0.22));
+        const grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 240);
+        grad.addColorStop(0, hexToRgba(primary, 0.38));
+        grad.addColorStop(0.6, hexToRgba(primary, 0.08));
         grad.addColorStop(1, hexToRgba(primary, 0.0));
         bg = grad;
     } else {
@@ -124,13 +163,15 @@ function createChart(canvasId, type, labels, data, label) {
                 data: data,
                 backgroundColor: bg,
                 borderColor: isDoughnut ? 'transparent' : primary,
-                borderWidth: isDoughnut ? 0 : 2,
-                borderRadius: isDoughnut ? 0 : 6,
-                tension: 0.32,
+                borderWidth: isDoughnut ? 0 : 2.25,
+                borderRadius: isDoughnut ? 0 : 4,
+                tension: 0.35,
                 fill: isLine,
                 pointBackgroundColor: primary,
-                pointBorderColor: '#fff',
-                pointHoverBorderColor: '#fff',
+                pointBorderColor: theme.tooltipBg,
+                pointHoverBorderColor: theme.tooltipBg,
+                pointHoverBorderWidth: 2,
+                pointHoverRadius: 5,
                 spanGaps: true,
                 cubicInterpolationMode: isLine ? 'monotone' : 'default',
             }],
@@ -138,7 +179,7 @@ function createChart(canvasId, type, labels, data, label) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { top: 6, right: 4, bottom: 0, left: 0 } },
+            layout: { padding: { top: 8, right: 6, bottom: 0, left: 0 } },
             interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: {
@@ -146,18 +187,34 @@ function createChart(canvasId, type, labels, data, label) {
                     position: 'bottom',
                     labels: { color: theme.textSoft, padding: 14, usePointStyle: true, boxWidth: 6, boxHeight: 6, font: { size: 11 } },
                 },
-                tooltip: { enabled: true },
+                tooltip: {
+                    enabled: true,
+                    callbacks: {
+                        label(c) {
+                            const v = c.parsed && c.parsed.y != null ? c.parsed.y : c.parsed;
+                            try { return ' ' + new Intl.NumberFormat('es-ES').format(v) + (label ? ' ' + label : ''); }
+                            catch (e) { return ' ' + v; }
+                        },
+                    },
+                },
             },
             cutout: isDoughnut ? '68%' : undefined,
             scales: isDoughnut ? {} : {
                 x: {
-                    ticks: { color: theme.textSoft, font: { size: 10 }, padding: 6 },
+                    ticks: { color: theme.textSoft, font: { size: 10 }, padding: 8, maxRotation: 0 },
                     grid: { display: false, drawBorder: false },
                     border: { display: false },
                 },
                 y: {
-                    ticks: { color: theme.textSoft, font: { size: 10 }, padding: 8, maxTicksLimit: 5 },
-                    grid: { color: theme.grid, drawBorder: false, drawTicks: false },
+                    position: 'right',
+                    ticks: {
+                        color: theme.textSoft,
+                        font: { size: 10, family: mono },
+                        padding: 8,
+                        maxTicksLimit: 5,
+                        callback: (v) => nfmtCompact(v),
+                    },
+                    grid: { color: theme.grid, drawBorder: false, drawTicks: false, lineWidth: 1 },
                     border: { display: false },
                     beginAtZero: true,
                 },
