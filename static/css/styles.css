@@ -395,12 +395,12 @@ a:hover {
     margin-bottom: 2px;
 }
 .welcome-title {
-    font-size: 32px;
+    font-size: 36px;
     font-weight: 700;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.035em;
     color: var(--text-primary);
     margin: 0;
-    line-height: 1.1;
+    line-height: 1.05;
 }
 .welcome-search-wrap { position: relative; max-width: 480px; width: 100%; }
 .welcome-search-icon {
@@ -418,12 +418,14 @@ a:hover {
 }
 .welcome-search-input::placeholder { color: var(--text-tertiary); }
 .welcome-search-input:focus { outline: 0; border-color: var(--border-hover); }
-.welcome-datetime { text-align: right; display: flex; flex-direction: column; gap: 2px; }
-.welcome-date { font-size: 12px; color: var(--text-tertiary); font-weight: 500; }
+.welcome-datetime {
+    display: inline-flex; align-items: baseline; justify-content: flex-end; gap: 10px;
+}
+.welcome-date { font-size: 13px; color: var(--text-tertiary); font-weight: 500; white-space: nowrap; }
 .welcome-time {
-    font-size: 22px; font-weight: 700;
-    color: var(--text-primary); letter-spacing: -0.02em;
-    font-variant-numeric: tabular-nums;
+    font-size: 28px; font-weight: 700;
+    color: var(--text-primary); letter-spacing: -0.025em;
+    font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap;
 }
 @media (max-width: 900px) {
     .welcome-hero { grid-template-columns: 1fr; gap: 14px; }

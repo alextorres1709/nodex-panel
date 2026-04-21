@@ -38,10 +38,13 @@
     function tick(){
         var now = new Date();
         var dOpts = { weekday:'long', day:'numeric', month:'long', year:'numeric' };
-        var tOpts = { hour:'2-digit', minute:'2-digit', hour12:false };
         var d = now.toLocaleDateString('es-ES', dOpts);
         dateEl.textContent = d.charAt(0).toUpperCase() + d.slice(1);
-        timeEl.textContent = now.toLocaleTimeString('es-ES', tOpts);
+        var h = now.getHours();
+        var ampm = h >= 12 ? 'PM' : 'AM';
+        var h12 = h % 12; if (h12 === 0) h12 = 12;
+        var mm = String(now.getMinutes()).padStart(2, '0');
+        timeEl.textContent = String(h12).padStart(2,'0') + ':' + mm + ' ' + ampm;
     }
     tick();
     setInterval(tick, 1000 * 30);

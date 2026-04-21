@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.5.14 — 2026-04-21
+*Implementado por Alex*
+- **KPI cards 1:1 con referencia SaasLauncher**: layout flex column space-between (pill top-left + valor bottom-left, flecha top-right vía `::before`, 2 mini-barras de progreso bottom-right vía `::after`). Pill bump a 8/20 padding + 13px medium. Gradientes ajustados a tonos exactos (cyan #5EEBF5→#2ECCE0, blue #6B85FF→#4258F0, purple #C9A7FF→#A47AF5). `min-height: 148px` para respirar. El `kpi-value` reserva 44% a la derecha con `padding-right` para que las barras no se superpongan al número.
+- **Welcome hero afinado**: datetime ahora inline ("Domingo, 20 abril 2026  04:35 PM"), título 36px con letter-spacing -0.035em, hora 28px bold con AM/PM.
+
 ## v4.5.13 — 2026-04-21
 *Implementado por Alex*
 - **KPI cards estilo SaasLauncher**: el `.kpi-label` en cards con `accent-*` se convierte en pill coloreado con gradiente (Sales cyan, Download blue, Active purple, etc.), value bump a 32px, mini barras decorativas con `::after` y el icon SVG oculto en accented (el pill es el ancla visual). Card padding 22/24, border-radius 18px.

@@ -341,8 +341,11 @@ body::before {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   KPI CARDS — SaasLauncher style: colored pill label + big value
-   + mini progress bars (mimics Sales / Download / Active cards)
+   KPI CARDS — SaasLauncher 1:1 replica
+   ├─ top-left: colored pill (Sales/Download/Active)
+   ├─ bottom-left: big value
+   ├─ top-right: arrow →
+   └─ bottom-right: 2 mini progress bars
    ═══════════════════════════════════════════════════════════ */
 .kpi-card {
     position: relative;
@@ -350,10 +353,14 @@ body::before {
     overflow: hidden;
     border: 1px solid var(--ss-border) !important;
     border-radius: 18px !important;
-    min-height: 128px;
+    min-height: 148px;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    background: linear-gradient(180deg, #0D0D12 0%, #08080B 100%) !important;
 }
 
-/* ─── Label becomes a colored pill (SaasLauncher Sales/Download/Active) ──*/
+/* ─── Label → colored pill ──────────────────────────────────── */
 .kpi-card.accent-blue   .kpi-label,
 .kpi-card.accent-cyan   .kpi-label,
 .kpi-card.accent-purple .kpi-label,
@@ -362,25 +369,28 @@ body::before {
 .kpi-card.accent-red    .kpi-label,
 .kpi-card.accent-pink   .kpi-label {
     display: inline-block !important;
-    padding: 6px 14px !important;
+    align-self: flex-start !important;
+    padding: 8px 20px !important;
     border-radius: 999px !important;
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.01em !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.003em !important;
     text-transform: none !important;
     color: #FFFFFF !important;
-    margin-bottom: 16px !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+    margin: 0 !important;
+    line-height: 1.3 !important;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.22);
 }
 
-.kpi-card.accent-blue   .kpi-label { background: linear-gradient(180deg, #5B8FFF 0%, #3B82F6 100%) !important; }
-.kpi-card.accent-cyan   .kpi-label { background: linear-gradient(180deg, #2CE0F0 0%, #06B6D4 100%) !important; color: #0A1422 !important; }
-.kpi-card.accent-purple .kpi-label { background: linear-gradient(180deg, #7B7EF4 0%, #6366F1 100%) !important; }
-.kpi-card.accent-green  .kpi-label { background: linear-gradient(180deg, #35D97B 0%, #16A34A 100%) !important; }
-.kpi-card.accent-amber  .kpi-label { background: linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%) !important; color: #0A1422 !important; }
-.kpi-card.accent-red    .kpi-label { background: linear-gradient(180deg, #F87171 0%, #EF4444 100%) !important; }
-.kpi-card.accent-pink   .kpi-label { background: linear-gradient(180deg, #F472B6 0%, #EC4899 100%) !important; }
+.kpi-card.accent-blue   .kpi-label { background: linear-gradient(180deg, #6B85FF 0%, #4258F0 100%) !important; }
+.kpi-card.accent-cyan   .kpi-label { background: linear-gradient(180deg, #5EEBF5 0%, #2ECCE0 100%) !important; color: #0A2030 !important; }
+.kpi-card.accent-purple .kpi-label { background: linear-gradient(180deg, #C9A7FF 0%, #A47AF5 100%) !important; }
+.kpi-card.accent-green  .kpi-label { background: linear-gradient(180deg, #4CE09A 0%, #1FAD6B 100%) !important; }
+.kpi-card.accent-amber  .kpi-label { background: linear-gradient(180deg, #FFD24A 0%, #F59E0B 100%) !important; color: #3D2A00 !important; }
+.kpi-card.accent-red    .kpi-label { background: linear-gradient(180deg, #FF8A8A 0%, #EE4B4B 100%) !important; }
+.kpi-card.accent-pink   .kpi-label { background: linear-gradient(180deg, #F798C8 0%, #EC4899 100%) !important; }
 
+/* ─── Value → big white number at bottom-left ──────────────── */
 .kpi-value {
     font-family: 'Archivo', 'Inter', sans-serif;
     font-size: 32px;
@@ -388,9 +398,36 @@ body::before {
     letter-spacing: -0.03em;
     line-height: 1.05;
     color: var(--ss-heading);
+    margin: 0 !important;
+    padding-right: 44%;  /* reserve right side for the bars */
 }
 
-/* ─── Mini decorative bars (right side) using ::after on .kpi-value ─── */
+/* ─── Arrow → top-right corner ─────────────────────────────── */
+.kpi-card.accent-blue::before,
+.kpi-card.accent-cyan::before,
+.kpi-card.accent-purple::before,
+.kpi-card.accent-green::before,
+.kpi-card.accent-amber::before,
+.kpi-card.accent-red::before,
+.kpi-card.accent-pink::before {
+    content: '→' !important;
+    display: block !important;
+    position: absolute !important;
+    top: 22px;
+    right: 24px;
+    font-size: 22px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.78);
+    line-height: 1;
+    background: none !important;
+    padding: 0 !important;
+    border: 0 !important;
+    pointer-events: none;
+    mask: none !important;
+    -webkit-mask: none !important;
+}
+
+/* ─── Mini bars → bottom-right corner ──────────────────────── */
 .kpi-card.accent-blue   .kpi-value::after,
 .kpi-card.accent-cyan   .kpi-value::after,
 .kpi-card.accent-purple .kpi-value::after,
@@ -400,20 +437,27 @@ body::before {
 .kpi-card.accent-pink   .kpi-value::after {
     content: '';
     position: absolute;
-    right: 22px;
-    bottom: 26px;
+    right: 24px;
+    bottom: 30px;
     width: 42%;
-    max-width: 140px;
+    max-width: 160px;
     height: 22px;
-    opacity: 0.85;
-    background:
-      linear-gradient(90deg, rgba(255,255,255,0.25) 0% 60%, rgba(255,255,255,0.08) 60% 100%) top / 100% 5px no-repeat,
-      linear-gradient(90deg, rgba(255,255,255,0.25) 0% 45%, rgba(255,255,255,0.08) 45% 100%) bottom / 100% 5px no-repeat;
-    border-radius: 3px;
     pointer-events: none;
+    background:
+        /* top bar: 60% filled (brighter) + remainder (dim) */
+        linear-gradient(to right,
+            rgba(210,210,224,0.55) 0%, rgba(210,210,224,0.55) 60%,
+            rgba(210,210,224,0.18) 60%, rgba(210,210,224,0.18) 100%
+        ) left top / 100% 7px no-repeat,
+        /* bottom bar: 80% filled + remainder */
+        linear-gradient(to right,
+            rgba(210,210,224,0.55) 0%, rgba(210,210,224,0.55) 80%,
+            rgba(210,210,224,0.18) 80%, rgba(210,210,224,0.18) 100%
+        ) left bottom / 100% 7px no-repeat;
+    border-radius: 3px;
 }
 
-/* Hide the SVG icon in accented cards — the pill is the visual anchor */
+/* Hide the SVG icon in accented cards — pill + arrow are the anchors */
 .kpi-card.accent-blue   > .kpi-icon,
 .kpi-card.accent-cyan   > .kpi-icon,
 .kpi-card.accent-purple > .kpi-icon,
@@ -444,12 +488,12 @@ body::before {
 }
 .welcome-title {
     font-family: 'Archivo', 'Inter', sans-serif !important;
-    font-size: 32px !important;
+    font-size: 36px !important;
     font-weight: 700 !important;
-    letter-spacing: -0.03em !important;
+    letter-spacing: -0.035em !important;
     color: var(--ss-heading) !important;
     margin: 0 !important;
-    line-height: 1.1 !important;
+    line-height: 1.05 !important;
 }
 .welcome-search-wrap {
     position: relative;
@@ -485,24 +529,27 @@ body::before {
     background: rgba(255,255,255,0.04) !important;
 }
 .welcome-datetime {
-    text-align: right;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 10px;
 }
 .welcome-date {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--ss-text-alt);
     font-weight: 500;
-    letter-spacing: -0.005em;
+    letter-spacing: -0.003em;
+    white-space: nowrap;
 }
 .welcome-time {
     font-family: 'Archivo', 'Inter', sans-serif;
-    font-size: 22px;
+    font-size: 28px;
     font-weight: 700;
     color: var(--ss-heading);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
     font-variant-numeric: tabular-nums;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 @media (max-width: 900px) {
