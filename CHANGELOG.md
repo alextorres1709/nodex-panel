@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.5.13 — 2026-04-21
+*Implementado por Alex*
+- **KPI cards estilo SaasLauncher**: el `.kpi-label` en cards con `accent-*` se convierte en pill coloreado con gradiente (Sales cyan, Download blue, Active purple, etc.), value bump a 32px, mini barras decorativas con `::after` y el icon SVG oculto en accented (el pill es el ancla visual). Card padding 22/24, border-radius 18px.
+- **Welcome hero en dashboard**: reemplaza el "Dashboard" genérico por "Welcome to / NodexAI Panel" + input de búsqueda pill + fecha/hora en vivo a la derecha (`es-ES`, actualiza cada 30s). Responsive: collapsa a columna única <900px.
+- **Light mode**: los estilos welcome-hero también en `styles.css` usando los tokens estándar; en light se ve coherente sin pills coloreados (los pills son exclusivos del theme oscuro SaaS).
+
 ## v4.5.12 — 2026-04-20
 *Implementado por Alex*
 - **KPI cards más profesionales + acento de color**: añadido `border-top` de color por tipo (azul, cian, morado, verde, ámbar, rojo, rosa) con clase `accent-*`, icon tile tintado en el mismo tono y `kpi-value` a 28px. El resto del card se mantiene limpio.

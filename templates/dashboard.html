@@ -16,9 +16,37 @@
 .dash-task-check:hover svg { opacity: 1; }
 .task-item.completing { opacity: 0.4; transform: translateX(8px); transition: all 0.3s ease; }
 </style>
-<div class="page-header">
-    <h1>Dashboard</h1>
+<div class="welcome-hero">
+    <div class="welcome-greet">
+        <div class="welcome-eyebrow">Welcome to</div>
+        <h1 class="welcome-title">NodexAI Panel</h1>
+    </div>
+    <div class="welcome-search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="welcome-search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="welcomeSearch" class="welcome-search-input" placeholder="Buscar proyectos, clientes, tareas..." autocomplete="off">
+    </div>
+    <div class="welcome-datetime">
+        <div class="welcome-date" id="welcomeDate"></div>
+        <div class="welcome-time" id="welcomeTime"></div>
+    </div>
 </div>
+<script>
+(function(){
+    var dateEl = document.getElementById('welcomeDate');
+    var timeEl = document.getElementById('welcomeTime');
+    if (!dateEl || !timeEl) return;
+    function tick(){
+        var now = new Date();
+        var dOpts = { weekday:'long', day:'numeric', month:'long', year:'numeric' };
+        var tOpts = { hour:'2-digit', minute:'2-digit', hour12:false };
+        var d = now.toLocaleDateString('es-ES', dOpts);
+        dateEl.textContent = d.charAt(0).toUpperCase() + d.slice(1);
+        timeEl.textContent = now.toLocaleTimeString('es-ES', tOpts);
+    }
+    tick();
+    setInterval(tick, 1000 * 30);
+})();
+</script>
 
 <!-- Quick Actions -->
 <div class="quick-actions">

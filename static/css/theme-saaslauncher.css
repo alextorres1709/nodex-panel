@@ -341,56 +341,177 @@ body::before {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   KPI CARDS — stat-card style with pill label + arrow
-   (mimics the 3 cards in the demo: Sales / Download / Active)
+   KPI CARDS — SaasLauncher style: colored pill label + big value
+   + mini progress bars (mimics Sales / Download / Active cards)
    ═══════════════════════════════════════════════════════════ */
 .kpi-card {
     position: relative;
-    padding: 18px 20px !important;
+    padding: 22px 24px !important;
     overflow: hidden;
-    border-top: 2px solid var(--ss-border) !important;
+    border: 1px solid var(--ss-border) !important;
+    border-radius: 18px !important;
+    min-height: 128px;
 }
 
-/* Arrow chevron + colored label pills removed per product feedback;
-   styles.css .kpi-label (plain uppercase caption) applies. */
+/* ─── Label becomes a colored pill (SaasLauncher Sales/Download/Active) ──*/
+.kpi-card.accent-blue   .kpi-label,
+.kpi-card.accent-cyan   .kpi-label,
+.kpi-card.accent-purple .kpi-label,
+.kpi-card.accent-green  .kpi-label,
+.kpi-card.accent-amber  .kpi-label,
+.kpi-card.accent-red    .kpi-label,
+.kpi-card.accent-pink   .kpi-label {
+    display: inline-block !important;
+    padding: 6px 14px !important;
+    border-radius: 999px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em !important;
+    text-transform: none !important;
+    color: #FFFFFF !important;
+    margin-bottom: 16px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+.kpi-card.accent-blue   .kpi-label { background: linear-gradient(180deg, #5B8FFF 0%, #3B82F6 100%) !important; }
+.kpi-card.accent-cyan   .kpi-label { background: linear-gradient(180deg, #2CE0F0 0%, #06B6D4 100%) !important; color: #0A1422 !important; }
+.kpi-card.accent-purple .kpi-label { background: linear-gradient(180deg, #7B7EF4 0%, #6366F1 100%) !important; }
+.kpi-card.accent-green  .kpi-label { background: linear-gradient(180deg, #35D97B 0%, #16A34A 100%) !important; }
+.kpi-card.accent-amber  .kpi-label { background: linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%) !important; color: #0A1422 !important; }
+.kpi-card.accent-red    .kpi-label { background: linear-gradient(180deg, #F87171 0%, #EF4444 100%) !important; }
+.kpi-card.accent-pink   .kpi-label { background: linear-gradient(180deg, #F472B6 0%, #EC4899 100%) !important; }
 
 .kpi-value {
     font-family: 'Archivo', 'Inter', sans-serif;
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 700;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
     color: var(--ss-heading);
 }
 
-/* ─── Accent stripe + colored icon tile ─────────────────────── */
-.kpi-card.accent-blue   { border-top-color: #3B82F6 !important; }
-.kpi-card.accent-cyan   { border-top-color: #06B6D4 !important; }
-.kpi-card.accent-purple { border-top-color: #6366F1 !important; }
-.kpi-card.accent-green  { border-top-color: #22C55E !important; }
-.kpi-card.accent-amber  { border-top-color: #F59E0B !important; }
-.kpi-card.accent-red    { border-top-color: #EF4444 !important; }
-.kpi-card.accent-pink   { border-top-color: #EC4899 !important; }
-
-.kpi-card .kpi-icon {
-    background: rgba(59, 78, 253, 0.12) !important;
-    border: 1px solid rgba(59, 78, 253, 0.22);
+/* ─── Mini decorative bars (right side) using ::after on .kpi-value ─── */
+.kpi-card.accent-blue   .kpi-value::after,
+.kpi-card.accent-cyan   .kpi-value::after,
+.kpi-card.accent-purple .kpi-value::after,
+.kpi-card.accent-green  .kpi-value::after,
+.kpi-card.accent-amber  .kpi-value::after,
+.kpi-card.accent-red    .kpi-value::after,
+.kpi-card.accent-pink   .kpi-value::after {
+    content: '';
+    position: absolute;
+    right: 22px;
+    bottom: 26px;
+    width: 42%;
+    max-width: 140px;
+    height: 22px;
+    opacity: 0.85;
+    background:
+      linear-gradient(90deg, rgba(255,255,255,0.25) 0% 60%, rgba(255,255,255,0.08) 60% 100%) top / 100% 5px no-repeat,
+      linear-gradient(90deg, rgba(255,255,255,0.25) 0% 45%, rgba(255,255,255,0.08) 45% 100%) bottom / 100% 5px no-repeat;
+    border-radius: 3px;
+    pointer-events: none;
 }
-.kpi-card .kpi-icon svg { color: var(--ss-primary-light) !important; }
 
-.kpi-card.accent-blue   .kpi-icon { background: rgba(59, 130, 246, 0.14) !important; border-color: rgba(59, 130, 246, 0.26); }
-.kpi-card.accent-blue   .kpi-icon svg { color: #60A5FA !important; }
-.kpi-card.accent-cyan   .kpi-icon { background: rgba(6, 182, 212, 0.14) !important; border-color: rgba(6, 182, 212, 0.26); }
-.kpi-card.accent-cyan   .kpi-icon svg { color: #22D3EE !important; }
-.kpi-card.accent-purple .kpi-icon { background: rgba(99, 102, 241, 0.14) !important; border-color: rgba(99, 102, 241, 0.26); }
-.kpi-card.accent-purple .kpi-icon svg { color: #A5B4FC !important; }
-.kpi-card.accent-green  .kpi-icon { background: rgba(34, 197, 94, 0.14) !important; border-color: rgba(34, 197, 94, 0.26); }
-.kpi-card.accent-green  .kpi-icon svg { color: #4ADE80 !important; }
-.kpi-card.accent-amber  .kpi-icon { background: rgba(245, 158, 11, 0.14) !important; border-color: rgba(245, 158, 11, 0.26); }
-.kpi-card.accent-amber  .kpi-icon svg { color: #FBBF24 !important; }
-.kpi-card.accent-red    .kpi-icon { background: rgba(239, 68, 68, 0.14) !important; border-color: rgba(239, 68, 68, 0.26); }
-.kpi-card.accent-red    .kpi-icon svg { color: #F87171 !important; }
-.kpi-card.accent-pink   .kpi-icon { background: rgba(236, 72, 153, 0.14) !important; border-color: rgba(236, 72, 153, 0.26); }
-.kpi-card.accent-pink   .kpi-icon svg { color: #F472B6 !important; }
+/* Hide the SVG icon in accented cards — the pill is the visual anchor */
+.kpi-card.accent-blue   > .kpi-icon,
+.kpi-card.accent-cyan   > .kpi-icon,
+.kpi-card.accent-purple > .kpi-icon,
+.kpi-card.accent-green  > .kpi-icon,
+.kpi-card.accent-amber  > .kpi-icon,
+.kpi-card.accent-red    > .kpi-icon,
+.kpi-card.accent-pink   > .kpi-icon {
+    display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WELCOME HERO — greet + search + datetime (SaasLauncher style)
+   ═══════════════════════════════════════════════════════════ */
+.welcome-hero {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.4fr) auto;
+    align-items: center;
+    gap: 28px;
+    padding: 12px 0 22px;
+    margin-bottom: 12px;
+}
+.welcome-eyebrow {
+    font-size: 13px;
+    color: var(--ss-text-alt);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    margin-bottom: 2px;
+}
+.welcome-title {
+    font-family: 'Archivo', 'Inter', sans-serif !important;
+    font-size: 32px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.03em !important;
+    color: var(--ss-heading) !important;
+    margin: 0 !important;
+    line-height: 1.1 !important;
+}
+.welcome-search-wrap {
+    position: relative;
+    max-width: 480px;
+    width: 100%;
+}
+.welcome-search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--ss-text-alt);
+    pointer-events: none;
+}
+.welcome-search-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 18px 0 42px;
+    border-radius: 999px;
+    border: 1px solid var(--ss-border) !important;
+    background: rgba(255,255,255,0.02) !important;
+    color: var(--ss-heading) !important;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    transition: border-color .18s ease, background .18s ease;
+}
+.welcome-search-input::placeholder { color: var(--ss-text-alt); }
+.welcome-search-input:focus {
+    outline: 0;
+    border-color: var(--ss-border-hi) !important;
+    background: rgba(255,255,255,0.04) !important;
+}
+.welcome-datetime {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.welcome-date {
+    font-size: 12px;
+    color: var(--ss-text-alt);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+}
+.welcome-time {
+    font-family: 'Archivo', 'Inter', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ss-heading);
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+    .welcome-hero {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+    .welcome-datetime { text-align: left; }
+}
 
 /* ═══════════════════════════════════════════════════════════
    BUTTONS — pill with indigo glow (demo "Signup Today" + "Start Free Trial")
