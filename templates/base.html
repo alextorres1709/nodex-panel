@@ -1196,6 +1196,18 @@
     })();
     </script>
 
+    <script>
+    // Kpi-card clickable navigation (data-href)
+    document.addEventListener('click', function(e) {
+        var card = e.target.closest('.kpi-card[data-href]');
+        if (!card) return;
+        // Allow inner anchors/buttons to work normally
+        if (e.target.closest('a, button, input, select, textarea')) return;
+        var href = card.getAttribute('data-href');
+        if (href) window.location.href = href;
+    });
+    </script>
+
     {% block scripts %}{% endblock %}
 </body>
 

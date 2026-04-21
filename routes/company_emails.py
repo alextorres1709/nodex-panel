@@ -133,11 +133,18 @@ def log_interaction(cid):
             flash("Tipo inválido", "error")
             return redirect(url_for("companies.view", cid=cid))
         contact_id = request.form.get("contact_id", "").strip()
+        lead_id = request.form.get("lead_id", "").strip()
         contact = None
+        lead = None
         if contact_id:
             c = db.session.get(CompanyContact, int(contact_id))
             if c and c.company_id == cid:
                 contact = c
+        if lead_id:
+            from models import Lead
+            l = db.session.get(Lead, int(lead_id))
+            if l:
+                lead = l
         body = request.form.get("body", "").strip()
         subject = request.form.get("subject", "").strip() or {
             "call": "Llamada registrada",
@@ -148,6 +155,7 @@ def log_interaction(cid):
         interaction = CompanyInteraction(
             company_id=cid,
             contact_id=contact.id if contact else None,
+            lead_id=lead.id if lead else None,
             user_id=g.user.id if g.get("user") else None,
             type=itype,
             status="done",

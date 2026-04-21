@@ -399,63 +399,69 @@ body::before {
     line-height: 1.05;
     color: var(--ss-heading);
     margin: 0 !important;
-    padding-right: 44%;  /* reserve right side for the bars */
 }
+/* Only reserve right-side space when bars are present */
+.kpi-card:has(.kpi-bars) .kpi-value { padding-right: 48% !important; }
 
-/* ─── Arrow → top-right corner ─────────────────────────────── */
-.kpi-card.accent-blue::before,
-.kpi-card.accent-cyan::before,
-.kpi-card.accent-purple::before,
-.kpi-card.accent-green::before,
-.kpi-card.accent-amber::before,
-.kpi-card.accent-red::before,
-.kpi-card.accent-pink::before {
-    content: '→' !important;
-    display: block !important;
-    position: absolute !important;
+/* ─── Arrow → top-right (real element .kpi-arrow) ─────────── */
+.kpi-arrow {
+    position: absolute;
     top: 22px;
     right: 24px;
-    font-size: 22px;
-    font-weight: 400;
-    color: rgba(255,255,255,0.78);
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ss-heading);
+    text-decoration: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    transition: transform .18s ease, color .18s ease;
     line-height: 1;
-    background: none !important;
-    padding: 0 !important;
-    border: 0 !important;
-    pointer-events: none;
-    mask: none !important;
-    -webkit-mask: none !important;
+    z-index: 2;
 }
+.kpi-arrow svg { width: 22px; height: 22px; stroke-width: 2; }
+.kpi-arrow:hover { transform: translateX(3px); color: #FFFFFF; }
 
-/* ─── Mini bars → bottom-right corner ──────────────────────── */
-.kpi-card.accent-blue   .kpi-value::after,
-.kpi-card.accent-cyan   .kpi-value::after,
-.kpi-card.accent-purple .kpi-value::after,
-.kpi-card.accent-green  .kpi-value::after,
-.kpi-card.accent-amber  .kpi-value::after,
-.kpi-card.accent-red    .kpi-value::after,
-.kpi-card.accent-pink   .kpi-value::after {
-    content: '';
+/* ─── Mini bars → real element .kpi-bars (2 pill-pairs) ───── */
+.kpi-bars {
     position: absolute;
     right: 24px;
     bottom: 30px;
-    width: 42%;
-    max-width: 160px;
-    height: 22px;
+    width: 44%;
+    max-width: 170px;
+    height: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     pointer-events: none;
-    background:
-        /* top bar: 60% filled (brighter) + remainder (dim) */
-        linear-gradient(to right,
-            rgba(210,210,224,0.55) 0%, rgba(210,210,224,0.55) 60%,
-            rgba(210,210,224,0.18) 60%, rgba(210,210,224,0.18) 100%
-        ) left top / 100% 7px no-repeat,
-        /* bottom bar: 80% filled + remainder */
-        linear-gradient(to right,
-            rgba(210,210,224,0.55) 0%, rgba(210,210,224,0.55) 80%,
-            rgba(210,210,224,0.18) 80%, rgba(210,210,224,0.18) 100%
-        ) left bottom / 100% 7px no-repeat;
-    border-radius: 3px;
+    z-index: 1;
 }
+.kpi-bars .kpi-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 10px;
+}
+.kpi-bars .kpi-bar-fill,
+.kpi-bars .kpi-bar-rest {
+    height: 100%;
+    border-radius: 999px;
+}
+.kpi-bars .kpi-bar-fill { background: rgba(220, 220, 232, 0.6); }
+.kpi-bars .kpi-bar-rest { background: rgba(110, 110, 128, 0.5); }
+/* Default proportions: bar1 = 60/40, bar2 = 80/20 */
+.kpi-bars .kpi-bar:nth-child(1) .kpi-bar-fill { flex: 6; }
+.kpi-bars .kpi-bar:nth-child(1) .kpi-bar-rest { flex: 4; }
+.kpi-bars .kpi-bar:nth-child(2) .kpi-bar-fill { flex: 8; }
+.kpi-bars .kpi-bar:nth-child(2) .kpi-bar-rest { flex: 2; }
+
+/* Whole card is clickable when data-href is set */
+.kpi-card[data-href] { cursor: pointer; transition: border-color .18s ease, transform .18s ease; }
+.kpi-card[data-href]:hover { border-color: var(--ss-border-hi) !important; transform: translateY(-2px); }
 
 /* Hide the SVG icon in accented cards — pill + arrow are the anchors */
 .kpi-card.accent-blue   > .kpi-icon,
@@ -528,6 +534,38 @@ body::before {
     border-color: var(--ss-border-hi) !important;
     background: rgba(255,255,255,0.04) !important;
 }
+.welcome-search-results {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: #0D0D12;
+    border: 1px solid var(--ss-border);
+    border-radius: 14px;
+    box-shadow: 0 12px 36px rgba(0,0,0,.45);
+    padding: 6px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+.welcome-search-results[hidden] { display: none; }
+.welcome-search-results .ws-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    color: var(--ss-heading);
+    text-decoration: none;
+    font-size: 13px;
+    cursor: pointer;
+}
+.welcome-search-results .ws-item:hover,
+.welcome-search-results .ws-item.is-active { background: rgba(255,255,255,0.05); }
+.welcome-search-results .ws-label { font-weight: 500; }
+.welcome-search-results .ws-hint { font-size: 12px; color: var(--ss-text-alt); }
+.welcome-search-results .ws-empty { padding: 14px; text-align: center; color: var(--ss-text-alt); font-size: 13px; }
 .welcome-datetime {
     display: inline-flex;
     align-items: baseline;

@@ -179,7 +179,7 @@
                     {% if c.next_contact_date %}
                     {% set overdue = c.next_contact_date <= today %}
                     <span class="tabular" style="font-size:10px;padding:2px 6px;border-radius:4px;background:{{ 'rgba(239,68,68,.10)' if overdue else 'rgba(59,130,246,.10)' }};color:{{ '#ef4444' if overdue else '#3b82f6' }};font-weight:600">
-                        📅 {{ c.next_contact_date.strftime('%d/%m') }}
+                        {{ c.next_contact_date.strftime('%d/%m') }}
                     </span>
                     {% endif %}
                     {% if c.assignee %}
@@ -188,8 +188,8 @@
                 </div>
                 {% if c.phone or contact_counts.get(c.id, 0) %}
                 <div style="display:flex;gap:8px;margin-top:6px;font-size:11px;color:var(--text-tertiary)">
-                    {% if c.phone %}<span>📞</span>{% endif %}
-                    {% if contact_counts.get(c.id, 0) %}<span>👥 {{ contact_counts[c.id] }}</span>{% endif %}
+                    {% if c.phone %}<span>Tel</span>{% endif %}
+                    {% if contact_counts.get(c.id, 0) %}<span>{{ contact_counts[c.id] }} contactos</span>{% endif %}
                 </div>
                 {% endif %}
             </a>
@@ -252,10 +252,12 @@
                 </td>
                 <td style="text-align:right;white-space:nowrap" onclick="event.stopPropagation()">
                     {% if c.phone %}
-                    <a href="tel:{{ c.phone }}" class="btn btn-sm" style="background:#22c55e;color:#fff;border:none" title="Llamar a {{ c.phone }}">
+                    <button type="button" class="btn btn-sm" style="background:#22c55e;color:#fff;border:none" title="Llamar a {{ c.phone }}"
+                            onclick="openLlamarModal(this)"
+                            data-phone="{{ c.phone }}" data-company="{{ c.name }}" data-cid="{{ c.id }}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
                         Llamar
-                    </a>
+                    </button>
                     {% endif %}
                     <button class="btn btn-sm btn-secondary" onclick="editCompany(this)"
                             data-company='{{ {"id": c.id, "name": c.name, "industry": c.industry, "website": c.website, "status": c.status, "interest": c.interest, "problem": c.problem or "", "solution": c.solution or "", "notes": c.notes or "", "priority": c.priority or "media", "next_contact_date": c.next_contact_date.isoformat() if c.next_contact_date else "", "source": c.source or "", "assigned_to": c.assigned_to or "", "phone": c.phone or "", "email": c.email or ""}|tojson|e }}'>Editar</button>
@@ -434,6 +436,33 @@
         </form>
     </div>
 </div>
+
+<!-- Llamar Modal -->
+<div class="modal-overlay" id="llamarModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <h3>Llamar a <span id="llamarCompanyName"></span></h3>
+            <button class="modal-close" onclick="closeModal('llamarModal')">&times;</button>
+        </div>
+        <div style="padding:20px 24px">
+            <div style="text-align:center;margin-bottom:18px">
+                <div style="font-size:13px;color:var(--text-tertiary);margin-bottom:4px">Telefono</div>
+                <div id="llamarPhone" class="tabular" style="font-size:20px;font-weight:600;color:var(--text-primary)"></div>
+            </div>
+            <div style="padding:14px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:10px;color:var(--text-secondary);font-size:13px;text-align:center;margin-bottom:18px">
+                Llamada automatica no disponible todavia.
+            </div>
+            <div style="display:flex;gap:10px;flex-direction:column">
+                <button type="button" class="btn btn-secondary" disabled style="opacity:.6;cursor:not-allowed">
+                    Llamar ahora &mdash; (no disponible)
+                </button>
+                <button type="button" class="btn btn-primary" id="llamarAgendarBtn">
+                    Agendar llamada
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -448,6 +477,19 @@ function editCompany(btn) {
         if (el) el.value = data[f] || '';
     });
     openModal('editModal');
+}
+
+function openLlamarModal(btn) {
+    const phone = btn.getAttribute('data-phone') || '';
+    const name = btn.getAttribute('data-company') || '';
+    const cid = btn.getAttribute('data-cid') || '';
+    document.getElementById('llamarPhone').textContent = phone;
+    document.getElementById('llamarCompanyName').textContent = name;
+    const agendar = document.getElementById('llamarAgendarBtn');
+    agendar.onclick = function(){
+        if (cid) window.location.href = '/empresas/' + cid;
+    };
+    openModal('llamarModal');
 }
 </script>
 {% endblock %}

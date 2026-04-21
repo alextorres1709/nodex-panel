@@ -23,7 +23,8 @@
     </div>
     <div class="welcome-search-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="welcome-search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="welcomeSearch" class="welcome-search-input" placeholder="Buscar proyectos, clientes, tareas..." autocomplete="off">
+        <input type="text" id="welcomeSearch" class="welcome-search-input" placeholder="Buscar secciones, clientes, tareas..." autocomplete="off">
+        <div id="welcomeSearchResults" class="welcome-search-results" hidden></div>
     </div>
     <div class="welcome-datetime">
         <div class="welcome-date" id="welcomeDate"></div>
@@ -48,6 +49,52 @@
     }
     tick();
     setInterval(tick, 1000 * 30);
+})();
+
+// Welcome search dropdown
+(function(){
+    var input = document.getElementById('welcomeSearch');
+    var panel = document.getElementById('welcomeSearchResults');
+    if (!input || !panel) return;
+    var routes = [
+        { label: 'Dashboard', hint: 'Vista general', url: '{{ url_for("dashboard.index") }}' },
+        { label: 'Tareas', hint: 'Tareas y pendientes', url: '{{ url_for("tasks.index") }}' },
+        { label: 'Proyectos', hint: 'Gestion de proyectos', url: '{{ url_for("projects.index") }}' },
+        { label: 'Clientes', hint: 'Clientes y contactos', url: '{{ url_for("clients.index") }}' },
+        { label: 'Leads', hint: 'Empresas a contactar', url: '{{ url_for("leads.index") }}' },
+        { label: 'Facturas', hint: 'Emitidas y recibidas', url: '{{ url_for("invoices.index") }}' },
+        { label: 'Ingresos', hint: 'Entradas de dinero', url: '{{ url_for("incomes.index") }}' },
+        { label: 'Gastos', hint: 'Pagos y gastos', url: '{{ url_for("payments.index") }}' },
+        { label: 'Ideas', hint: 'Banco de ideas', url: '{{ url_for("ideas.index") }}' },
+        { label: 'Fichar', hint: 'Control de tiempo', url: '{{ url_for("timetracking.index") }}' },
+        { label: 'Calendario', hint: 'Agenda y eventos', url: '{{ url_for("calendar.index") }}' },
+        { label: 'Agenda', hint: 'Reuniones', url: '{{ url_for("meetings.index") }}' }
+    ];
+    var idx = -1;
+    function norm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+    function render(q){
+        var nq = norm(q);
+        var list = routes.filter(function(r){ return !nq || norm(r.label).indexOf(nq)>=0 || norm(r.hint).indexOf(nq)>=0; });
+        if (!list.length){ panel.innerHTML = '<div class="ws-empty">Sin resultados</div>'; panel.hidden = false; return; }
+        panel.innerHTML = list.map(function(r,i){
+            return '<a class="ws-item'+(i===idx?' is-active':'')+'" href="'+r.url+'"><span class="ws-label">'+r.label+'</span><span class="ws-hint">'+r.hint+'</span></a>';
+        }).join('');
+        panel.hidden = false;
+    }
+    input.addEventListener('focus', function(){ idx = -1; render(input.value); });
+    input.addEventListener('input', function(){ idx = -1; render(input.value); });
+    input.addEventListener('keydown', function(e){
+        var items = panel.querySelectorAll('.ws-item');
+        if (e.key === 'ArrowDown'){ e.preventDefault(); idx = Math.min(items.length-1, idx+1); render(input.value); }
+        else if (e.key === 'ArrowUp'){ e.preventDefault(); idx = Math.max(0, idx-1); render(input.value); }
+        else if (e.key === 'Enter'){
+            var target = items[idx>=0?idx:0];
+            if (target){ e.preventDefault(); window.location.href = target.getAttribute('href'); }
+        } else if (e.key === 'Escape'){ panel.hidden = true; input.blur(); }
+    });
+    document.addEventListener('click', function(e){
+        if (!panel.contains(e.target) && e.target !== input) panel.hidden = true;
+    });
 })();
 </script>
 
@@ -87,30 +134,39 @@
     </a>
 </div>
 
+{% macro kpi_extras(url) -%}
+<a class="kpi-arrow" href="{{ url }}" aria-label="Ver detalles" onclick="event.stopPropagation()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+</a>
+<div class="kpi-bars" aria-hidden="true">
+    <div class="kpi-bar"><div class="kpi-bar-fill"></div><div class="kpi-bar-rest"></div></div>
+    <div class="kpi-bar"><div class="kpi-bar-fill"></div><div class="kpi-bar-rest"></div></div>
+</div>
+{%- endmacro %}
+
 <!-- KPI Cards — 8 cards, 4+4 -->
 <div class="kpi-grid">
-    <div class="kpi-card accent-green">
-        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+    <div class="kpi-card accent-green" data-href="{{ url_for('incomes.index') }}">
         <div class="kpi-label">Ingresos mes</div>
         <div class="kpi-value">{{ "%.0f"|format(monthly_income) }}&euro;</div>
+        {{ kpi_extras(url_for('incomes.index')) }}
     </div>
-    <div class="kpi-card accent-amber">
-        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+    <div class="kpi-card accent-amber" data-href="{{ url_for('payments.index') }}">
         <div class="kpi-label">Gasto mensual</div>
         <div class="kpi-value">{{ "%.0f"|format(monthly_cost) }}&euro;</div>
+        {{ kpi_extras(url_for('payments.index')) }}
     </div>
-    <div class="kpi-card {{ 'accent-green' if balance >= 0 else 'accent-red' }}">
-        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+    <div class="kpi-card {{ 'accent-green' if balance >= 0 else 'accent-red' }}" data-href="{{ url_for('dashboard.index') }}">
         <div class="kpi-label">Balance mensual</div>
         <div class="kpi-value">{{ "%+.0f"|format(balance) }}&euro;</div>
+        {{ kpi_extras(url_for('dashboard.index')) }}
     </div>
-    <div class="kpi-card accent-cyan">
-        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></div>
+    <div class="kpi-card accent-cyan" data-href="{{ url_for('projects.index') }}">
         <div class="kpi-label">Proyectos activos</div>
         <div class="kpi-value">{{ active_projects }}</div>
+        {{ kpi_extras(url_for('projects.index')) }}
     </div>
-    <div class="kpi-card {{ 'accent-red' if overdue_tasks > 0 else 'accent-blue' }}">
-        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+    <div class="kpi-card {{ 'accent-red' if overdue_tasks > 0 else 'accent-blue' }}" data-href="{{ url_for('tasks.index') }}">
         <div class="kpi-label">Tareas pendientes</div>
         <div class="kpi-value">{{ pending_tasks }}</div>
         {% if overdue_tasks > 0 %}
@@ -118,21 +174,22 @@
         {% elif total_tasks > 0 %}
         <div class="kpi-subtitle">{{ completed_tasks }}/{{ total_tasks }} completadas</div>
         {% endif %}
+        {{ kpi_extras(url_for('tasks.index')) }}
     </div>
-    <div class="kpi-card accent-purple">
-        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
+    <div class="kpi-card accent-purple" data-href="{{ url_for('clients.index') }}">
         <div class="kpi-label">Clientes</div>
         <div class="kpi-value">{{ total_clients }}</div>
+        {{ kpi_extras(url_for('clients.index')) }}
     </div>
-    <div class="kpi-card accent-pink">
-        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+    <div class="kpi-card accent-pink" data-href="{{ url_for('invoices.index') }}">
         <div class="kpi-label">Facturas pendientes</div>
         <div class="kpi-value">{{ pending_invoices }}</div>
+        {{ kpi_extras(url_for('invoices.index')) }}
     </div>
-    <div class="kpi-card {{ 'accent-amber' if new_ideas > 0 else 'accent-blue' }}">
-        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div>
+    <div class="kpi-card {{ 'accent-amber' if new_ideas > 0 else 'accent-blue' }}" data-href="{{ url_for('ideas.index') }}">
         <div class="kpi-label">Ideas nuevas</div>
         <div class="kpi-value">{{ new_ideas }}</div>
+        {{ kpi_extras(url_for('ideas.index')) }}
     </div>
 </div>
 

@@ -49,6 +49,7 @@ MIGRATIONS = [
     ("invoices", "lead_id", "INTEGER"),
     ("resources", "drive_file_id", "VARCHAR(100) DEFAULT ''"),
     ("calendar_events", "gcal_event_id", "VARCHAR(200)"),
+    ("company_interactions", "lead_id", "INTEGER"),
 ]
 
 

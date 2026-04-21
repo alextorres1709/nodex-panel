@@ -163,6 +163,7 @@ class CompanyInteraction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     company_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=False, index=True)
     contact_id = db.Column(db.Integer, db.ForeignKey("company_contacts.id"), nullable=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey("leads.id"), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)  # quién registró
     type = db.Column(db.String(20), nullable=False, default="note")  # email, call, meeting, note
     status = db.Column(db.String(20), default="done")  # queued, sent, done, failed
@@ -175,6 +176,7 @@ class CompanyInteraction(db.Model):
 
     company = db.relationship("Company", foreign_keys=[company_id])
     contact = db.relationship("CompanyContact", foreign_keys=[contact_id])
+    lead = db.relationship("Lead", foreign_keys=[lead_id])
     user = db.relationship("User", foreign_keys=[user_id])
     template = db.relationship("EmailTemplate", foreign_keys=[template_id])
 
