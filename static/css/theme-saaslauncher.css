@@ -349,15 +349,15 @@ body::before {
    ═══════════════════════════════════════════════════════════ */
 .kpi-card {
     position: relative;
-    padding: 22px 24px !important;
+    padding: 20px 22px !important;
     overflow: hidden;
     border: 1px solid var(--ss-border) !important;
-    border-radius: 18px !important;
-    min-height: 148px;
+    border-radius: 16px !important;
+    min-height: 140px;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
-    background: linear-gradient(180deg, #0D0D12 0%, #08080B 100%) !important;
+    background: #0B0B10 !important;
 }
 
 /* ─── Label → colored pill ──────────────────────────────────── */
@@ -366,29 +366,32 @@ body::before {
 .kpi-card.accent-purple .kpi-label,
 .kpi-card.accent-green  .kpi-label,
 .kpi-card.accent-amber  .kpi-label,
+.kpi-card.accent-yellow .kpi-label,
 .kpi-card.accent-red    .kpi-label,
 .kpi-card.accent-pink   .kpi-label {
     display: inline-block !important;
     align-self: flex-start !important;
-    padding: 8px 20px !important;
+    padding: 6px 14px !important;
     border-radius: 999px !important;
-    font-size: 13px !important;
+    font-size: 12px !important;
     font-weight: 500 !important;
-    letter-spacing: -0.003em !important;
+    letter-spacing: 0 !important;
     text-transform: none !important;
-    color: #FFFFFF !important;
     margin: 0 !important;
     line-height: 1.3 !important;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.22);
+    box-shadow: none !important;
+    border: 1px solid transparent !important;
 }
 
-.kpi-card.accent-blue   .kpi-label { background: linear-gradient(180deg, #6B85FF 0%, #4258F0 100%) !important; }
-.kpi-card.accent-cyan   .kpi-label { background: linear-gradient(180deg, #5EEBF5 0%, #2ECCE0 100%) !important; color: #0A2030 !important; }
-.kpi-card.accent-purple .kpi-label { background: linear-gradient(180deg, #C9A7FF 0%, #A47AF5 100%) !important; }
-.kpi-card.accent-green  .kpi-label { background: linear-gradient(180deg, #4CE09A 0%, #1FAD6B 100%) !important; }
-.kpi-card.accent-amber  .kpi-label { background: linear-gradient(180deg, #FFD24A 0%, #F59E0B 100%) !important; color: #3D2A00 !important; }
-.kpi-card.accent-red    .kpi-label { background: linear-gradient(180deg, #FF8A8A 0%, #EE4B4B 100%) !important; }
-.kpi-card.accent-pink   .kpi-label { background: linear-gradient(180deg, #F798C8 0%, #EC4899 100%) !important; }
+/* Solid, muted, minimal palette — subtle tinted bg + saturated text */
+.kpi-card.accent-blue   .kpi-label { background: rgba(67, 97, 238, 0.14) !important; color: #7A93FF !important; border-color: rgba(67, 97, 238, 0.30) !important; }
+.kpi-card.accent-cyan   .kpi-label { background: rgba(34, 199, 224, 0.14) !important; color: #4BD4EA !important; border-color: rgba(34, 199, 224, 0.30) !important; }
+.kpi-card.accent-purple .kpi-label { background: rgba(150, 103, 255, 0.14) !important; color: #B495FF !important; border-color: rgba(150, 103, 255, 0.30) !important; }
+.kpi-card.accent-green  .kpi-label { background: rgba(31, 173, 107, 0.14) !important; color: #3BD683 !important; border-color: rgba(31, 173, 107, 0.30) !important; }
+.kpi-card.accent-amber  .kpi-label { background: rgba(245, 158, 11, 0.14) !important; color: #F5B547 !important; border-color: rgba(245, 158, 11, 0.30) !important; }
+.kpi-card.accent-yellow .kpi-label { background: rgba(234, 179, 8, 0.14) !important; color: #F2C94C !important; border-color: rgba(234, 179, 8, 0.30) !important; }
+.kpi-card.accent-red    .kpi-label { background: rgba(238, 75, 75, 0.14) !important; color: #FF7A7A !important; border-color: rgba(238, 75, 75, 0.30) !important; }
+.kpi-card.accent-pink   .kpi-label { background: rgba(236, 72, 153, 0.14) !important; color: #F576B8 !important; border-color: rgba(236, 72, 153, 0.30) !important; }
 
 /* ─── Value → big white number at bottom-left ──────────────── */
 .kpi-value {

@@ -63,7 +63,7 @@
 {% set ganados = companies|selectattr('status','equalto','cerrado_ganado')|list|length %}
 
 <!-- KPI strip -->
-<div class="kpi-grid" style="margin-bottom:20px">
+<div class="kpi-grid kpi-grid-5" style="margin-bottom:20px">
     <div class="kpi-card accent-blue">
         <div class="kpi-label">Pre-venta</div>
         <div class="kpi-value tabular">{{ ns.pre }}</div>
@@ -79,12 +79,10 @@
     <div class="kpi-card accent-purple">
         <div class="kpi-label">Prioridad alta</div>
         <div class="kpi-value tabular">{{ ns.alta }}</div>
-        {% if ns.alta %}<div style="font-size:11px;color:var(--text-tertiary);margin-top:4px"><a href="?priority=alta" style="color:var(--accent)">Ver →</a></div>{% endif %}
     </div>
-    <div class="kpi-card" style="border-left:3px solid #ef4444">
-        <div class="kpi-label">Contactos vencidos</div>
-        <div class="kpi-value tabular" style="color:{{ '#ef4444' if ns.due else '' }}">{{ ns.due }}</div>
-        {% if ns.due %}<div style="font-size:11px;color:var(--text-tertiary);margin-top:4px"><a href="?sort=next_contact" style="color:#ef4444">Ver →</a></div>{% endif %}
+    <div class="kpi-card accent-red">
+        <div class="kpi-label">Vencidos</div>
+        <div class="kpi-value tabular">{{ ns.due }}</div>
     </div>
 </div>
 

@@ -40,7 +40,7 @@
     {% for obj in objectives %}
     <div class="idea-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px">
-            <div class="idea-card-title">{{ obj.title }}</div>
+            <a href="{{ url_for('objetivos.view', oid=obj.id) }}" class="idea-card-title" style="text-decoration:none;color:inherit;cursor:pointer">{{ obj.title }}</a>
             <span class="badge badge-{{ obj.priority }}">{{ obj.priority }}</span>
         </div>
         <div class="idea-card-desc">{{ obj.description or 'Sin descripcion' }}</div>

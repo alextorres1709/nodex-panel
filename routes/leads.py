@@ -339,16 +339,50 @@ def _form_to_lead_kwargs(form, existing=None):
     )
 
 
+def _resolve_company_from_form(form, company_id, company_name):
+    """Find-or-create Company from the lead form; propagate company-level fields.
+    Returns (company_id, company_name_cached)."""
+    c_industry = (form.get("company_industry") or "").strip()
+    c_website  = (form.get("company_website") or "").strip()
+    c_problem  = (form.get("company_problem") or "").strip()
+    c_solution = (form.get("company_solution") or "").strip()
+    c_interest = (form.get("company_interest") or "").strip()
+    has_any = any([c_industry, c_website, c_problem, c_solution, c_interest])
+
+    comp = None
+    if company_id:
+        comp = db.session.get(Company, company_id)
+    elif company_name:
+        comp = Company.query.filter(db.func.lower(Company.name) == company_name.lower()).first()
+        if not comp and has_any:
+            comp = Company(name=company_name, industry=c_industry, website=c_website,
+                           problem=c_problem, solution=c_solution, interest=c_interest)
+            db.session.add(comp)
+            db.session.flush()
+
+    if comp:
+        # Only fill empty fields; never overwrite existing company data
+        if c_industry and not (comp.industry or "").strip(): comp.industry = c_industry
+        if c_website  and not (comp.website  or "").strip(): comp.website  = c_website
+        if c_problem  and not (comp.problem  or "").strip(): comp.problem  = c_problem
+        if c_solution and not (comp.solution or "").strip(): comp.solution = c_solution
+        if c_interest and not (comp.interest or "").strip(): comp.interest = c_interest
+        return comp.id, comp.name
+    return None, company_name
+
+
 @leads_bp.route("/leads/create", methods=["POST"])
 @login_required
 def create():
     try:
         kw = _form_to_lead_kwargs(request.form)
-        # Cache company name si se eligió company_id
-        if kw["company_id"] and not kw["company_name_cached"]:
-            comp = db.session.get(Company, kw["company_id"])
-            if comp:
-                kw["company_name_cached"] = comp.name
+        resolved_id, resolved_name = _resolve_company_from_form(
+            request.form, kw["company_id"], kw["company_name_cached"]
+        )
+        if resolved_id:
+            kw["company_id"] = resolved_id
+        if resolved_name:
+            kw["company_name_cached"] = resolved_name
 
         lead = Lead(**kw)
         db.session.add(lead)
@@ -380,13 +414,15 @@ def edit(lid):
         prev_date = lead.next_contact_date
         prev_status = lead.status
         kw = _form_to_lead_kwargs(request.form, existing=lead)
+        resolved_id, resolved_name = _resolve_company_from_form(
+            request.form, kw["company_id"], kw["company_name_cached"]
+        )
+        if resolved_id:
+            kw["company_id"] = resolved_id
+        if resolved_name:
+            kw["company_name_cached"] = resolved_name
         for k, v in kw.items():
             setattr(lead, k, v)
-        # Cache company name si se eligió company_id
-        if lead.company_id and not lead.company_name_cached:
-            comp = db.session.get(Company, lead.company_id)
-            if comp:
-                lead.company_name_cached = comp.name
 
         if lead.next_contact_date and lead.next_contact_date != prev_date:
             _ensure_followup_task(lead, prev_date=prev_date)

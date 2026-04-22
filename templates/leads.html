@@ -348,6 +348,16 @@
         <div><label>Próximo contacto</label><input type="date" name="next_contact_date"></div>
         <div><label>Tags</label><input type="text" name="tags" placeholder="separados por comas"></div>
         <div style="grid-column:1/-1"><label>Notas</label><textarea name="notes" rows="3"></textarea></div>
+        <div style="grid-column:1/-1;border-top:1px solid var(--border-color);padding-top:10px;margin-top:4px">
+            <div style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+                Datos de la empresa (se rellenan solo si creas empresa nueva o están vacíos)
+            </div>
+        </div>
+        <div><label>Sector/Industria</label><input type="text" name="company_industry" placeholder="SaaS, E-commerce, Legal..."></div>
+        <div><label>Website</label><input type="url" name="company_website" placeholder="https://..."></div>
+        <div style="grid-column:1/-1"><label>Problema detectado</label><textarea name="company_problem" rows="2" placeholder="¿Qué dolor tiene esta empresa?"></textarea></div>
+        <div style="grid-column:1/-1"><label>Nuestra solución</label><textarea name="company_solution" rows="2" placeholder="¿Cómo lo resolvemos?"></textarea></div>
+        <div style="grid-column:1/-1"><label>Interés/Estrategia</label><textarea name="company_interest" rows="2" placeholder="Ángulo de aproximación, valor a destacar..."></textarea></div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="closeModal('createLeadModal')">Cancelar</button>

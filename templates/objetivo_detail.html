@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}{{ obj.title }}{% endblock %}
+{% block page_title %}Objetivo{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <a href="{{ url_for('objetivos.index') }}" style="font-size:12px;color:var(--text-tertiary);text-decoration:none">&larr; Objetivos</a>
+        <h1 style="margin-top:4px">{{ obj.title }}</h1>
+        <p class="page-subtitle">{{ obj.description or 'Sin descripcion' }}</p>
+    </div>
+    <div style="display:flex;gap:8px">
+        <span class="badge badge-{{ obj.priority }}">{{ obj.priority }}</span>
+        <span class="badge badge-{{ obj.status }}">{{ obj.status|replace('_',' ') }}</span>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:18px;align-items:start">
+    <div class="idea-card" style="padding:22px">
+        <h3 style="margin:0 0 14px;font-size:14px;color:var(--text-secondary)">Progreso</h3>
+
+        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
+            <div id="progressValue" style="font-size:44px;font-weight:600;color:var(--text-primary);line-height:1">{{ obj.progress or 0 }}%</div>
+            <div style="font-size:12px;color:var(--text-tertiary)">Arrastra la barra o haz click para actualizar</div>
+        </div>
+
+        <div id="progressTrack" data-oid="{{ obj.id }}"
+             style="position:relative;height:14px;background:var(--bg-secondary);border-radius:999px;cursor:pointer;overflow:hidden;margin-bottom:6px">
+            <div id="progressFill"
+                 style="position:absolute;left:0;top:0;bottom:0;width:{{ obj.progress or 0 }}%;
+                        background:linear-gradient(90deg, var(--color-info), var(--color-success));
+                        border-radius:999px;transition:width .15s ease-out"></div>
+            <div id="progressHandle"
+                 style="position:absolute;top:50%;left:{{ obj.progress or 0 }}%;transform:translate(-50%,-50%);
+                        width:22px;height:22px;border-radius:50%;background:#fff;
+                        box-shadow:0 2px 8px rgba(0,0,0,.35);border:2px solid var(--color-info);cursor:grab"></div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-tertiary);margin-bottom:18px">
+            <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+        </div>
+
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+            {% for q in [0, 25, 50, 75, 100] %}
+            <button type="button" class="btn btn-sm btn-secondary" onclick="setProgress({{ q }})">{{ q }}%</button>
+            {% endfor %}
+        </div>
+
+        <div class="okr-chart-card" style="margin-top:24px">
+            <h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Evolucion del progreso</h4>
+            <canvas id="okrChart" height="120"></canvas>
+        </div>
+    </div>
+
+    <div class="idea-card" style="padding:22px">
+        <h3 style="margin:0 0 14px;font-size:14px;color:var(--text-secondary)">Detalles</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+            <div><div style="color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Asignado a</div>
+                 <div>{{ obj.assignee.name if obj.assignee else 'Sin asignar' }}</div></div>
+            <div><div style="color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Proyecto</div>
+                 <div>{{ obj.project.name if obj.project else 'General' }}</div></div>
+            <div><div style="color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Fecha objetivo</div>
+                 <div>{{ obj.target_date.strftime('%d/%m/%Y') if obj.target_date else '—' }}</div></div>
+            <div><div style="color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Creado</div>
+                 <div>{{ obj.created_at.strftime('%d/%m/%Y') }} {% if obj.author %}por {{ obj.author.name }}{% endif %}</div></div>
+            {% if obj.notes %}
+            <div><div style="color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Notas</div>
+                 <div style="white-space:pre-wrap">{{ obj.notes }}</div></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    var track = document.getElementById('progressTrack');
+    var fill = document.getElementById('progressFill');
+    var handle = document.getElementById('progressHandle');
+    var valEl = document.getElementById('progressValue');
+    var oid = track.getAttribute('data-oid');
+    var dragging = false;
+    var saveTimer = null;
+
+    function pctFromEvent(e) {
+        var rect = track.getBoundingClientRect();
+        var x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+        var pct = Math.round(Math.max(0, Math.min(100, (x / rect.width) * 100)));
+        return pct;
+    }
+    function render(pct) {
+        fill.style.width = pct + '%';
+        handle.style.left = pct + '%';
+        valEl.textContent = pct + '%';
+    }
+    function save(pct) {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(function() {
+            var fd = new FormData();
+            fd.append('progress', pct);
+            fetch('/objetivos/' + oid + '/quick-progress', { method: 'POST', body: fd });
+        }, 250);
+    }
+    window.setProgress = function(pct) { render(pct); save(pct); };
+
+    track.addEventListener('click', function(e) {
+        if (dragging) return;
+        var pct = pctFromEvent(e);
+        render(pct); save(pct);
+    });
+    handle.addEventListener('mousedown', function(e) { dragging = true; e.preventDefault(); });
+    document.addEventListener('mousemove', function(e) {
+        if (!dragging) return;
+        var pct = pctFromEvent(e);
+        render(pct);
+    });
+    document.addEventListener('mouseup', function() {
+        if (!dragging) return;
+        dragging = false;
+        save(parseInt(fill.style.width));
+        setTimeout(function() { dragging = false; }, 50);
+    });
+    handle.addEventListener('touchstart', function(e) { dragging = true; });
+    document.addEventListener('touchmove', function(e) {
+        if (!dragging) return;
+        render(pctFromEvent(e));
+    });
+    document.addEventListener('touchend', function() {
+        if (!dragging) return;
+        dragging = false;
+        save(parseInt(fill.style.width));
+    });
+
+    fetch('/api/objetivos/' + oid + '/snapshots')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (!d.points || d.points.length < 2) return;
+            var ctx = document.getElementById('okrChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: d.points.map(function(p) { return p.date ? new Date(p.date).toLocaleDateString() : ''; }),
+                    datasets: [{
+                        data: d.points.map(function(p) { return p.progress; }),
+                        borderColor: '#4361EE',
+                        backgroundColor: 'rgba(67,97,238,0.08)',
+                        tension: 0.25,
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#4361EE',
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#888', font: { size: 11 } } },
+                        x: { grid: { display: false }, ticks: { color: '#888', font: { size: 11 } } },
+                    },
+                    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#111', borderWidth: 0 } },
+                },
+            });
+        });
+})();
+</script>
+{% endblock %}

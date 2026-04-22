@@ -104,14 +104,14 @@ function applyChartDefaults() {
     Chart.defaults.plugins.legend.labels.boxHeight = 6;
     Chart.defaults.plugins.legend.labels.padding = 14;
     Chart.defaults.elements.arc.borderWidth = 0;
-    Chart.defaults.elements.line.borderWidth = 2.25;
-    Chart.defaults.elements.line.tension = 0.35;
+    Chart.defaults.elements.line.borderWidth = 1.75;
+    Chart.defaults.elements.line.tension = 0.25;
     Chart.defaults.elements.line.borderCapStyle = 'round';
     Chart.defaults.elements.line.borderJoinStyle = 'round';
     Chart.defaults.elements.point.radius = 0;
-    Chart.defaults.elements.point.hoverRadius = 5;
+    Chart.defaults.elements.point.hoverRadius = 4;
     Chart.defaults.elements.point.hoverBorderWidth = 2;
-    Chart.defaults.elements.bar.borderRadius = 4;
+    Chart.defaults.elements.bar.borderRadius = 3;
     Chart.defaults.elements.bar.borderSkipped = false;
     if (Chart.register && !Chart.registry.plugins.get('nodexCrosshair')) {
         Chart.register(CrosshairPlugin);
@@ -146,8 +146,7 @@ function createChart(canvasId, type, labels, data, label) {
         bg = theme.colors.slice(0, data.length);
     } else if (isLine) {
         const grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 240);
-        grad.addColorStop(0, hexToRgba(primary, 0.38));
-        grad.addColorStop(0.6, hexToRgba(primary, 0.08));
+        grad.addColorStop(0, hexToRgba(primary, 0.16));
         grad.addColorStop(1, hexToRgba(primary, 0.0));
         bg = grad;
     } else {
@@ -163,9 +162,9 @@ function createChart(canvasId, type, labels, data, label) {
                 data: data,
                 backgroundColor: bg,
                 borderColor: isDoughnut ? 'transparent' : primary,
-                borderWidth: isDoughnut ? 0 : 2.25,
-                borderRadius: isDoughnut ? 0 : 4,
-                tension: 0.35,
+                borderWidth: isDoughnut ? 0 : 1.75,
+                borderRadius: isDoughnut ? 0 : 3,
+                tension: 0.25,
                 fill: isLine,
                 pointBackgroundColor: primary,
                 pointBorderColor: theme.tooltipBg,

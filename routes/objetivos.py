@@ -122,6 +122,50 @@ def edit(oid):
     return redirect(url_for("objetivos.index"))
 
 
+@objetivos_bp.route("/objetivos/<int:oid>")
+@login_required
+def view(oid):
+    obj = db.session.get(Objective, oid)
+    if not obj:
+        flash("Objetivo no encontrado", "error")
+        return redirect(url_for("objetivos.index"))
+    projects = Project.query.order_by(Project.name).all()
+    users = User.query.filter_by(active=True).order_by(User.name).all()
+    snapshots = obj.snapshots.order_by(ObjectiveSnapshot.created_at.asc()).all()
+    return render_template(
+        "objetivo_detail.html",
+        obj=obj,
+        projects=projects,
+        users=users,
+        snapshots=snapshots,
+    )
+
+
+@objetivos_bp.route("/objetivos/<int:oid>/quick-progress", methods=["POST"])
+@login_required
+def quick_progress(oid):
+    obj = db.session.get(Objective, oid)
+    if not obj:
+        return jsonify({"error": "not_found"}), 404
+    try:
+        new = int(request.form.get("progress", 0) or 0)
+    except ValueError:
+        return jsonify({"error": "invalid"}), 400
+    new = max(0, min(100, new))
+    prev = obj.progress or 0
+    if new != prev:
+        obj.progress = new
+        if new >= 100 and obj.status != "completado":
+            obj.status = "completado"
+        elif new > 0 and obj.status == "nuevo":
+            obj.status = "en_progreso"
+        _record_snapshot(obj)
+        log_activity("update", "objective", oid, f"Progreso: {prev}% \u2192 {new}%")
+        db.session.commit()
+        push_change("objectives", oid)
+    return jsonify({"ok": True, "progress": new, "status": obj.status})
+
+
 @objetivos_bp.route("/objetivos/delete/<int:oid>", methods=["POST"])
 @login_required
 def delete(oid):
