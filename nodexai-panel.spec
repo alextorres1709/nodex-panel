@@ -165,8 +165,8 @@ app = BUNDLE(
     info_plist={
         'CFBundleName': 'NodexAI Panel',
         'CFBundleDisplayName': 'NodexAI Panel',
-        'CFBundleVersion': '4.5.16',
-        'CFBundleShortVersionString': '4.5.16',
+        'CFBundleVersion': '4.5.17',
+        'CFBundleShortVersionString': '4.5.17',
         'NSHighResolutionCapable': True,
         'LSMinimumSystemVersion': '10.15.0',
         'NSCameraUsageDescription': 'NodexAI Panel necesita acceso a la camara para videollamadas.',
