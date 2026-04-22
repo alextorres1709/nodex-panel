@@ -317,6 +317,9 @@ class SyncManager:
             try:
                 from services.sse import sse_bus
                 sse_bus.publish("sync", {"version": self.sync_version})
+                
+                from services.presence import _get_snapshot
+                sse_bus.publish("presence", _get_snapshot())
             except Exception:
                 pass
 

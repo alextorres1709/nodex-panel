@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.5.33 — 2026-04-23
+*Implementado por Alex*
+- **Sincronización en tiempo real de Presencia:** Ahora el widget de "Equipo en línea" se actualiza de forma instantánea tan pronto como el motor de sincronización detecta cambios en la actividad del socio, eliminando el retraso previo de 30 segundos.
+
 ## v4.5.32 — 2026-04-23
 *Implementado por Alex*
 - **Ajuste Kanban definitivo:** Forzadas las 4 columnas en grid estricto (`repeat(4, minmax(0, 1fr))`) para que la columna "En espera" jamás haga wrap y se quede debajo de las otras.
