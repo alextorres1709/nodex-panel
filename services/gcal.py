@@ -394,6 +394,12 @@ def bulk_sync_user(user_id: int) -> Tuple[int, int]:
                 synced += 1
             else:
                 failed += 1
+        
+        if task.due_date and not _get_item_gcal_id("task_event", task.id, user_id):
+            if push_item("task_event", task, user_id):
+                synced += 1
+            else:
+                failed += 1
 
     # ── Payments (active, with next_date) ────────────────────────────────
     payments = Payment.query.filter(
@@ -471,6 +477,19 @@ def _item_body_task(task) -> Optional[dict]:
     # Ya no se usa para generar eventos de GCal, las tareas van por la API de Tasks.
     return None
 
+def _item_body_task_event(task) -> Optional[dict]:
+    d = task.safe_due_date
+    if not d:
+        return None
+    icon = "✅" if task.status == "completada" else "🏁"
+    return {
+        "summary": f"{icon} Fin tarea: {task.title}",
+        "description": task.description or "",
+        "start": {"date": d.isoformat()},
+        "end":   {"date": (d + timedelta(days=1)).isoformat()},
+        "colorId": "11",  # Tomato
+    }
+
 
 def _item_body_payment(payment) -> Optional[dict]:
     if not payment.next_date:
@@ -518,6 +537,7 @@ def _item_body_invoice(invoice) -> Optional[dict]:
 
 _ITEM_BODY_FNS = {
     "task":    _item_body_task,
+    "task_event": _item_body_task_event,
     "payment": _item_body_payment,
     "project": _item_body_project,
     "invoice": _item_body_invoice,
@@ -543,7 +563,9 @@ def push_item(item_type: str, item, user_id: int) -> Optional[str]:
                 "title": item.title,
                 "notes": item.description or "",
             }
-            if item.safe_due_date:
+            if getattr(item, "created_at", None):
+                body["due"] = item.created_at.isoformat() + "Z"
+            elif item.safe_due_date:
                 body["due"] = item.safe_due_date.isoformat() + "T00:00:00.000Z"
             if item.status == "completada":
                 body["status"] = "completed"

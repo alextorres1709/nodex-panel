@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.5.22 — 2026-04-22
+*Implementado por Alex*
+- **Sincronización de Tareas según creación y vencimiento**: Las tareas ahora se muestran en el calendario (tanto local como en Google Calendar/Tasks) basándose en su fecha de creación (`created_at`) como la "tarea", y como un evento "Fin tarea" en su `due_date`, incluso si no tienen fecha de vencimiento configurada.
+- **Notificaciones periódicas de calendario**: Se ha añadido un recordatorio local recurrente (cada 30 min) mediante notificaciones de sistema (macOS) informando de Eventos, Deadlines de Proyectos, Pagos Vencidos y Fin de Tareas planificados para "hoy".
+
 ## v4.5.16 — 2026-04-22
 *Implementado por Alex*
 - **Integración de Tareas a Google Tasks**: Ahora las tareas se sincronizan con la API de Google Tasks en lugar de eventos regulares del calendario. Se requiere el alcance `https://www.googleapis.com/auth/tasks`.

@@ -51,10 +51,8 @@ def index():
     range_start = cells[0]["date"]
     range_end = cells[-1]["date"]
 
-    tasks = _safe_query(lambda: Task.query.filter(
-        Task.due_date.isnot(None),
-        Task.due_date >= range_start,
-        Task.due_date <= range_end,
+    # Tareas para el rango (usamos pending/en progreso)
+    all_pending_tasks = _safe_query(lambda: Task.query.filter(
         Task.status.in_(["pendiente", "en_progreso"]),
     ).all())
 
@@ -67,7 +65,7 @@ def index():
             if t.assigned_to:
                 return t.assigned_to == user_id
             return True
-        tasks = [t for t in tasks if is_for_user(t)]
+        all_pending_tasks = [t for t in all_pending_tasks if is_for_user(t)]
 
     payments = _safe_query(lambda: Payment.query.filter(
         Payment.next_date.isnot(None),
@@ -97,10 +95,18 @@ def index():
 
     date_to_cell = {c["date"]: c for c in cells}
 
-    for t in tasks:
-        if t.due_date and t.due_date in date_to_cell:
-            date_to_cell[t.due_date]["events"].append({
+    for t in all_pending_tasks:
+        c_date = t.created_at.date() if getattr(t, "created_at", None) else None
+        if c_date and range_start <= c_date <= range_end and c_date in date_to_cell:
+            date_to_cell[c_date]["events"].append({
                 "type": "task", "text": t.title, "link": "/tareas",
+                "time": None, "id": None,
+            })
+        
+        d_date = t.due_date
+        if d_date and range_start <= d_date <= range_end and d_date in date_to_cell:
+            date_to_cell[d_date]["events"].append({
+                "type": "deadline", "text": f"Fin tarea: {t.title}", "link": "/tareas",
                 "time": None, "id": None,
             })
 
@@ -482,3 +488,41 @@ def _event_dict(ev):
         "creator_name": ev.creator.name if ev.creator else None,
         "assignee_name": ev.assignee.name if ev.assignee else None,
     }
+
+# ═══ Recordatorios de Eventos (AJAX) ═══
+
+@calendar_bp.route("/api/calendar/due-reminders", methods=["GET"])
+@login_required
+def api_calendar_due_reminders():
+    """Devuelve eventos, pagos y deadlines que ocurren hoy, para notificar cada 30 min."""
+    today_date = date.today()
+    reminders = []
+
+    events = CalendarEvent.query.filter_by(date=today_date).all()
+    for ev in events:
+        reminders.append({"type": "Reunión/Evento", "text": f"{ev.title} a las {ev.start_time or 'todo el día'}"})
+
+    payments = Payment.query.filter_by(next_date=today_date, status="activo").all()
+    for p in payments:
+        reminders.append({"type": "Pago Vencido", "text": f"{p.name} ({p.amount}€)"})
+
+    projects = Project.query.filter_by(deadline=today_date, status="activo").all()
+    for p in projects:
+        reminders.append({"type": "Deadline de Proyecto", "text": p.name})
+
+    # Tareas (como task_events) que vencen hoy y conciernen a este usuario
+    user_id = g.user.id
+    tasks = Task.query.filter_by(due_date=today_date).filter(Task.status.in_(["pendiente", "en_progreso"])).all()
+    for t in tasks:
+        is_for_me = False
+        if t.assignees:
+            is_for_me = any(a.id == user_id for a in t.assignees)
+        elif t.assigned_to:
+            is_for_me = (t.assigned_to == user_id)
+        else:
+            is_for_me = True # compartida
+            
+        if is_for_me:
+            reminders.append({"type": "Fin Tarea", "text": t.title})
+
+    return jsonify(reminders)
