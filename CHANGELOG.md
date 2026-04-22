@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.5.31 — 2026-04-23
+*Implementado por Alex*
+- **Hotfix Migraciones SQLite:** Se ha añadido la migración automática de las nuevas columnas de la tabla de usuarios (`last_seen_at`, `is_tracking`, `tracking_started`) a `app.py` para asegurar que el DMG no crashee en equipos que actualizan desde versiones anteriores sin estas columnas.
+
 ## v4.5.30 — 2026-04-23
 *Implementado por Alex*
 - **Sincronización de Leads en App de Escritorio:** Solucionado el problema por el cual los leads y sus interacciones no se sincronizaban en la aplicación de escritorio (`leads` y `lead_interactions` añadidos al motor de sincronización).

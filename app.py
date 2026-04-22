@@ -22,6 +22,9 @@ MIGRATIONS = [
     # NOTE: usamos `FALSE` (no `0`) porque PostgreSQL rechaza `0` como
     # default de BOOLEAN. SQLite acepta ambos desde 3.23+.
     ("users", "totp_enabled", "BOOLEAN DEFAULT FALSE"),
+    ("users", "last_seen_at", "TIMESTAMP"),
+    ("users", "is_tracking", "BOOLEAN DEFAULT FALSE"),
+    ("users", "tracking_started", "VARCHAR(100)"),
     ("tasks", "estimated_minutes", "INTEGER DEFAULT 0"),
     ("tasks", "kanban_order", "INTEGER DEFAULT 0"),
     ("tasks", "company_id", "INTEGER"),
