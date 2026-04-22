@@ -21,20 +21,29 @@ def _gcal_push_item(item_type, item):
                 for uid in assignee_ids:
                     if gcal_svc.is_configured() and gcal_svc.is_connected(uid):
                         gcal_svc.push_item(item_type, item, uid)
-                        if item.due_date:
+                        if getattr(item, "due_date", None):
                             gcal_svc.push_item("task_event", item, uid)
+                        else:
+                            gcal_svc.delete_item_event("task_event", item.id, uid)
             else:
                 # Tarea sin asignar: sincroniza a todos los usuarios activos
                 from models import User
                 for u in User.query.filter_by(active=True).all():
                     if gcal_svc.is_configured() and gcal_svc.is_connected(u.id):
                         gcal_svc.push_item(item_type, item, u.id)
-                        if item.due_date:
+                        if getattr(item, "due_date", None):
                             gcal_svc.push_item("task_event", item, u.id)
+                        else:
+                            gcal_svc.delete_item_event("task_event", item.id, u.id)
         else:
             # Fallback or other items to current user
             if gcal_svc.is_configured() and getattr(g, "user", None) and gcal_svc.is_connected(g.user.id):
                 gcal_svc.push_item(item_type, item, g.user.id)
+                if item_type == "task":
+                    if getattr(item, "due_date", None):
+                        gcal_svc.push_item("task_event", item, g.user.id)
+                    else:
+                        gcal_svc.delete_item_event("task_event", item.id, g.user.id)
     except Exception as e:
         pass
 

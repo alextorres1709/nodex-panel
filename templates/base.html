@@ -1066,8 +1066,14 @@
 
         // Check non-task calendar reminders every 30 mins
         function checkCalendarReminders() {
+            var lastTime = localStorage.getItem('nodex_cal_reminders_time');
+            var now = Date.now();
+            if (lastTime && (now - parseInt(lastTime)) < 1800000) {
+                return;
+            }
             fetch('/api/calendar/due-reminders').then(function(r) { return r.json(); }).then(function(data) {
                 if (data && data.length > 0) {
+                    localStorage.setItem('nodex_cal_reminders_time', now.toString());
                     data.forEach(function(r) {
                         sendNativeNotification(r.type + ': ' + r.text, 'Hoy en tu calendario');
                     });
@@ -1075,7 +1081,7 @@
             }).catch(function() {});
         }
         setTimeout(checkCalendarReminders, 5000);
-        setInterval(checkCalendarReminders, 1800000);
+        setInterval(checkCalendarReminders, 60000);
 
         // ── SSE connection (replaces 3 separate polling intervals) ──
         var firstSync = true;
