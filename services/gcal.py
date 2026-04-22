@@ -563,8 +563,17 @@ def push_item(item_type: str, item, user_id: int) -> Optional[str]:
                 "title": item.title,
                 "notes": item.description or "",
             }
+            c_date_str = None
             if getattr(item, "created_at", None):
-                body["due"] = item.created_at.isoformat() + "Z"
+                try:
+                    if hasattr(item.created_at, "date"):
+                        c_date_str = item.created_at.date().isoformat()
+                    elif isinstance(item.created_at, str):
+                        c_date_str = item.created_at[:10]
+                except: pass
+            
+            if c_date_str:
+                body["due"] = f"{c_date_str}T00:00:00.000Z"
             elif item.safe_due_date:
                 body["due"] = item.safe_due_date.isoformat() + "T00:00:00.000Z"
             if item.status == "completada":
