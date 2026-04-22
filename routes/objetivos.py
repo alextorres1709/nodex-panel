@@ -66,6 +66,9 @@ def create():
             progress=int(request.form.get("progress", 0) or 0),
             target_date=datetime.strptime(td, "%Y-%m-%d").date() if td else None,
             project_id=int(pid) if pid else None,
+            created_by=g.user.id,
+            notes=request.form.get("notes", "").strip(),
+        )
         db.session.add(obj)
         db.session.flush()
 
