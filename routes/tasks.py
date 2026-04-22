@@ -15,10 +15,12 @@ def _gcal_push_item(item_type, item):
         from services import gcal as gcal_svc
         from flask import g
         if item_type == "task":
-            if hasattr(item, "assignees") and item.assignees:
-                for assignee in item.assignees:
-                    if gcal_svc.is_configured() and gcal_svc.is_connected(assignee.id):
-                        gcal_svc.push_item(item_type, item, assignee.id)
+            has_assignees = hasattr(item, "assignees") and item.assignees
+            if has_assignees or getattr(item, "assigned_to", None):
+                assignee_ids = [a.id for a in item.assignees] if has_assignees else [item.assigned_to]
+                for uid in assignee_ids:
+                    if gcal_svc.is_configured() and gcal_svc.is_connected(uid):
+                        gcal_svc.push_item(item_type, item, uid)
             else:
                 # Tarea sin asignar: sincroniza a todos los usuarios activos
                 from models import User
@@ -38,10 +40,12 @@ def _gcal_delete_item(item_type, item_id, item=None):
         from services import gcal as gcal_svc
         from flask import g
         if item_type == "task" and item:
-            if hasattr(item, "assignees") and item.assignees:
-                for assignee in item.assignees:
-                    if gcal_svc.is_configured() and gcal_svc.is_connected(assignee.id):
-                        gcal_svc.delete_item_event(item_type, item_id, assignee.id)
+            has_assignees = hasattr(item, "assignees") and item.assignees
+            if has_assignees or getattr(item, "assigned_to", None):
+                assignee_ids = [a.id for a in item.assignees] if has_assignees else [item.assigned_to]
+                for uid in assignee_ids:
+                    if gcal_svc.is_configured() and gcal_svc.is_connected(uid):
+                        gcal_svc.delete_item_event(item_type, item_id, uid)
             else:
                 from models import User
                 for u in User.query.filter_by(active=True).all():

@@ -61,7 +61,13 @@ def index():
     # Filter tasks: keep if unassigned or assigned to current user
     user_id = getattr(g, "user", None).id if getattr(g, "user", None) else None
     if user_id:
-        tasks = [t for t in tasks if not t.assignees or any(a.id == user_id for a in t.assignees)]
+        def is_for_user(t):
+            if t.assignees:
+                return any(a.id == user_id for a in t.assignees)
+            if t.assigned_to:
+                return t.assigned_to == user_id
+            return True
+        tasks = [t for t in tasks if is_for_user(t)]
 
     payments = _safe_query(lambda: Payment.query.filter(
         Payment.next_date.isnot(None),

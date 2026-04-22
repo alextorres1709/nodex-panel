@@ -384,7 +384,10 @@ def bulk_sync_user(user_id: int) -> Tuple[int, int]:
     ).all()
     for task in tasks:
         # Only sync if unassigned or assigned to this user
-        if task.assignees and not any(a.id == user_id for a in task.assignees):
+        if task.assignees:
+            if not any(a.id == user_id for a in task.assignees):
+                continue
+        elif getattr(task, "assigned_to", None) and task.assigned_to != user_id:
             continue
         if not _get_item_gcal_id("task", task.id, user_id):
             if push_item("task", task, user_id):
