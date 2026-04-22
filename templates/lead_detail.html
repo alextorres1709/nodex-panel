@@ -41,6 +41,9 @@
         {% endif %}
         <button class="btn btn-secondary" onclick="openModal('enrollModal')">+ Inscribir en secuencia</button>
         <button class="btn btn-secondary" onclick="openModal('editLeadModal')">Editar</button>
+        <form method="post" action="{{ url_for('leads.delete', lid=lead.id) }}" style="display:inline">
+            <button class="btn btn-secondary" style="color:#ef4444; border-color:rgba(239,68,68,0.2)" onclick="return confirm('¿Eliminar definitivamente este lead?')">Eliminar</button>
+        </form>
         {% if lead.status != 'cliente' %}
         <form method="post" action="{{ url_for('leads.convert_client', lid=lead.id) }}" style="display:inline">
             <button class="btn btn-primary" onclick="return confirm('Convertir este lead en cliente?')">Convertir a cliente</button>

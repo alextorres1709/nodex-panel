@@ -106,6 +106,7 @@ def index():
     kanban = {
         "pendiente": [t for t in tasks if t.status == "pendiente"],
         "en_progreso": [t for t in tasks if t.status == "en_progreso"],
+        "en_espera": [t for t in tasks if t.status == "en_espera"],
         "completada": [t for t in tasks if t.status == "completada"],
     }
 
@@ -117,6 +118,7 @@ def index():
     total = sum(status_counts.values())
     pending = status_counts.get("pendiente", 0)
     in_progress = status_counts.get("en_progreso", 0)
+    on_hold = status_counts.get("en_espera", 0)
     completed = status_counts.get("completada", 0)
     overdue = db.session.query(func.count(Task.id)).filter(
         and_(Task.due_date < date.today(), Task.status != "completada")
@@ -129,7 +131,7 @@ def index():
                            sel_status=status, sel_priority=priority, sel_assigned=assigned, view=view,
                            today=date.today(), reminder_choices=REMINDER_CHOICES,
                            stats={"total": total, "pending": pending, "in_progress": in_progress,
-                                  "completed": completed, "overdue": overdue})
+                                  "on_hold": on_hold, "completed": completed, "overdue": overdue})
 
 
 @tasks_bp.route("/tareas/create", methods=["POST"])
@@ -383,7 +385,7 @@ def api_move(tid):
     new_status = data.get("status", t.status)
     new_order = data.get("order", t.kanban_order)
     prev_status = t.status
-    if new_status in ("pendiente", "en_progreso", "completada"):
+    if new_status in ("pendiente", "en_progreso", "en_espera", "completada"):
         t.status = new_status
     t.kanban_order = new_order
     log_activity("update", "task", t.id, f"Movida a {t.status}: {t.title}")
@@ -480,7 +482,7 @@ def api_due_reminders():
 
     with sync_locked():
         tasks = Task.query.filter(
-            Task.status.in_(["pendiente", "en_progreso"]),
+            Task.status.in_(["pendiente", "en_progreso", "en_espera"]),
             Task.reminder_minutes > 0,
         ).all()
 

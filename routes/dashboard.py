@@ -29,10 +29,10 @@ def index():
     # ── Core counts ──
     active_projects = _safe(lambda: Project.query.filter_by(status="activo").count())
     pending_tasks = _safe(lambda: Task.query.filter(
-        Task.status.in_(["pendiente", "en_progreso"])).count())
+        Task.status.in_(["pendiente", "en_progreso", "en_espera"])).count())
     overdue_tasks = _safe(lambda: Task.query.filter(
         Task.due_date < today,
-        Task.status.in_(["pendiente", "en_progreso"])).count())
+        Task.status.in_(["pendiente", "en_progreso", "en_espera"])).count())
     total_tasks = _safe(lambda: Task.query.count())
     completed_tasks = _safe(lambda: Task.query.filter_by(status="completada").count())
     new_ideas = _safe(lambda: Idea.query.filter_by(status="nueva").count())
@@ -67,7 +67,7 @@ def index():
     ).subquery()
     my_tasks = _safe(lambda: Task.query.options(joinedload(Task.project)).filter(
         db.or_(Task.assigned_to == user.id, Task.id.in_(assigned_via_m2m)),
-        Task.status.in_(["pendiente", "en_progreso"]),
+        Task.status.in_(["pendiente", "en_progreso", "en_espera"]),
     ).order_by(
         Task.due_date.asc().nullslast(),
         Task.priority.desc(),
@@ -184,7 +184,7 @@ def index():
     # ── Tareas atrasadas concretas (top 5) — para alerta de acción rápida ──
     overdue_task_list = _safe(lambda: Task.query.options(joinedload(Task.project)).filter(
         Task.due_date < today,
-        Task.status.in_(["pendiente", "en_progreso"]),
+        Task.status.in_(["pendiente", "en_progreso", "en_espera"]),
     ).order_by(Task.due_date.asc()).limit(5).all(), [])
 
     # ── Top facturas pendientes de cobro (impagadas / vencidas) ──

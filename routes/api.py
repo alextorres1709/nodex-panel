@@ -416,7 +416,7 @@ def api_dashboard():
         "balance": monthly_income - monthly_cost,
         "mrr": mrr,
         "active_projects": Project.query.filter_by(status="activo").count(),
-        "pending_tasks": Task.query.filter(Task.status.in_(["pendiente", "en_progreso"])).count(),
+        "pending_tasks": Task.query.filter(Task.status.in_(["pendiente", "en_progreso", "en_espera"])).count(),
         "total_clients": Client.query.count(),
         "new_ideas": Idea.query.filter_by(status="nueva").count(),
     })

@@ -55,6 +55,7 @@ def view(pid):
     task_counts = {
         "pendiente": sum(1 for t in tasks if t.status == "pendiente"),
         "en_progreso": sum(1 for t in tasks if t.status == "en_progreso"),
+        "en_espera": sum(1 for t in tasks if t.status == "en_espera"),
         "completada": sum(1 for t in tasks if t.status == "completada"),
     }
 

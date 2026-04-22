@@ -54,9 +54,9 @@ def index():
     tasks_completed = Task.query.filter(
         Task.status == "completada",
     ).count()
-    tasks_pending = Task.query.filter(Task.status.in_(["pendiente", "en_progreso"])).count()
+    tasks_pending = Task.query.filter(Task.status.in_(["pendiente", "en_progreso", "en_espera"])).count()
     tasks_overdue = Task.query.filter(
-        Task.due_date < today, Task.status.in_(["pendiente", "en_progreso"])
+        Task.due_date < today, Task.status.in_(["pendiente", "en_progreso", "en_espera"])
     ).count()
 
     # ── Clients ──

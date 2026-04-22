@@ -348,6 +348,9 @@ def delete_event(gcal_event_id: str, user_id: int) -> bool:
         log.info(f"GCal event deleted: {gcal_event_id}")
         return True
     except Exception as e:
+        if "404" in str(e) or "410" in str(e):
+            log.info(f"GCal event {gcal_event_id} already deleted remotely.")
+            return True
         log.warning(f"GCal delete failed for {gcal_event_id}: {e}")
         return False
 
@@ -380,7 +383,7 @@ def bulk_sync_user(user_id: int) -> Tuple[int, int]:
     # ── Tasks (pending / in-progress with due_date) ──────────────────────
     tasks = Task.query.filter(
         Task.due_date.isnot(None),
-        Task.status.in_(["pendiente", "en_progreso"]),
+        Task.status.in_(["pendiente", "en_progreso", "en_espera"]),
     ).all()
     for task in tasks:
         # Only sync if unassigned or assigned to this user
@@ -584,7 +587,14 @@ def push_item(item_type: str, item, user_id: int) -> Optional[str]:
             existing_id = _get_item_gcal_id(item_type, item.id, user_id)
             if existing_id:
                 body["id"] = existing_id
-                result = service.tasks().update(tasklist="@default", task=existing_id, body=body).execute()
+                try:
+                    result = service.tasks().update(tasklist="@default", task=existing_id, body=body).execute()
+                except Exception as e:
+                    if "404" in str(e) or "410" in str(e):
+                        del body["id"]
+                        result = service.tasks().insert(tasklist="@default", body=body).execute()
+                    else:
+                        raise e
             else:
                 result = service.tasks().insert(tasklist="@default", body=body).execute()
                 
@@ -609,11 +619,22 @@ def push_item(item_type: str, item, user_id: int) -> Optional[str]:
     existing_id = _get_item_gcal_id(item_type, item.id, user_id)
     try:
         if existing_id:
-            result = service.events().update(
-                calendarId=GCAL_CALENDAR_ID,
-                eventId=existing_id,
-                body=body,
-            ).execute()
+            try:
+                result = service.events().update(
+                    calendarId=GCAL_CALENDAR_ID,
+                    eventId=existing_id,
+                    body=body,
+                ).execute()
+            except Exception as e:
+                if "404" in str(e) or "410" in str(e):
+                    # Event was deleted remotely, re-create it
+                    del body["id"] if "id" in body else None
+                    result = service.events().insert(
+                        calendarId=GCAL_CALENDAR_ID,
+                        body=body,
+                    ).execute()
+                else:
+                    raise e
         else:
             result = service.events().insert(
                 calendarId=GCAL_CALENDAR_ID,
@@ -647,6 +668,10 @@ def delete_item_event(item_type: str, item_id: int, user_id: int) -> bool:
             _delete_item_gcal_mapping(item_type, item_id, user_id)
             return True
         except Exception as e:
+            if "404" in str(e) or "410" in str(e):
+                log.info(f"Google Task {gcal_id} already deleted remotely.")
+                _delete_item_gcal_mapping(item_type, item_id, user_id)
+                return True
             log.warning(f"Google Tasks delete failed for {gcal_id}: {e}")
             return False
 

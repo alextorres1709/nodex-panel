@@ -117,7 +117,7 @@
     </div>
     <select name="status">
         <option value="">Todos los estados</option>
-        {% for s in ['pendiente','en_progreso','completada'] %}
+        {% for s in ['pendiente','en_progreso','en_espera','completada'] %}
         <option value="{{ s }}" {{ 'selected' if sel_status==s }}>{{ s|replace('_',' ')|capitalize }}</option>
         {% endfor %}
     </select>
@@ -142,7 +142,7 @@
 {% if view == 'kanban' %}
 <!-- ═══ KANBAN BOARD ═══ -->
 <div class="kanban-board">
-    {% for col_status, col_label, col_color in [('pendiente','Pendiente','amber'),('en_progreso','En Progreso','blue'),('completada','Completada','green')] %}
+    {% for col_status, col_label, col_color in [('pendiente','Pendiente','amber'),('en_progreso','En Progreso','blue'),('en_espera','En Espera','purple'),('completada','Completada','green')] %}
     <div class="kanban-column" data-status="{{ col_status }}">
         <div class="kanban-column-header kanban-header-{{ col_color }}">
             <span>{{ col_label }}</span>
@@ -395,6 +395,7 @@
                     <div class="form-group"><label>Estado</label><select name="status">
                             <option value="pendiente">Pendiente</option>
                             <option value="en_progreso">En progreso</option>
+                            <option value="en_espera">En espera</option>
                             <option value="completada">Completada</option>
                         </select></div>
                 </div>

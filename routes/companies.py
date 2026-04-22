@@ -155,6 +155,7 @@ def view(cid):
     task_counts = {
         "pendiente": sum(1 for t in tasks if t.status == "pendiente"),
         "en_progreso": sum(1 for t in tasks if t.status == "en_progreso"),
+        "en_espera": sum(1 for t in tasks if t.status == "en_espera"),
         "completada": sum(1 for t in tasks if t.status == "completada"),
     }
     ideas = Idea.query.filter_by(company_id=cid).order_by(Idea.votes.desc(), Idea.created_at.desc()).all()

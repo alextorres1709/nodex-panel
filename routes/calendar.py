@@ -53,7 +53,7 @@ def index():
 
     # Tareas para el rango (usamos pending/en progreso)
     all_pending_tasks = _safe_query(lambda: Task.query.filter(
-        Task.status.in_(["pendiente", "en_progreso"]),
+        Task.status.in_(["pendiente", "en_progreso", "en_espera"]),
     ).all())
 
     # Filter tasks: keep if unassigned or assigned to current user
@@ -512,7 +512,7 @@ def api_calendar_due_reminders():
 
     # Tareas (como task_events) que vencen hoy y conciernen a este usuario
     user_id = g.user.id
-    tasks = Task.query.filter_by(due_date=today_date).filter(Task.status.in_(["pendiente", "en_progreso"])).all()
+    tasks = Task.query.filter_by(due_date=today_date).filter(Task.status.in_(["pendiente", "en_progreso", "en_espera"])).all()
     for t in tasks:
         is_for_me = False
         if t.assignees:

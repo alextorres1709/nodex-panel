@@ -35,8 +35,8 @@ def generate_financial_summary():
     )
 
     # Tasks
-    pending = Task.query.filter(Task.status.in_(["pendiente", "en_progreso"])).count()
-    overdue = Task.query.filter(Task.due_date < today, Task.status.in_(["pendiente", "en_progreso"])).count()
+    pending = Task.query.filter(Task.status.in_(["pendiente", "en_progreso", "en_espera"])).count()
+    overdue = Task.query.filter(Task.due_date < today, Task.status.in_(["pendiente", "en_progreso", "en_espera"])).count()
 
     # Clients
     total_clients = Client.query.count()
@@ -116,9 +116,9 @@ def _build_panel_context():
     proj_active = Project.query.filter_by(status="activo").all()
     overdue = Task.query.filter(
         Task.due_date < today,
-        Task.status.in_(["pendiente", "en_progreso"]),
+        Task.status.in_(["pendiente", "en_progreso", "en_espera"]),
     ).all()
-    pending = Task.query.filter(Task.status.in_(["pendiente", "en_progreso"])).count()
+    pending = Task.query.filter(Task.status.in_(["pendiente", "en_progreso", "en_espera"])).count()
     inv_pending = Invoice.query.filter(Invoice.status.in_(["enviada", "vencida"])).all()
     leads = Client.query.filter_by(pipeline_stage="lead").count()
 

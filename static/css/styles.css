@@ -1104,6 +1104,12 @@ a:hover {
     border-color: rgba(59, 130, 246, 0.15);
 }
 
+.badge-en_espera {
+    background: rgba(139, 92, 246, 0.08);
+    color: #7c3aed;
+    border-color: rgba(139, 92, 246, 0.15);
+}
+
 .badge-pendiente,
 .badge-nueva {
     background: rgba(217, 119, 6, 0.08);
@@ -3038,6 +3044,7 @@ a:hover {
 
 .kanban-header-amber { background: rgba(245, 158, 11, 0.06); color: #d97706; }
 .kanban-header-blue { background: rgba(59, 130, 246, 0.06); color: #2563eb; }
+.kanban-header-purple { background: rgba(139, 92, 246, 0.06); color: #7c3aed; }
 .kanban-header-green { background: rgba(5, 150, 105, 0.06); color: #059669; }
 
 .kanban-count {

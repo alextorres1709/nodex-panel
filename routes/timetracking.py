@@ -57,7 +57,7 @@ def index():
         TimeEntry.user_id == uid,
     ).scalar() or 0
 
-    tasks = Task.query.filter(Task.status.in_(["pendiente", "en_progreso"])).order_by(Task.title).all()
+    tasks = Task.query.filter(Task.status.in_(["pendiente", "en_progreso", "en_espera"])).order_by(Task.title).all()
     projects = Project.query.order_by(Project.name).all()
     users = User.query.filter_by(active=True).all()
 
