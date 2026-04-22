@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.5.28 — 2026-04-22
+*Implementado por Alex*
+- **Sincronización de GCal/Tasks resiliente:** El autosync ahora maneja correctamente errores `404 Not Found` y `410 Gone` al borrar elementos de la API de Google de manera remota, limpiando el mapeo local y permitiendo volver a sincronizar (o borrar) tareas sin que el sistema crashee.
+- **Gestión de Leads mejorada:** Se ha incorporado el borrado directo de Leads desde el panel de listado y la vista detallada de cliente/lead.
+- **Nuevo estado "En Espera" en Tareas:** Nuevo estado para tareas bloqueadas a la espera de feedback de un cliente o proveedor. Integra su propia columna morada en el tablero Kanban y está contabilizado en todos los KPIs y métricas como tarea pendiente/activa.
 ## v4.5.22 — 2026-04-22
 *Implementado por Alex*
 - **Sincronización de Tareas según creación y vencimiento**: Las tareas ahora se muestran en el calendario (tanto local como en Google Calendar/Tasks) basándose en su fecha de creación (`created_at`) como la "tarea", y como un evento "Fin tarea" en su `due_date`, incluso si no tienen fecha de vencimiento configurada.
