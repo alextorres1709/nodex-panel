@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.5.32 — 2026-04-23
+*Implementado por Alex*
+- **Ajuste Kanban definitivo:** Forzadas las 4 columnas en grid estricto (`repeat(4, minmax(0, 1fr))`) para que la columna "En espera" jamás haga wrap y se quede debajo de las otras.
+
 ## v4.5.31 — 2026-04-23
 *Implementado por Alex*
 - **Hotfix Migraciones SQLite:** Se ha añadido la migración automática de las nuevas columnas de la tabla de usuarios (`last_seen_at`, `is_tracking`, `tracking_started`) a `app.py` para asegurar que el DMG no crashee en equipos que actualizan desde versiones anteriores sin estas columnas.
