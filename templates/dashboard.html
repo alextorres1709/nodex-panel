@@ -391,11 +391,48 @@
         </a>
         {% endfor %}
         {% else %}
-        <div class="empty-state">
+        <div class="empty-state" style="padding: 16px 0;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
             </svg>
             <p>Sin proyectos activos</p>
+        </div>
+        {% endif %}
+
+        <div class="table-card-header" style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+            <h3 style="color: var(--danger)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Tareas atrasadas
+            </h3>
+        </div>
+        {% if overdue_tasks_list %}
+        {% for t in overdue_tasks_list %}
+        <div class="task-item" data-task-id="{{ t.id }}">
+            <button class="dash-task-check" onclick="completeTask({{ t.id }}, this)" title="Marcar como completada">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+            </button>
+            <div class="task-info" style="flex:1;min-width:0">
+                <div class="task-title" style="display:flex;align-items:center;gap:6px">
+                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.title }}</span>
+                </div>
+                <div class="task-meta">
+                    <span class="badge badge-{{ t.priority }}">{{ t.priority }}</span>
+                    <span style="color:var(--danger)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;vertical-align:-1px;margin-right:2px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        {{ t.due_date.strftime('%d/%m') }}
+                    </span>
+                    {% if t.project %}<span style="color:var(--text-tertiary)">{{ t.project.name }}</span>{% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state" style="padding: 16px 0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <p>No hay tareas atrasadas</p>
         </div>
         {% endif %}
     </div>

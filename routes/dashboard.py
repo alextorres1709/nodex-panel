@@ -71,11 +71,19 @@ def index():
     ).order_by(
         Task.due_date.asc().nullslast(),
         Task.priority.desc(),
-    ).limit(10).all(), [])
+    ).limit(5).all(), [])
 
     # ── Active projects with progress ──
     active_project_list = _safe(lambda: Project.query.filter_by(status="activo")
-        .order_by(Project.progress.desc()).limit(6).all(), [])
+        .order_by(Project.progress.desc()).limit(4).all(), [])
+        
+    # ── Overdue tasks list ──
+    overdue_tasks_list = _safe(lambda: Task.query.options(joinedload(Task.project)).filter(
+        Task.due_date < today,
+        Task.status.in_(["pendiente", "en_progreso", "en_espera"])
+    ).order_by(
+        Task.due_date.asc().nullslast(),
+    ).limit(5).all(), [])
 
     # ── Upcoming payments (next 30 days) ──
     month_ahead = today + timedelta(days=30)
@@ -218,6 +226,7 @@ def index():
         monthly_income=monthly_income,
         # Lists
         my_tasks=my_tasks,
+        overdue_tasks_list=overdue_tasks_list,
         active_project_list=active_project_list,
         upcoming_payments=upcoming_payments,
         recent_activity=recent_activity,

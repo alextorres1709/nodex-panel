@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.5.34 — 2026-04-23
+*Implementado por Alex*
+- **Ajustes visuales Dashboard:** Se han acortado las listas de "Mis tareas" y "Proyectos activos" para que no ocupen tanto espacio vertical. Además, se ha añadido una nueva sección de "Tareas atrasadas" justo debajo de "Proyectos activos" aprovechando el nuevo espacio libre.
+
 ## v4.5.33 — 2026-04-23
 *Implementado por Alex*
 - **Sincronización en tiempo real de Presencia:** Ahora el widget de "Equipo en línea" se actualiza de forma instantánea tan pronto como el motor de sincronización detecta cambios en la actividad del socio, eliminando el retraso previo de 30 segundos.
