@@ -14,13 +14,19 @@ def _gcal_push_item(item_type, item):
     try:
         from services import gcal as gcal_svc
         from flask import g
-        # If it's a task and has assignees, push to all assignees
-        if item_type == "task" and hasattr(item, "assignees") and item.assignees:
-            for assignee in item.assignees:
-                if gcal_svc.is_configured() and gcal_svc.is_connected(assignee.id):
-                    gcal_svc.push_item(item_type, item, assignee.id)
+        if item_type == "task":
+            if hasattr(item, "assignees") and item.assignees:
+                for assignee in item.assignees:
+                    if gcal_svc.is_configured() and gcal_svc.is_connected(assignee.id):
+                        gcal_svc.push_item(item_type, item, assignee.id)
+            else:
+                # Tarea sin asignar: sincroniza a todos los usuarios activos
+                from models import User
+                for u in User.query.filter_by(active=True).all():
+                    if gcal_svc.is_configured() and gcal_svc.is_connected(u.id):
+                        gcal_svc.push_item(item_type, item, u.id)
         else:
-            # Fallback or other items (or unassigned tasks) to current user
+            # Fallback or other items to current user
             if gcal_svc.is_configured() and getattr(g, "user", None) and gcal_svc.is_connected(g.user.id):
                 gcal_svc.push_item(item_type, item, g.user.id)
     except Exception as e:
@@ -31,10 +37,16 @@ def _gcal_delete_item(item_type, item_id, item=None):
     try:
         from services import gcal as gcal_svc
         from flask import g
-        if item_type == "task" and item and hasattr(item, "assignees") and item.assignees:
-            for assignee in item.assignees:
-                if gcal_svc.is_configured() and gcal_svc.is_connected(assignee.id):
-                    gcal_svc.delete_item_event(item_type, item_id, assignee.id)
+        if item_type == "task" and item:
+            if hasattr(item, "assignees") and item.assignees:
+                for assignee in item.assignees:
+                    if gcal_svc.is_configured() and gcal_svc.is_connected(assignee.id):
+                        gcal_svc.delete_item_event(item_type, item_id, assignee.id)
+            else:
+                from models import User
+                for u in User.query.filter_by(active=True).all():
+                    if gcal_svc.is_configured() and gcal_svc.is_connected(u.id):
+                        gcal_svc.delete_item_event(item_type, item_id, u.id)
         else:
             if gcal_svc.is_configured() and getattr(g, "user", None) and gcal_svc.is_connected(g.user.id):
                 gcal_svc.delete_item_event(item_type, item_id, g.user.id)
