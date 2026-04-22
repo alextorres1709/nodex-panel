@@ -21,6 +21,9 @@ class User(db.Model):
     totp_secret = db.Column(db.String(64), nullable=True)  # base32 secret for 2FA
     totp_enabled = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    last_seen_at = db.Column(db.DateTime, nullable=True)
+    is_tracking = db.Column(db.Boolean, default=False)
+    tracking_started = db.Column(db.String(100), nullable=True)
 
     def set_password(self, pw):
         self.password_hash = generate_password_hash(pw, method="pbkdf2:sha256")

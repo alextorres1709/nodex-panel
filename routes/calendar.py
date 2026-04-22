@@ -56,10 +56,14 @@ def index():
         Task.status.in_(["pendiente", "en_progreso", "en_espera"]),
     ).all())
 
-    # Filter tasks: keep if unassigned or assigned to current user
+    # Filter tasks: keep if unassigned, assigned to current user, or linked to a company/lead
     user_id = getattr(g, "user", None).id if getattr(g, "user", None) else None
     if user_id:
         def is_for_user(t):
+            if getattr(t, "company_id", None) is not None:
+                return True
+            if getattr(t, "lead_id", None) is not None:
+                return True
             if t.assignees:
                 return any(a.id == user_id for a in t.assignees)
             if t.assigned_to:
@@ -95,18 +99,34 @@ def index():
 
     date_to_cell = {c["date"]: c for c in cells}
 
+    def _get_assignees_text(obj):
+        names = []
+        if getattr(obj, "assignee", None) and getattr(obj.assignee, "name", None):
+            names.append(obj.assignee.name)
+        if getattr(obj, "assignees", None):
+            for a in obj.assignees:
+                if a.name:
+                    names.append(a.name)
+        if names:
+            # remove duplicates
+            names = list(dict.fromkeys(names))
+            return f" ({', '.join(names)})"
+        return ""
+
     for t in all_pending_tasks:
         c_date = t.created_at.date() if getattr(t, "created_at", None) else None
         if c_date and range_start <= c_date <= range_end and c_date in date_to_cell:
+            text = f"{t.title}{_get_assignees_text(t)}"
             date_to_cell[c_date]["events"].append({
-                "type": "task", "text": t.title, "link": "/tareas",
+                "type": "task", "text": text, "link": "/tareas",
                 "time": None, "id": None,
             })
         
         d_date = t.due_date
         if d_date and range_start <= d_date <= range_end and d_date in date_to_cell:
+            text = f"Fin tarea: {t.title}{_get_assignees_text(t)}"
             date_to_cell[d_date]["events"].append({
-                "type": "deadline", "text": f"Fin tarea: {t.title}", "link": "/tareas",
+                "type": "deadline", "text": text, "link": "/tareas",
                 "time": None, "id": None,
             })
 
@@ -133,9 +153,10 @@ def index():
 
     for ev in events:
         if ev.date and ev.date in date_to_cell:
+            text = f"{ev.title}{_get_assignees_text(ev)}"
             date_to_cell[ev.date]["events"].append({
                 "type": ev.event_type,
-                "text": ev.title,
+                "text": text,
                 "time": ev.start_time,
                 "id": ev.id,
                 "link": None,

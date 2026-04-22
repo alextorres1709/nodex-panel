@@ -37,6 +37,8 @@ SYNC_TABLES = [
     "activity_log",
     "messages",
     "call_sessions",
+    "leads",
+    "lead_interactions",
     "clients",
     "notifications",
     "time_entries",

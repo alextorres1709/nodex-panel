@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.5.30 — 2026-04-23
+*Implementado por Alex*
+- **Sincronización de Leads en App de Escritorio:** Solucionado el problema por el cual los leads y sus interacciones no se sincronizaban en la aplicación de escritorio (`leads` y `lead_interactions` añadidos al motor de sincronización).
+- **Visibilidad Global de Llamadas/Leads en Calendario:** Ahora todas las tareas y eventos vinculados a un Lead o Empresa se muestran de forma compartida en el calendario de todos los socios, e incluyen automáticamente el nombre del responsable entre paréntesis.
+- **Widgets de Presencia y Fichaje Compartidos:** Refactorizado el sistema de latido (`heartbeat`) para que el estado de "Equipo en línea" y "Fichando" utilice la base de datos sincronizada. Esto garantiza que el estado real se refleje instantáneamente y sea visible entre clientes web y aplicaciones de escritorio.
+- **Ajustes en UI Kanban:** Corregida la disposición y los estilos en la vista Kanban para soportar correctamente el flujo de 4 columnas (Por hacer, En progreso, Finalizadas, En espera) sin alterar los márgenes ni empujar columnas hacia abajo.
 ## v4.5.29 — 2026-04-22
 *Implementado por Alex*
 - **Hotfix GCal/Tasks:** Se ha resuelto un `SyntaxError` crítico (`cannot delete conditional expression`) en `services/gcal.py` que impedía el arranque de la aplicación de escritorio y crasheaba la instancia en Railway.

@@ -1,59 +1,63 @@
 """
-In-memory presence tracking with SSE broadcasting.
+Presence tracking using User DB model with auto-sync capability.
 Tracks which users are online and whether they're time-tracking.
 """
 import time
-import threading
 import logging
+from datetime import datetime, timezone, timedelta
 
 log = logging.getLogger("presence")
-
-_presence = {}
-_lock = threading.Lock()
 
 ONLINE_TIMEOUT = 60  # seconds before a user is considered offline
 
 
 def heartbeat(user_id, name, is_tracking=False, tracking_started=None):
-    """Update presence state for a user and broadcast via SSE."""
+    """Update presence state for a user in the database."""
+    from models import db, User
     from services.sse import sse_bus
+    from services.sync import push_change_now
 
-    with _lock:
-        _presence[user_id] = {
-            "user_id": user_id,
-            "name": name,
-            "last_seen": time.time(),
-            "is_tracking": is_tracking,
-            "tracking_started": tracking_started,
-        }
+    user = db.session.get(User, user_id)
+    if user:
+        user.last_seen_at = datetime.now(timezone.utc)
+        user.is_tracking = is_tracking
+        user.tracking_started = tracking_started
+        db.session.commit()
+        push_change_now("users", user.id)
 
     sse_bus.publish("presence", _get_snapshot())
 
 
 def mark_offline(user_id):
-    """Remove a user from presence and broadcast."""
+    """Mark a user offline in the database."""
+    from models import db, User
     from services.sse import sse_bus
+    from services.sync import push_change_now
 
-    with _lock:
-        _presence.pop(user_id, None)
+    user = db.session.get(User, user_id)
+    if user:
+        user.last_seen_at = None
+        db.session.commit()
+        push_change_now("users", user.id)
 
     sse_bus.publish("presence", _get_snapshot())
 
 
 def get_online_users():
     """Return list of users seen within ONLINE_TIMEOUT."""
-    cutoff = time.time() - ONLINE_TIMEOUT
-    with _lock:
-        return [
-            {
-                "user_id": p["user_id"],
-                "name": p["name"],
-                "is_tracking": p["is_tracking"],
-                "tracking_started": p["tracking_started"],
-            }
-            for p in _presence.values()
-            if p["last_seen"] >= cutoff
-        ]
+    from models import User
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=ONLINE_TIMEOUT)
+    users = User.query.filter(User.last_seen_at >= cutoff).all()
+    
+    return [
+        {
+            "user_id": u.id,
+            "name": u.name,
+            "is_tracking": u.is_tracking,
+            "tracking_started": u.tracking_started,
+        }
+        for u in users
+    ]
 
 
 def _get_snapshot():
