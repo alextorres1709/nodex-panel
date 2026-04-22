@@ -258,6 +258,43 @@ class Task(db.Model):
             return None
 
 
+class ProjectAssignment(db.Model):
+    __tablename__ = "project_assignments"
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+class ObjectiveAssignment(db.Model):
+    __tablename__ = "objective_assignments"
+    id = db.Column(db.Integer, primary_key=True)
+    objective_id = db.Column(db.Integer, db.ForeignKey("objectives.id", ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+class EventAssignment(db.Model):
+    __tablename__ = "event_assignments"
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("calendar_events.id", ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+class ObjectiveRequirement(db.Model):
+    __tablename__ = "objective_requirements"
+    id = db.Column(db.Integer, primary_key=True)
+    objective_id = db.Column(db.Integer, db.ForeignKey("objectives.id"), nullable=False)
+    title = db.Column(db.String(300), nullable=False)
+    description = db.Column(db.Text, default="")
+    is_met = db.Column(db.Boolean, default=False)
+    objective = db.relationship("Objective", backref="requirements")
+
+class ObjectiveWeeklyPlan(db.Model):
+    __tablename__ = "objective_weekly_plans"
+    id = db.Column(db.Integer, primary_key=True)
+    objective_id = db.Column(db.Integer, db.ForeignKey("objectives.id"), nullable=False)
+    week_start = db.Column(db.Date, nullable=False)  # Lunes de la semana
+    focus = db.Column(db.String(300), nullable=False)
+    notes = db.Column(db.Text, default="")
+    objective = db.relationship("Objective", backref="weekly_plans")
+
+
 class TaskAssignment(db.Model):
     __tablename__ = "task_assignments"
     id = db.Column(db.Integer, primary_key=True)
@@ -294,12 +331,13 @@ class Objective(db.Model):
     progress = db.Column(db.Integer, default=0)  # 0-100
     target_date = db.Column(db.Date, nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
-    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True) # Legacy
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-    assignee = db.relationship("User", foreign_keys=[assigned_to])
+    assignee = db.relationship("User", foreign_keys=[assigned_to]) # Legacy
+    assignees = db.relationship("User", secondary="objective_assignments", backref="assigned_objectives")
     author = db.relationship("User", foreign_keys=[created_by])
     project = db.relationship("Project", foreign_keys=[project_id])
 

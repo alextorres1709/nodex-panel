@@ -1,9 +1,10 @@
 from datetime import datetime
 from sqlalchemy.orm import joinedload
 from flask import Blueprint, render_template, request, redirect, url_for, flash, g, jsonify
-from models import db, Objective, Project, User, ObjectiveSnapshot
 from routes.auth import login_required
 from services.activity import log_activity
+from models import db, Objective, Project, User, ObjectiveSnapshot, ObjectiveAssignment, ObjectiveRequirement, ObjectiveWeeklyPlan
+from services.sync import push_change, push_change_now, sync_locked
 from services.sync import push_change, push_change_now, sync_locked
 
 
@@ -65,22 +66,29 @@ def create():
             progress=int(request.form.get("progress", 0) or 0),
             target_date=datetime.strptime(td, "%Y-%m-%d").date() if td else None,
             project_id=int(pid) if pid else None,
-            assigned_to=int(aid) if aid else None,
-            created_by=g.user.id,
-            notes=request.form.get("notes", "").strip(),
-        )
         db.session.add(obj)
+        db.session.flush()
+
+        # Multi-assignee
+        assignee_ids = request.form.getlist("assigned_to")
+        for aid in assignee_ids:
+            if str(aid).strip():
+                db.session.add(ObjectiveAssignment(objective_id=obj.id, user_id=int(aid)))
+
         log_activity("create", "objective", details=f"Nuevo objetivo: {obj.title}")
         db.session.commit()
         push_change("objectives", obj.id)
-        # Push notification to assigned user
-        if aid and int(aid) != g.user.id:
-            from services.notifications import notify
-            from services.push import send_push
-            notify(int(aid), "objective", f"Nuevo objetivo asignado: {obj.title}",
-                   body=f"Prioridad: {obj.priority}", link="/objetivos")
-            send_push(int(aid), f"Nuevo objetivo: {obj.title}",
-                      body=f"Prioridad: {obj.priority}", link="/objetivos")
+
+        # Notificar a los asignados
+        from services.notifications import notify
+        from services.push import send_push
+        for aid in assignee_ids:
+            if str(aid).strip() and int(aid) != g.user.id:
+                notify(int(aid), "objective", f"Nuevo objetivo asignado: {obj.title}",
+                       body=f"Prioridad: {obj.priority}", link="/objetivos")
+                send_push(int(aid), f"Nuevo objetivo: {obj.title}",
+                          body=f"Prioridad: {obj.priority}", link="/objetivos")
+        
         flash("Objetivo creado", "success")
     except Exception as e:
         db.session.rollback()
@@ -106,11 +114,15 @@ def edit(oid):
         obj.target_date = datetime.strptime(td, "%Y-%m-%d").date() if td else None
         pid = request.form.get("project_id", "").strip()
         obj.project_id = int(pid) if pid else None
-        aid = request.form.get("assigned_to", "").strip()
-        obj.assigned_to = int(aid) if aid else None
         obj.notes = request.form.get("notes", "").strip()
+
+        # Update assignees
+        ObjectiveAssignment.query.filter_by(objective_id=obj.id).delete()
+        for aid in request.form.getlist("assigned_to"):
+            if str(aid).strip():
+                db.session.add(ObjectiveAssignment(objective_id=obj.id, user_id=int(aid)))
+
         log_activity("update", "objective", oid, f"Editado: {obj.title}")
-        # Snapshot solo si el progreso ha cambiado (para no llenar la tabla)
         if obj.progress != prev_progress:
             _record_snapshot(obj)
         db.session.commit()
@@ -197,3 +209,60 @@ def api_snapshots(oid):
             "progress": s.progress or 0,
         } for s in rows],
     })
+
+@objetivos_bp.route("/objetivos/<int:oid>/requirements", methods=["POST"])
+@login_required
+def add_requirement(oid):
+    req = ObjectiveRequirement(
+        objective_id=oid,
+        title=request.form.get("title", "").strip(),
+        description=request.form.get("description", "").strip(),
+    )
+    db.session.add(req)
+    db.session.commit()
+    flash("Requisito añadido", "success")
+    return redirect(url_for("objetivos.view", oid=oid))
+
+@objetivos_bp.route("/objetivos/<int:oid>/requirements/<int:req_id>/toggle", methods=["POST"])
+@login_required
+def toggle_requirement(oid, req_id):
+    req = db.session.get(ObjectiveRequirement, req_id)
+    if req and req.objective_id == oid:
+        req.is_met = not req.is_met
+        db.session.commit()
+    return jsonify({"ok": True, "is_met": req.is_met})
+
+@objetivos_bp.route("/objetivos/<int:oid>/requirements/<int:req_id>/delete", methods=["POST"])
+@login_required
+def delete_requirement(oid, req_id):
+    req = db.session.get(ObjectiveRequirement, req_id)
+    if req and req.objective_id == oid:
+        db.session.delete(req)
+        db.session.commit()
+        flash("Requisito eliminado", "success")
+    return redirect(url_for("objetivos.view", oid=oid))
+
+@objetivos_bp.route("/objetivos/<int:oid>/weekly_plans", methods=["POST"])
+@login_required
+def add_weekly_plan(oid):
+    ws = request.form.get("week_start", "").strip()
+    plan = ObjectiveWeeklyPlan(
+        objective_id=oid,
+        week_start=datetime.strptime(ws, "%Y-%m-%d").date() if ws else datetime.utcnow().date(),
+        focus=request.form.get("focus", "").strip(),
+        notes=request.form.get("notes", "").strip(),
+    )
+    db.session.add(plan)
+    db.session.commit()
+    flash("Plan semanal añadido", "success")
+    return redirect(url_for("objetivos.view", oid=oid))
+
+@objetivos_bp.route("/objetivos/<int:oid>/weekly_plans/<int:plan_id>/delete", methods=["POST"])
+@login_required
+def delete_weekly_plan(oid, plan_id):
+    plan = db.session.get(ObjectiveWeeklyPlan, plan_id)
+    if plan and plan.objective_id == oid:
+        db.session.delete(plan)
+        db.session.commit()
+        flash("Plan semanal eliminado", "success")
+    return redirect(url_for("objetivos.view", oid=oid))

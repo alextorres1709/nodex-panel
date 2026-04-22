@@ -67,7 +67,7 @@
                 &middot; {{ obj.created_at.strftime('%d/%m/%Y') }}
             </span>
             <div style="display:flex;gap:4px">
-                <button class="btn btn-sm btn-secondary" onclick="editObj({{ obj.id }}, '{{ obj.title|e }}', `{{ obj.description|e }}`, '{{ obj.priority }}', '{{ obj.status }}', {{ obj.progress }}, '{{ obj.target_date or '' }}', '{{ obj.project_id or '' }}', '{{ obj.assigned_to or '' }}', `{{ obj.notes|e }}`)">Editar</button>
+                <button class="btn btn-sm btn-secondary" onclick="editObj({{ obj.id }}, '{{ obj.title|e }}', `{{ obj.description|e }}`, '{{ obj.priority }}', '{{ obj.status }}', {{ obj.progress }}, '{{ obj.target_date or '' }}', '{{ obj.project_id or '' }}', [{% for u in obj.assignees %}{{ u.id }}{{ ',' if not loop.last }}{% endfor %}], `{{ obj.notes|e }}`)">Editar</button>
                 <form method="POST" action="{{ url_for('objetivos.delete', oid=obj.id) }}" style="display:inline" onsubmit="return confirm('Eliminar este objetivo?')">
                     <button type="submit" class="btn btn-sm btn-danger">X</button>
                 </form>
@@ -102,7 +102,10 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Asignar a</label>
-                        <select name="assigned_to"><option value="">Sin asignar</option>{% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
+                        <select name="assigned_to" multiple style="min-height:60px">
+                            {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+                        </select>
+                        <span style="font-size:11px;color:var(--text-tertiary)">Cmd+clic para varios</span>
                     </div>
                     <div class="form-group">
                         <label>Proyecto (opcional)</label>
@@ -147,7 +150,10 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Asignar a</label>
-                        <select name="assigned_to"><option value="">Sin asignar</option>{% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
+                        <select name="assigned_to" multiple style="min-height:60px">
+                            {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+                        </select>
+                        <span style="font-size:11px;color:var(--text-tertiary)">Cmd+clic para varios</span>
                     </div>
                     <div class="form-group">
                         <label>Proyecto</label>
@@ -172,9 +178,15 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 var _okrChart = null;
-function editObj(id, title, description, priority, status, progress, target_date, project_id, assigned_to, notes) {
+function editObj(id, title, description, priority, status, progress, target_date, project_id, assignedIds, notes) {
     document.getElementById('editForm').action = '/objetivos/edit/' + id;
-    populateEditModal({title, description, priority, status, progress, target_date, project_id, assigned_to, notes}, 'editForm');
+    populateEditModal({title, description, priority, status, progress, target_date, project_id, notes}, 'editForm');
+    
+    var sel = document.getElementById('editForm').querySelector('[name=assigned_to]');
+    Array.from(sel.options).forEach(function(opt) {
+        opt.selected = assignedIds.indexOf(parseInt(opt.value)) !== -1;
+    });
+
     openModal('editModal');
     loadOkrSnapshots(id);
 }

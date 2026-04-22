@@ -56,7 +56,15 @@
         <h3 style="margin:0 0 14px;font-size:14px;color:var(--text-secondary)">Detalles</h3>
         <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
             <div><div style="color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Asignado a</div>
-                 <div>{{ obj.assignee.name if obj.assignee else 'Sin asignar' }}</div></div>
+                 <div>
+                     {% if obj.assignees %}
+                         {% for a in obj.assignees %}
+                             {{ a.name }}{% if not loop.last %}, {% endif %}
+                         {% endfor %}
+                     {% else %}
+                         Sin asignar
+                     {% endif %}
+                 </div></div>
             <div><div style="color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Proyecto</div>
                  <div>{{ obj.project.name if obj.project else 'General' }}</div></div>
             <div><div style="color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Fecha objetivo</div>
@@ -67,6 +75,74 @@
             <div><div style="color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Notas</div>
                  <div style="white-space:pre-wrap">{{ obj.notes }}</div></div>
             {% endif %}
+        </div>
+    </div>
+    <div class="idea-card" style="padding:22px; grid-column: 1 / -1; display:grid; grid-template-columns: 1fr 1fr; gap: 18px;">
+        <!-- Requisitos -->
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                <h3 style="margin:0;font-size:14px;color:var(--text-secondary)">Requisitos</h3>
+            </div>
+            
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+                {% for req in obj.requirements %}
+                <div style="display:flex;align-items:flex-start;gap:10px;background:var(--bg-card);padding:10px;border:1px solid var(--border-color);border-radius:6px">
+                    <input type="checkbox" {{ 'checked' if req.is_met }} onchange="toggleReq({{ obj.id }}, {{ req.id }}, this)" style="margin-top:2px">
+                    <div style="flex:1">
+                        <div style="font-weight:600;font-size:13px;{{ 'text-decoration:line-through;opacity:.6' if req.is_met }}">{{ req.title }}</div>
+                        {% if req.description %}<div style="font-size:12px;color:var(--text-tertiary);margin-top:2px">{{ req.description }}</div>{% endif %}
+                    </div>
+                    <form method="POST" action="{{ url_for('objetivos.delete_requirement', oid=obj.id, req_id=req.id) }}" onsubmit="return confirm('Eliminar?')">
+                        <button type="submit" class="btn btn-sm btn-danger" style="padding:2px 6px;font-size:11px">X</button>
+                    </form>
+                </div>
+                {% else %}
+                <div style="font-size:12px;color:var(--text-tertiary)">No hay requisitos definidos.</div>
+                {% endfor %}
+            </div>
+
+            <form method="POST" action="{{ url_for('objetivos.add_requirement', oid=obj.id) }}" style="display:flex;flex-direction:column;gap:6px">
+                <input type="text" name="title" placeholder="Nuevo requisito..." required style="padding:8px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:var(--text-primary);font-size:13px">
+                <div style="display:flex;gap:6px">
+                    <input type="text" name="description" placeholder="Detalles (opcional)" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:var(--text-primary);font-size:13px">
+                    <button type="submit" class="btn btn-sm btn-primary">Añadir</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Planificador Semanal -->
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                <h3 style="margin:0;font-size:14px;color:var(--text-secondary)">Planificador Semanal</h3>
+            </div>
+            
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+                {% for plan in obj.weekly_plans|sort(attribute='week_start') %}
+                <div style="background:var(--bg-card);padding:10px;border:1px solid var(--border-color);border-radius:6px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                        <div style="font-weight:600;font-size:13px;color:var(--accent)">Semana del {{ plan.week_start.strftime('%d/%m') }}</div>
+                        <form method="POST" action="{{ url_for('objetivos.delete_weekly_plan', oid=obj.id, plan_id=plan.id) }}" onsubmit="return confirm('Eliminar?')">
+                            <button type="submit" class="btn btn-sm btn-danger" style="padding:2px 6px;font-size:11px">X</button>
+                        </form>
+                    </div>
+                    <div style="font-size:13px;color:var(--text-primary);font-weight:500;margin-bottom:2px">Foco: {{ plan.focus }}</div>
+                    {% if plan.notes %}<div style="font-size:12px;color:var(--text-tertiary)">{{ plan.notes }}</div>{% endif %}
+                </div>
+                {% else %}
+                <div style="font-size:12px;color:var(--text-tertiary)">No hay planes semanales.</div>
+                {% endfor %}
+            </div>
+
+            <form method="POST" action="{{ url_for('objetivos.add_weekly_plan', oid=obj.id) }}" style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;gap:6px">
+                    <input type="date" name="week_start" required style="width:120px;padding:8px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:var(--text-primary);font-size:13px">
+                    <input type="text" name="focus" placeholder="Foco de la semana..." required style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:var(--text-primary);font-size:13px">
+                </div>
+                <div style="display:flex;gap:6px">
+                    <input type="text" name="notes" placeholder="Notas/Sectores..." style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border-color);background:transparent;color:var(--text-primary);font-size:13px">
+                    <button type="submit" class="btn btn-sm btn-primary">Añadir</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -164,5 +240,20 @@
             });
         });
 })();
+
+function toggleReq(oid, reqId, checkbox) {
+    fetch('/objetivos/' + oid + '/requirements/' + reqId + '/toggle', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            var titleDiv = checkbox.nextElementSibling.firstElementChild;
+            if (d.is_met) {
+                titleDiv.style.textDecoration = 'line-through';
+                titleDiv.style.opacity = '0.6';
+            } else {
+                titleDiv.style.textDecoration = 'none';
+                titleDiv.style.opacity = '1';
+            }
+        });
+}
 </script>
 {% endblock %}

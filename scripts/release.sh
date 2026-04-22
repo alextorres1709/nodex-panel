@@ -45,11 +45,23 @@ git commit -m "release: v${VERSION}" 2>/dev/null || echo "  (nothing to commit)"
 git push origin main
 
 # 6. Create GitHub Release
+echo "→ Extracting release notes from CHANGELOG.md..."
+NOTES_FILE="$PROJECT_DIR/dist/release_notes.txt"
+awk -v ver="v${VERSION}" '
+  $1 == "##" && $2 ~ "^"ver { flag=1; next }
+  $1 == "##" && flag { exit }
+  flag { print }
+' "$PROJECT_DIR/CHANGELOG.md" | sed '/^[[:space:]]*$/d' > "$NOTES_FILE"
+
+if [ ! -s "$NOTES_FILE" ]; then
+    echo "NodexAI Panel v${VERSION}" > "$NOTES_FILE"
+fi
+
 echo "→ Creating GitHub Release v${VERSION}..."
 gh release create "v${VERSION}" \
     "$DMG_PATH" \
     --title "v${VERSION}" \
-    --notes "NodexAI Panel v${VERSION}" \
+    --notes-file "$NOTES_FILE" \
     --latest
 
 echo ""
