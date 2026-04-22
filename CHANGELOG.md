@@ -1,5 +1,8 @@
 # Changelog
 
+## v4.5.29 — 2026-04-22
+*Implementado por Alex*
+- **Hotfix GCal/Tasks:** Se ha resuelto un `SyntaxError` crítico (`cannot delete conditional expression`) en `services/gcal.py` que impedía el arranque de la aplicación de escritorio y crasheaba la instancia en Railway.
 ## v4.5.28 — 2026-04-22
 *Implementado por Alex*
 - **Sincronización de GCal/Tasks resiliente:** El autosync ahora maneja correctamente errores `404 Not Found` y `410 Gone` al borrar elementos de la API de Google de manera remota, limpiando el mapeo local y permitiendo volver a sincronizar (o borrar) tareas sin que el sistema crashee.

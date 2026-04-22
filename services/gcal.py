@@ -628,7 +628,8 @@ def push_item(item_type: str, item, user_id: int) -> Optional[str]:
             except Exception as e:
                 if "404" in str(e) or "410" in str(e):
                     # Event was deleted remotely, re-create it
-                    del body["id"] if "id" in body else None
+                    if "id" in body:
+                        del body["id"]
                     result = service.events().insert(
                         calendarId=GCAL_CALENDAR_ID,
                         body=body,
