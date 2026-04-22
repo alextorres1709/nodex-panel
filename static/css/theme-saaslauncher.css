@@ -147,6 +147,11 @@ body::before {
 }
 .app-layout { position: relative; z-index: 1; }
 
+/* Main content area slightly lifted vs pure-black sidebar */
+.main-content {
+    background: #06060A;
+}
+
 /* Decorative stars — matches the subtle glinting stars in the demo */
 .main-content::before,
 .main-content::after {
@@ -164,8 +169,8 @@ body::before {
    SIDEBAR — darker, cleaner, pill-style active items
    ═══════════════════════════════════════════════════════════ */
 .sidebar {
-    background: linear-gradient(180deg, #05050A 0%, #000000 100%) !important;
-    border-right: 1px solid var(--ss-border) !important;
+    background: #000000 !important;
+    border-right: 1px solid rgba(255,255,255,0.05) !important;
 }
 
 .sidebar-brand h2 {
@@ -181,39 +186,39 @@ body::before {
 
 .sidebar-nav a {
     position: relative;
-    margin: 2px 0;
-    padding: 9px 12px !important;
+    margin: 3px 0;
+    padding: 10px 12px !important;
     border-radius: var(--radius-pill) !important;
     border-left: 0 !important;
-    color: var(--ss-text-alt);
+    color: rgba(255,255,255,0.72);
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 700;
     transition: background .18s ease, color .18s ease;
 }
 
 .sidebar-nav a:hover {
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--ss-heading);
+    background: rgba(255, 255, 255, 0.05);
+    color: #FFFFFF;
 }
 
 .sidebar-nav a.active {
-    background: linear-gradient(90deg, rgba(74, 58, 253, 0.22) 0%, rgba(74, 58, 253, 0.06) 100%);
-    color: var(--ss-heading);
-    box-shadow: inset 0 0 0 1px rgba(111, 121, 255, 0.22);
+    background: rgba(37, 99, 235, 0.18);
+    color: #FFFFFF;
+    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.30);
 }
 
 .sidebar-nav a.active .nav-icon,
-.sidebar-nav a:hover .nav-icon { color: var(--ss-primary-light); }
+.sidebar-nav a:hover .nav-icon { color: #60A5FA; }
 
 .sidebar-nav .nav-icon { stroke-width: 1.6; }
 
 .sidebar-label {
-    color: var(--ss-meta);
+    color: rgba(255,255,255,0.30);
     font-size: 10px;
     letter-spacing: 0.16em;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
-    padding: 14px 12px 6px;
+    padding: 16px 12px 6px;
 }
 
 .sidebar-user {
@@ -306,7 +311,7 @@ body::before {
 .kpi-card,
 .cmd-palette,
 .notif-panel {
-    background: linear-gradient(180deg, #0C0C12 0%, #07070A 100%) !important;
+    background: #0B0B12 !important;
     border: 1px solid var(--ss-border) !important;
     border-radius: var(--radius-lg) !important;
     box-shadow: var(--ss-shadow-card) !important;
@@ -429,38 +434,9 @@ body::before {
 .kpi-arrow svg { width: 22px; height: 22px; stroke-width: 2; }
 .kpi-arrow:hover { transform: translateX(3px); color: #FFFFFF; }
 
-/* ─── Mini bars → real element .kpi-bars (2 pill-pairs) ───── */
-.kpi-bars {
-    position: absolute;
-    right: 24px;
-    bottom: 30px;
-    width: 44%;
-    max-width: 170px;
-    height: 28px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    pointer-events: none;
-    z-index: 1;
-}
-.kpi-bars .kpi-bar {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    height: 10px;
-}
-.kpi-bars .kpi-bar-fill,
-.kpi-bars .kpi-bar-rest {
-    height: 100%;
-    border-radius: 999px;
-}
-.kpi-bars .kpi-bar-fill { background: rgba(220, 220, 232, 0.6); }
-.kpi-bars .kpi-bar-rest { background: rgba(110, 110, 128, 0.5); }
-/* Default proportions: bar1 = 60/40, bar2 = 80/20 */
-.kpi-bars .kpi-bar:nth-child(1) .kpi-bar-fill { flex: 6; }
-.kpi-bars .kpi-bar:nth-child(1) .kpi-bar-rest { flex: 4; }
-.kpi-bars .kpi-bar:nth-child(2) .kpi-bar-fill { flex: 8; }
-.kpi-bars .kpi-bar:nth-child(2) .kpi-bar-rest { flex: 2; }
+/* ─── Mini bars — hidden (solid minimal look) ───────────── */
+.kpi-bars { display: none !important; }
+.kpi-card:has(.kpi-bars) .kpi-value { padding-right: 0 !important; }
 
 /* Whole card is clickable when data-href is set */
 .kpi-card[data-href] { cursor: pointer; transition: border-color .18s ease, transform .18s ease; }
@@ -485,8 +461,9 @@ body::before {
     grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.4fr) auto;
     align-items: center;
     gap: 28px;
-    padding: 12px 0 22px;
-    margin-bottom: 12px;
+    padding: 12px 0 28px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--ss-border);
 }
 .welcome-eyebrow {
     font-size: 13px;
@@ -621,25 +598,17 @@ body::before {
 
 .btn-primary {
     position: relative;
-    background: linear-gradient(180deg, var(--ss-primary-light) 0%, var(--ss-primary) 100%) !important;
+    background: #2563EB !important;
     color: #FFFFFE !important;
     font-weight: 600;
     border: 0 !important;
-    box-shadow: var(--ss-shadow-btn), inset 0 1px 0 rgba(255,255,255,0.2);
+    box-shadow: none !important;
 }
 
-.btn-primary::before {
-    content: '';
-    position: absolute;
-    inset: 1px;
-    border-radius: inherit;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    pointer-events: none;
-}
+.btn-primary::before { display: none; }
 
 .btn-primary:hover {
-    filter: brightness(1.08);
-    box-shadow: var(--ss-shadow-btn-hover), inset 0 1px 0 rgba(255,255,255,0.3);
+    background: #1D4ED8 !important;
     transform: translateY(-1px);
 }
 
@@ -772,9 +741,9 @@ input::placeholder, textarea::placeholder {
     overflow: hidden;
 }
 .progress-fill {
-    background: linear-gradient(90deg, var(--ss-primary) 0%, var(--ss-primary-light) 100%);
+    background: #2563EB;
     border-radius: inherit;
-    box-shadow: 0 0 12px rgba(111, 121, 255, 0.5);
+    box-shadow: none;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -789,12 +758,12 @@ a:hover { color: var(--ss-heading); }
 ::-webkit-scrollbar       { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--ss-bg); }
 ::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, rgba(111, 121, 255, 0.45), rgba(74, 58, 253, 0.18));
+    background: rgba(37, 99, 235, 0.40);
     border-radius: 10px;
     border: 2px solid var(--ss-bg);
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, rgba(111, 121, 255, 0.6), rgba(74, 58, 253, 0.3));
+    background: rgba(37, 99, 235, 0.65);
 }
 
 /* ═══════════════════════════════════════════════════════════
