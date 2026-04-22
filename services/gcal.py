@@ -658,7 +658,7 @@ def delete_item_event(item_type: str, item_id: int, user_id: int) -> bool:
 
 # ─── Auto-sync background thread ─────────────────────────────────────────────
 
-_AUTOSYNC_INTERVAL = 300  # seconds (5 minutes)
+_AUTOSYNC_INTERVAL = 120  # seconds (2 minutes)
 
 
 def _autosync_loop(app):
