@@ -13,18 +13,32 @@ tasks_bp = Blueprint("tasks", __name__)
 def _gcal_push_item(item_type, item):
     try:
         from services import gcal as gcal_svc
-        if gcal_svc.is_configured() and gcal_svc.is_connected(g.user.id):
-            gcal_svc.push_item(item_type, item, g.user.id)
-    except Exception:
+        from flask import g
+        # If it's a task and has assignees, push to all assignees
+        if item_type == "task" and hasattr(item, "assignees") and item.assignees:
+            for assignee in item.assignees:
+                if gcal_svc.is_configured() and gcal_svc.is_connected(assignee.id):
+                    gcal_svc.push_item(item_type, item, assignee.id)
+        else:
+            # Fallback or other items (or unassigned tasks) to current user
+            if gcal_svc.is_configured() and getattr(g, "user", None) and gcal_svc.is_connected(g.user.id):
+                gcal_svc.push_item(item_type, item, g.user.id)
+    except Exception as e:
         pass
 
 
-def _gcal_delete_item(item_type, item_id):
+def _gcal_delete_item(item_type, item_id, item=None):
     try:
         from services import gcal as gcal_svc
-        if gcal_svc.is_configured() and gcal_svc.is_connected(g.user.id):
-            gcal_svc.delete_item_event(item_type, item_id, g.user.id)
-    except Exception:
+        from flask import g
+        if item_type == "task" and item and hasattr(item, "assignees") and item.assignees:
+            for assignee in item.assignees:
+                if gcal_svc.is_configured() and gcal_svc.is_connected(assignee.id):
+                    gcal_svc.delete_item_event(item_type, item_id, assignee.id)
+        else:
+            if gcal_svc.is_configured() and getattr(g, "user", None) and gcal_svc.is_connected(g.user.id):
+                gcal_svc.delete_item_event(item_type, item_id, g.user.id)
+    except Exception as e:
         pass
 
 
@@ -263,7 +277,7 @@ def toggle(tid):
         db.session.commit()
         # Completed tasks leave GCal; pending/in-progress get (re)synced
         if t.status == "completada":
-            _gcal_delete_item("task", t.id)
+            _gcal_delete_item("task", t.id, item=t)
         else:
             _gcal_push_item("task", t)
         if clone:
@@ -315,7 +329,7 @@ def delete(tid):
     t = db.session.get(Task, tid)
     if t:
         tid_val = t.id
-        _gcal_delete_item("task", tid_val)
+        _gcal_delete_item("task", tid_val, item=t)
         with sync_locked():
             log_activity("delete", "task", t.id, f"Eliminada: {t.title}")
             db.session.delete(t)

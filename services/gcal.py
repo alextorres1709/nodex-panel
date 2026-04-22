@@ -23,7 +23,10 @@ from typing import Optional, Tuple
 log = logging.getLogger("gcal")
 _autosync_thread: Optional[threading.Thread] = None
 
-SCOPES = ["https://www.googleapis.com/auth/calendar"]
+SCOPES = [
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/tasks"
+]
 GCAL_CALENDAR_ID = "primary"  # Use the user's primary calendar
 
 # Hardcoded fallbacks (Desktop/Installed App — Google docs say the secret is
@@ -380,6 +383,9 @@ def bulk_sync_user(user_id: int) -> Tuple[int, int]:
         Task.status.in_(["pendiente", "en_progreso"]),
     ).all()
     for task in tasks:
+        # Only sync if unassigned or assigned to this user
+        if task.assignees and not any(a.id == user_id for a in task.assignees):
+            continue
         if not _get_item_gcal_id("task", task.id, user_id):
             if push_item("task", task, user_id):
                 synced += 1
@@ -459,17 +465,8 @@ def _delete_item_gcal_mapping(item_type: str, item_id: int, user_id: int):
 
 
 def _item_body_task(task) -> Optional[dict]:
-    d = task.safe_due_date
-    if not d:
-        return None
-    icon = "✅" if task.status == "completada" else "📋"
-    return {
-        "summary": f"{icon} {task.title}",
-        "description": task.description or "",
-        "start": {"date": d.isoformat()},
-        "end":   {"date": (d + timedelta(days=1)).isoformat()},
-        "colorId": "2",  # Sage
-    }
+    # Ya no se usa para generar eventos de GCal, las tareas van por la API de Tasks.
+    return None
 
 
 def _item_body_payment(payment) -> Optional[dict]:
@@ -525,10 +522,47 @@ _ITEM_BODY_FNS = {
 
 
 def push_item(item_type: str, item, user_id: int) -> Optional[str]:
-    """Create or update a GCal event for a task/payment/project/invoice.
+    """Create or update a GCal event (or Google Task) for a task/payment/project/invoice.
     Returns the gcal_event_id or None on failure/skip."""
     if not is_configured() or not is_connected(user_id):
         return None
+
+    if item_type == "task":
+        try:
+            from googleapiclient.discovery import build
+            token_dict = get_token(user_id)
+            creds = _build_credentials(token_dict)
+            if not _refresh_if_needed(creds, token_dict, user_id):
+                return None
+            service = build("tasks", "v1", credentials=creds, cache_discovery=False)
+            
+            body = {
+                "title": item.title,
+                "notes": item.description or "",
+            }
+            if item.safe_due_date:
+                body["due"] = item.safe_due_date.isoformat() + "T00:00:00.000Z"
+            if item.status == "completada":
+                body["status"] = "completed"
+            else:
+                body["status"] = "needsAction"
+
+            existing_id = _get_item_gcal_id(item_type, item.id, user_id)
+            if existing_id:
+                body["id"] = existing_id
+                result = service.tasks().update(tasklist="@default", task=existing_id, body=body).execute()
+            else:
+                result = service.tasks().insert(tasklist="@default", body=body).execute()
+                
+            gcal_id = result.get("id")
+            if gcal_id:
+                _save_item_gcal_id(item_type, item.id, user_id, gcal_id)
+                log.info(f"Google Task synced: {item.id} → {gcal_id}")
+            return gcal_id
+        except Exception as e:
+            log.warning(f"Google Tasks push failed for task/{item.id}: {e}")
+            return None
+
     body_fn = _ITEM_BODY_FNS.get(item_type)
     if not body_fn:
         return None
@@ -562,10 +596,26 @@ def push_item(item_type: str, item, user_id: int) -> Optional[str]:
 
 
 def delete_item_event(item_type: str, item_id: int, user_id: int) -> bool:
-    """Delete the GCal event mapped to a task/payment/project/invoice."""
+    """Delete the GCal event (or Google Task) mapped to a task/payment/project/invoice."""
     gcal_id = _get_item_gcal_id(item_type, item_id, user_id)
     if not gcal_id:
         return True
+
+    if item_type == "task":
+        try:
+            from googleapiclient.discovery import build
+            token_dict = get_token(user_id)
+            creds = _build_credentials(token_dict)
+            if _refresh_if_needed(creds, token_dict, user_id):
+                service = build("tasks", "v1", credentials=creds, cache_discovery=False)
+                service.tasks().delete(tasklist="@default", task=gcal_id).execute()
+                log.info(f"Google Task deleted: {gcal_id}")
+            _delete_item_gcal_mapping(item_type, item_id, user_id)
+            return True
+        except Exception as e:
+            log.warning(f"Google Tasks delete failed for {gcal_id}: {e}")
+            return False
+
     ok = delete_event(gcal_id, user_id)
     if ok:
         _delete_item_gcal_mapping(item_type, item_id, user_id)

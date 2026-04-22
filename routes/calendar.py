@@ -58,6 +58,11 @@ def index():
         Task.status.in_(["pendiente", "en_progreso"]),
     ).all())
 
+    # Filter tasks: keep if unassigned or assigned to current user
+    user_id = getattr(g, "user", None).id if getattr(g, "user", None) else None
+    if user_id:
+        tasks = [t for t in tasks if not t.assignees or any(a.id == user_id for a in t.assignees)]
+
     payments = _safe_query(lambda: Payment.query.filter(
         Payment.next_date.isnot(None),
         Payment.next_date >= range_start,

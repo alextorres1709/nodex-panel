@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.5.16 — 2026-04-22
+*Implementado por Alex*
+- **Integración de Tareas a Google Tasks**: Ahora las tareas se sincronizan con la API de Google Tasks en lugar de eventos regulares del calendario. Se requiere el alcance `https://www.googleapis.com/auth/tasks`.
+- **Filtro de Asignación en Calendario Local**: La vista de `/calendario` y la sincronización con Google ahora filtran las tareas. Sólo verás (y se sincronizarán con tu cuenta) aquellas tareas que estén asignadas a ti o que no tengan a nadie asignado, manteniendo tu calendario libre del trabajo exclusivo de tu socio.
+- **Sincronización Múltiple de Tareas**: Las tareas con múltiples asignados intentarán sincronizarse en los respectivos Google Tasks de cada usuario asignado que tenga la cuenta conectada.
+
 ## v4.5.15 — 2026-04-21
 *Implementado por Alex*
 - **KPI cards refactor HTML real (flecha + barras clickables)**: `::before`/`::after` reemplazados por elementos reales `<a class="kpi-arrow">` y `<div class="kpi-bars">` con dos `<div class="kpi-bar">` de segmentos pill (fill + rest). Ventajas: arrow realmente navegable (antes era pseudo, no clickable), barras con `border-radius:999px` correcto por segmento, opt-in — cards sin `.kpi-bars` no tienen barras (arregla las "2 barras grises" del empresa_detail). CSS `:has(.kpi-bars)` aplica `padding-right: 48%` al `.kpi-value` solo cuando hay barras.
