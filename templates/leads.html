@@ -301,7 +301,7 @@
       <button onclick="closeModal('createLeadModal')" class="modal-close">×</button>
     </div>
     <form method="post" action="{{ url_for('leads.create') }}" class="modal-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;row-gap:18px;column-gap:16px">
         <div><label>Nombre</label><input type="text" name="first_name" required></div>
         <div><label>Apellidos</label><input type="text" name="last_name"></div>
         <div><label>Email</label><input type="email" name="email"></div>

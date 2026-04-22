@@ -676,6 +676,18 @@ body::before {
 
 .badge-danger { background: rgba(251, 113, 133, 0.14); color: var(--ss-pill-danger); border-color: rgba(251, 113, 133, 0.32); }
 
+/* Leads create/edit modal — label spacing inside bare-div grids */
+#createLeadModal .modal-body label,
+#editLeadModal .modal-body label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ss-meta);
+    margin-bottom: 6px;
+}
+
 /* ═══════════════════════════════════════════════════════════
    FORMS
    ═══════════════════════════════════════════════════════════ */
