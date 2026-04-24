@@ -94,12 +94,13 @@ class Company(db.Model):
     priority = db.Column(db.String(10), default="media")  # alta, media, baja
     next_contact_date = db.Column(db.Date, nullable=True, index=True)
     source = db.Column(db.String(100), default="")  # apollo, linkedin, referido, web, evento...
-    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)  # legacy: primer asignado
     phone = db.Column(db.String(50), default="")  # teléfono principal de la empresa (centralita)
     email = db.Column(db.String(200), default="")  # email genérico (info@/contacto@)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     assignee = db.relationship("User", foreign_keys=[assigned_to])
+    assignees = db.relationship("User", secondary="company_assignments", backref="assigned_companies")
 
 
 class CompanyContact(db.Model):
@@ -277,6 +278,18 @@ class EventAssignment(db.Model):
     __tablename__ = "event_assignments"
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("calendar_events.id", ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+class CompanyAssignment(db.Model):
+    __tablename__ = "company_assignments"
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+class LeadAssignment(db.Model):
+    __tablename__ = "lead_assignments"
+    id = db.Column(db.Integer, primary_key=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey("leads.id", ondelete="CASCADE"), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
 class ObjectiveRequirement(db.Model):
@@ -759,7 +772,7 @@ class Lead(db.Model):
     status = db.Column(db.String(30), default="nuevo", index=True)
     priority = db.Column(db.String(10), default="media")  # alta, media, baja
     source = db.Column(db.String(100), default="")  # apollo, linkedin, referido, web, evento...
-    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)  # legacy: primer asignado
     next_contact_date = db.Column(db.Date, nullable=True, index=True)
     notes = db.Column(db.Text, default="")
     tags = db.Column(db.String(300), default="")
@@ -769,6 +782,7 @@ class Lead(db.Model):
 
     company = db.relationship("Company", foreign_keys=[company_id])
     assignee = db.relationship("User", foreign_keys=[assigned_to])
+    assignees = db.relationship("User", secondary="lead_assignments", backref="assigned_leads")
 
     @property
     def full_name(self):

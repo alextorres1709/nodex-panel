@@ -109,6 +109,13 @@ def create():
             description=request.form.get("description", "").strip(),
             notes=request.form.get("notes", "").strip(),
         )
+        # Auto-link: if company set but no lead, pick first active lead of that company
+        if p.company_id and not p.lead_id:
+            auto_lead = Lead.query.filter_by(company_id=p.company_id).filter(
+                Lead.status.notin_(["perdido", "cliente"])
+            ).order_by(Lead.created_at.asc()).first()
+            if auto_lead:
+                p.lead_id = auto_lead.id
         db.session.add(p)
         log_activity("create", "project", details=f"Nuevo proyecto: {p.name}")
         db.session.commit()
@@ -135,6 +142,13 @@ def edit(pid):
         p.company_id = int(cid) if cid else None
         lid = request.form.get("lead_id", "").strip()
         p.lead_id = int(lid) if lid else None
+        # Auto-link: if company set but no lead selected, pick first active lead
+        if p.company_id and not p.lead_id:
+            auto_lead = Lead.query.filter_by(company_id=p.company_id).filter(
+                Lead.status.notin_(["perdido", "cliente"])
+            ).order_by(Lead.created_at.asc()).first()
+            if auto_lead:
+                p.lead_id = auto_lead.id
         p.status = request.form.get("status", p.status)
         p.type = request.form.get("type", p.type)
         p.budget = float(request.form.get("budget", p.budget) or 0)

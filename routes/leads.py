@@ -22,7 +22,7 @@ from sqlalchemy import or_, func
 from models import (
     db, Lead, LeadInteraction, Company,
     Sequence, SequenceEnrollment, EmailTemplate, User, Task, TaskAssignment,
-    Project,
+    Project, LeadAssignment,
 )
 from routes.auth import login_required
 from services.activity import log_activity
@@ -93,8 +93,12 @@ def _ensure_followup_task(lead, prev_date):
     )
     db.session.add(t)
     db.session.flush()
-    if lead.assigned_to:
-        db.session.add(TaskAssignment(task_id=t.id, user_id=lead.assigned_to))
+    # Assign to all assignees (multi-assign), fall back to lead.assigned_to
+    assigned_user_ids = [a.user_id for a in LeadAssignment.query.filter_by(lead_id=lead.id).all()]
+    if not assigned_user_ids and lead.assigned_to:
+        assigned_user_ids = [lead.assigned_to]
+    for uid in assigned_user_ids:
+        db.session.add(TaskAssignment(task_id=t.id, user_id=uid))
     return t
 
 
@@ -388,6 +392,15 @@ def create():
         db.session.add(lead)
         db.session.flush()
 
+        # Multi-assign
+        assigned_ids = request.form.getlist("assigned_to")
+        if not assigned_ids and kw.get("assigned_to"):
+            assigned_ids = [str(kw["assigned_to"])]
+        for uid in assigned_ids:
+            uid = uid.strip()
+            if uid:
+                db.session.add(LeadAssignment(lead_id=lead.id, user_id=int(uid)))
+
         if lead.next_contact_date:
             _ensure_followup_task(lead, prev_date=None)
 
@@ -428,6 +441,17 @@ def edit(lid):
             _ensure_followup_task(lead, prev_date=prev_date)
         if lead.status != prev_status:
             _record_status_change(lead, prev_status, lead.status, request.form.get("status_reason", ""))
+
+        # Multi-assign: rebuild
+        assigned_ids = request.form.getlist("assigned_to")
+        if assigned_ids:  # only update if field present in form
+            LeadAssignment.query.filter_by(lead_id=lead.id).delete()
+            for uid in assigned_ids:
+                uid = uid.strip()
+                if uid:
+                    db.session.add(LeadAssignment(lead_id=lead.id, user_id=int(uid)))
+            # Keep legacy field: first assignee
+            lead.assigned_to = int(assigned_ids[0]) if assigned_ids and assigned_ids[0].strip() else None
 
         log_activity("update", "lead", lead.id, f"Editado: {lead.full_name}")
         db.session.commit()

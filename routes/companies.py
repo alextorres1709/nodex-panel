@@ -2,7 +2,7 @@ from datetime import datetime, date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, g, Response, jsonify
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
-from models import db, Company, CompanyContact, Project, Task, TaskAssignment, User, Idea, CompanyInteraction, EmailTemplate, Lead
+from models import db, Company, CompanyContact, Project, Task, TaskAssignment, User, Idea, CompanyInteraction, EmailTemplate, Lead, CompanyAssignment
 from routes.auth import login_required
 from services.activity import log_activity
 from services.sync import push_change, push_change_now, sync_locked
@@ -212,6 +212,14 @@ def create():
         )
         db.session.add(c)
         db.session.flush()
+        # Multi-assign: sync assignees table
+        assigned_ids = request.form.getlist("assigned_to")
+        if not assigned_ids and assigned:
+            assigned_ids = [assigned]
+        for uid in assigned_ids:
+            uid = uid.strip()
+            if uid:
+                db.session.add(CompanyAssignment(company_id=c.id, user_id=int(uid)))
         # If next_contact_date set on creation → spawn follow-up task
         _ensure_followup_task(c, prev_date=None)
         log_activity("create", "company", details=f"Nueva empresa: {c.name}")
@@ -248,6 +256,15 @@ def edit(cid):
         c.assigned_to = int(assigned) if assigned else None
         c.phone = request.form.get("phone", "").strip()
         c.email = request.form.get("email", "").strip()
+        # Multi-assign: rebuild assignees table
+        assigned_ids = request.form.getlist("assigned_to")
+        if not assigned_ids and assigned:
+            assigned_ids = [assigned]
+        CompanyAssignment.query.filter_by(company_id=c.id).delete()
+        for uid in assigned_ids:
+            uid = uid.strip()
+            if uid:
+                db.session.add(CompanyAssignment(company_id=c.id, user_id=int(uid)))
         # Auto-create follow-up task if next_contact_date changed
         _ensure_followup_task(c, prev_date=prev_next_date)
         log_activity("update", "company", c.id, f"Editada: {c.name}")

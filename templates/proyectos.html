@@ -98,16 +98,20 @@
                 <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
                 <div class="form-group"><label>Cliente</label><input type="text" name="client_name" placeholder="Nombre del cliente"></div>
                 <div class="form-group"><label>Empresa vinculada</label>
-                    <select name="company_id">
+                    <select name="company_id" id="createCompanyId" onchange="filterLeadsByCompany('create')">
                         <option value="">— Sin empresa —</option>
                         {% for c in companies %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
                     </select>
                 </div>
-                <div class="form-group"><label>Lead / contacto vinculado</label>
-                    <select name="lead_id">
+                <div class="form-group">
+                    <label>Lead / contacto vinculado
+                        <span id="createAutoLeadBadge" style="display:none;font-size:11px;color:var(--accent);margin-left:6px">⚡ auto-vinculado</span>
+                    </label>
+                    <select name="lead_id" id="createLeadId">
                         <option value="">— Sin lead —</option>
-                        {% for l in leads %}<option value="{{ l.id }}">{{ l.full_name }}{% if l.display_company %} — {{ l.display_company }}{% endif %}</option>{% endfor %}
+                        {% for l in leads %}<option value="{{ l.id }}" data-company="{{ l.company_id or '' }}">{{ l.full_name }}{% if l.display_company %} — {{ l.display_company }}{% endif %}</option>{% endfor %}
                     </select>
+                    <span style="font-size:11px;color:var(--text-tertiary)">Si seleccionas empresa, el lead se vincula automaticamente</span>
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>Tipo</label><select name="type"><option value="web">Web</option><option value="app">App</option><option value="bot">Bot</option><option value="otro">Otro</option></select></div>
@@ -135,15 +139,18 @@
                 <div class="form-group"><label>Nombre</label><input type="text" name="name" required></div>
                 <div class="form-group"><label>Cliente</label><input type="text" name="client_name"></div>
                 <div class="form-group"><label>Empresa vinculada</label>
-                    <select name="company_id">
+                    <select name="company_id" id="editCompanyId" onchange="filterLeadsByCompany('edit')">
                         <option value="">— Sin empresa —</option>
                         {% for c in companies %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
                     </select>
                 </div>
-                <div class="form-group"><label>Lead / contacto vinculado</label>
-                    <select name="lead_id">
+                <div class="form-group">
+                    <label>Lead / contacto vinculado
+                        <span id="editAutoLeadBadge" style="display:none;font-size:11px;color:var(--accent);margin-left:6px">⚡ auto-vinculado</span>
+                    </label>
+                    <select name="lead_id" id="editLeadId">
                         <option value="">— Sin lead —</option>
-                        {% for l in leads %}<option value="{{ l.id }}">{{ l.full_name }}{% if l.display_company %} — {{ l.display_company }}{% endif %}</option>{% endfor %}
+                        {% for l in leads %}<option value="{{ l.id }}" data-company="{{ l.company_id or '' }}">{{ l.full_name }}{% if l.display_company %} — {{ l.display_company }}{% endif %}</option>{% endfor %}
                     </select>
                 </div>
                 <div class="form-row">
@@ -166,9 +173,64 @@
 
 {% block scripts %}
 <script>
+// Datos de leads por empresa para filtrado dinámico
+const LEADS_BY_COMPANY = {};
+{% for l in leads %}
+(function(){
+  var cid = '{{ l.company_id or "" }}';
+  if (!LEADS_BY_COMPANY[cid]) LEADS_BY_COMPANY[cid] = [];
+  LEADS_BY_COMPANY[cid].push({id: '{{ l.id }}', name: '{{ l.full_name|e }}{% if l.display_company %} — {{ l.display_company }}{% endif %}'});
+})();
+{% endfor %}
+
+function filterLeadsByCompany(prefix) {
+  var compSel = document.getElementById(prefix + 'CompanyId');
+  var leadSel = document.getElementById(prefix + 'LeadId');
+  var badge   = document.getElementById(prefix + 'AutoLeadBadge');
+  var compId  = compSel ? compSel.value : '';
+  if (!leadSel) return;
+
+  var currentVal = leadSel.value;
+  leadSel.innerHTML = '<option value="">— Sin lead —</option>';
+
+  var matching = LEADS_BY_COMPANY[compId] || [];
+  var allLeads = [];
+  Object.values(LEADS_BY_COMPANY).forEach(function(arr){ allLeads = allLeads.concat(arr); });
+
+  var pool = compId ? matching.concat(
+    allLeads.filter(function(l){ return !matching.find(function(m){ return m.id === l.id; }); })
+  ) : allLeads;
+
+  pool.forEach(function(l) {
+    var opt = document.createElement('option');
+    opt.value = l.id;
+    opt.textContent = l.name;
+    if (l.id === currentVal) opt.selected = true;
+    leadSel.appendChild(opt);
+  });
+
+  // Auto-select first lead of company
+  if (compId && matching.length && !currentVal) {
+    leadSel.value = matching[0].id;
+    if (badge) { badge.style.display = 'inline'; }
+  } else {
+    if (badge) { badge.style.display = 'none'; }
+  }
+}
+
 function editProject(id, name, client_name, company_id, lead_id, status, type, budget, progress, deadline, description, notes) {
     document.getElementById('editForm').action = '/proyectos/edit/' + id;
     populateEditModal({name, client_name, company_id, lead_id, status, type, budget, progress, deadline, description, notes}, 'editForm');
+    // Update lead dropdown for this company
+    setTimeout(function(){
+        var compSel = document.getElementById('editCompanyId');
+        if (compSel) compSel.value = company_id || '';
+        filterLeadsByCompany('edit');
+        var leadSel = document.getElementById('editLeadId');
+        if (leadSel && lead_id) leadSel.value = lead_id;
+        var badge = document.getElementById('editAutoLeadBadge');
+        if (badge) badge.style.display = 'none';
+    }, 10);
     openModal('editModal');
 }
 </script>
