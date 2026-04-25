@@ -107,7 +107,7 @@ def index():
         "pendiente": [t for t in tasks if t.status == "pendiente"],
         "en_progreso": [t for t in tasks if t.status == "en_progreso"],
         "en_espera": [t for t in tasks if t.status == "en_espera"],
-        "completada": [t for t in tasks if t.status == "completada"],
+        "completada": sorted([t for t in tasks if t.status == "completada"], key=lambda x: x.due_date or date(1970, 1, 1), reverse=True)[:15],
     }
 
     # Stats — computed via lightweight COUNT queries (no second full load)

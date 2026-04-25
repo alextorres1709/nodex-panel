@@ -26,6 +26,19 @@ def notify(user_id, type, title, body="", link=""):
     db.session.add(n)
     db.session.commit()
     _push(user_id, title, body, link)
+    try:
+        from services.sse import sse_bus
+        count = get_unread_count(user_id)
+        sse_bus.publish("notification", {
+            "count": count,
+            "title": title,
+            "body": body,
+            "type": type,
+            "link": link,
+            "id": n.id
+        })
+    except Exception:
+        pass
     return n
 
 

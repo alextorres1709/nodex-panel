@@ -253,7 +253,13 @@
                     {% endif %}
                 </td>
                 <td style="padding:10px 12px;color:var(--muted);font-size:12px">
-                    {{ l.assignee.name if l.assignee else '—' }}
+                    {% if l.assignees %}
+                        {{ l.assignees|map(attribute='name')|join(', ') }}
+                    {% elif l.assignee %}
+                        {{ l.assignee.name }}
+                    {% else %}
+                        —
+                    {% endif %}
                 </td>
                 <td style="padding:10px 12px">
                     {% set ens = enroll_by_lead.get(l.id, []) %}
@@ -345,8 +351,7 @@
         <div><label>Origen</label><input type="text" name="source" placeholder="apollo, linkedin, referido..."></div>
         <div>
           <label>Asignado a</label>
-          <select name="assigned_to">
-            <option value="">—</option>
+          <select name="assigned_to" multiple style="min-height:60px">
             {% for u in users %}<option value="{{ u.id }}">{{ u.name or u.email }}</option>{% endfor %}
           </select>
         </div>

@@ -366,14 +366,18 @@ def create_app():
     def inject_globals():
         user = g.get("user")
         notif_count = 0
+        all_users = []
         if user:
             from services.notifications import get_unread_count
             notif_count = get_unread_count(user.id)
+            from models import User
+            all_users = User.query.filter_by(active=True).all()
         from services.updater import update_available
         return {
             "current_user": user,
             "notif_count": notif_count,
             "update_available": update_available,
+            "all_users": all_users,
         }
 
     return app

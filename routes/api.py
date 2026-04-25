@@ -11,7 +11,7 @@ from flask import Blueprint, jsonify, request, g, Response
 from sqlalchemy.orm import joinedload
 from models import (
     db, User, Project, Task, Subtask, Client, Invoice, Payment,
-    Income, TimeEntry, Notification, Idea, Automation, Document,
+    Income, TimeEntry, Notification, Idea, Automation, Document, CalendarEvent
 )
 from config import APP_VERSION
 from routes.auth import api_token_required, login_required
@@ -247,6 +247,122 @@ def api_native_notify():
     except Exception as e:
         import logging
         logging.getLogger("api").warning(f"Native notification error: {e}")
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/api/meetings/schedule", methods=["POST"])
+@login_required
+def api_schedule_meeting():
+    data = request.get_json(force=True)
+    title = data.get("title", "Reunión interna")
+    date_str = data.get("date")
+    time_str = data.get("time")
+    assignee_id = data.get("assignee_id")
+    
+    if not date_str:
+        return jsonify({"error": "Fecha obligatoria"}), 400
+        
+    # Create CalendarEvent for creator
+    ev = CalendarEvent(
+        title=title,
+        event_type="reunion",
+        date=datetime.strptime(date_str, "%Y-%m-%d").date(),
+        start_time=time_str,
+        created_by=g.user.id
+    )
+    db.session.add(ev)
+    db.session.commit()
+    
+    from services.gcal import push_event
+    gcal_id = push_event(ev, g.user.id)
+    if gcal_id:
+        ev.gcal_event_id = gcal_id
+        db.session.commit()
+        
+    if assignee_id and str(assignee_id) != str(g.user.id):
+        # Notify the partner
+        payload = {
+            "title": title,
+            "date": date_str,
+            "time": time_str,
+            "creator_id": g.user.id,
+            "creator_name": g.user.name
+        }
+        from services.notifications import notify
+        notify(
+            user_id=int(assignee_id),
+            title=f"Nueva invitación a reunión de {g.user.name}",
+            body=f"{title} el {date_str} a las {time_str}",
+            type="meeting_invite",
+            link=json.dumps(payload)
+        )
+        # Try native notification too
+        try:
+            from services.native_notify import send_native_notification
+            send_native_notification(f"Reunión: {title}", f"{g.user.name} te ha invitado el {date_str} {time_str}")
+        except:
+            pass
+        
+    return jsonify({"ok": True, "message": "Reunión programada"})
+
+
+@api_bp.route("/api/meetings/confirm", methods=["POST"])
+@login_required
+def api_confirm_meeting():
+    data = request.get_json(force=True)
+    notification_id = data.get("notification_id")
+    accepted = data.get("accepted", False)
+    
+    notif = Notification.query.get(notification_id)
+    if not notif or notif.user_id != g.user.id:
+        return jsonify({"error": "No encontrada"}), 404
+        
+    notif.read = True
+    
+    if accepted:
+        try:
+            payload = json.loads(notif.link)
+            ev = CalendarEvent(
+                title=payload.get("title"),
+                event_type="reunion",
+                date=datetime.strptime(payload.get("date"), "%Y-%m-%d").date(),
+                start_time=payload.get("time"),
+                created_by=payload.get("creator_id"),
+                assigned_to=g.user.id
+            )
+            db.session.add(ev)
+            db.session.commit()
+            
+            from services.gcal import push_event
+            gcal_id = push_event(ev, g.user.id)
+            if gcal_id:
+                ev.gcal_event_id = gcal_id
+                db.session.commit()
+                
+            from services.notifications import notify
+            notify(
+                user_id=payload.get("creator_id"),
+                title=f"{g.user.name} ha aceptado la reunión",
+                body=payload.get("title"),
+                type="system"
+            )
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+    else:
+        db.session.commit()
+        try:
+            payload = json.loads(notif.link)
+            from services.notifications import notify
+            notify(
+                user_id=payload.get("creator_id"),
+                title=f"{g.user.name} ha rechazado la reunión",
+                body=payload.get("title"),
+                type="system"
+            )
+        except:
+            pass
+        
     return jsonify({"ok": True})
 
 

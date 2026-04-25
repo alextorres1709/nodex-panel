@@ -671,6 +671,119 @@
         }
         </script>
 
+        <!-- Meeting Schedule Modal -->
+        <div class="modal-overlay" id="scheduleMeetingModal">
+            <div class="modal" style="max-width: 440px;">
+                <div class="modal-header">
+                    <h3>Programar reunión interna</h3>
+                    <button class="modal-close" onclick="closeModal('scheduleMeetingModal')">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 20px 24px;">
+                    <form id="scheduleMeetingForm" style="display:flex;flex-direction:column;gap:12px;">
+                        <div>
+                            <label style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;display:block">Asunto / Motivo</label>
+                            <input type="text" id="scheduleMeetingTitle" required style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                            <div>
+                                <label style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;display:block">Fecha</label>
+                                <input type="date" id="scheduleMeetingDate" required style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+                            </div>
+                            <div>
+                                <label style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;display:block">Hora</label>
+                                <input type="time" id="scheduleMeetingTime" required style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;display:block">Asignar a</label>
+                            <select id="scheduleMeetingAssignee" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+                                <option value="">Solo para mi</option>
+                                {% for u in all_users %}
+                                {% if u.id != current_user.id %}
+                                <option value="{{ u.id }}">{{ u.name }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid var(--border-color); display:flex; gap:8px; justify-content:flex-end;">
+                    <button class="btn btn-secondary" onclick="closeModal('scheduleMeetingModal')">Cancelar</button>
+                    <button class="btn btn-primary" onclick="submitScheduleMeeting()">Programar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Meeting Confirm Modal -->
+        <div class="modal-overlay" id="confirmMeetingModal">
+            <div class="modal" style="max-width: 440px;">
+                <div class="modal-header">
+                    <h3>Invitación a reunión</h3>
+                    <button class="modal-close" onclick="closeModal('confirmMeetingModal')">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 20px 24px;">
+                    <p style="margin:0 0 12px; color: var(--text-secondary);" id="confirmMeetingText"></p>
+                    <input type="hidden" id="confirmMeetingNotifId">
+                </div>
+                <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid var(--border-color); display:flex; gap:8px; justify-content:flex-end;">
+                    <button class="btn btn-secondary" style="color:#ef4444" onclick="respondToMeeting(false)">Rechazar</button>
+                    <button class="btn btn-primary" onclick="respondToMeeting(true)">Aceptar</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        function openScheduleMeeting(title) {
+            document.getElementById('scheduleMeetingTitle').value = title || 'Reunión interna';
+            const now = new Date();
+            document.getElementById('scheduleMeetingDate').value = now.toISOString().split('T')[0];
+            document.getElementById('scheduleMeetingTime').value = now.toTimeString().slice(0,5);
+            openModal('scheduleMeetingModal');
+        }
+
+        function submitScheduleMeeting() {
+            const payload = {
+                title: document.getElementById('scheduleMeetingTitle').value,
+                date: document.getElementById('scheduleMeetingDate').value,
+                time: document.getElementById('scheduleMeetingTime').value,
+                assignee_id: document.getElementById('scheduleMeetingAssignee').value
+            };
+            if (!payload.date) return alert("Fecha obligatoria");
+            
+            fetch('/api/meetings/schedule', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            }).then(r=>r.json()).then(d=>{
+                if(d.ok) {
+                    closeModal('scheduleMeetingModal');
+                    // Optionally show a toast
+                } else {
+                    alert(d.error || "Error");
+                }
+            });
+        }
+
+        function showMeetingInvite(data) {
+            try {
+                const payload = JSON.parse(data.link);
+                document.getElementById('confirmMeetingText').innerText = 
+                    `${payload.creator_name} te ha invitado a "${payload.title}" el ${payload.date} a las ${payload.time}. ¿Aceptas?`;
+                document.getElementById('confirmMeetingNotifId').value = data.id;
+                openModal('confirmMeetingModal');
+            } catch(e){}
+        }
+
+        function respondToMeeting(accepted) {
+            const notifId = document.getElementById('confirmMeetingNotifId').value;
+            fetch('/api/meetings/confirm', {
+                method: 'POST',
+                body: JSON.stringify({notification_id: notifId, accepted: accepted})
+            }).then(r=>r.json()).then(d=>{
+                closeModal('confirmMeetingModal');
+            });
+        }
+        </script>
+
         <main class="main-content">
             {% set _ua = request.headers.get('User-Agent', '') %}
             {% if 'Android' not in _ua %}
@@ -1112,7 +1225,9 @@
             es.addEventListener('notification', function(e) {
                 var data = JSON.parse(e.data);
                 updateNotifBadge(data.count);
-                if (data.title) {
+                if (data.type === 'meeting_invite') {
+                    showMeetingInvite(data);
+                } else if (data.title) {
                     sendNativeNotification(data.title, data.body || '');
                 }
             });

@@ -71,7 +71,7 @@ def _ensure_followup_task(lead, prev_date):
     new_date = lead.next_contact_date
     if not new_date or new_date == prev_date:
         return None
-    title = f"Llamar a {lead.full_name}"
+    title = f"Contactar {lead.full_name}"
     existing = (
         Task.query
         .filter_by(title=title, due_date=new_date)
@@ -93,13 +93,24 @@ def _ensure_followup_task(lead, prev_date):
     )
     db.session.add(t)
     db.session.flush()
-    # Assign to all assignees (multi-assign), fall back to lead.assigned_to
+    # Assign to all assignees (multi-assign)
     assigned_user_ids = [a.user_id for a in LeadAssignment.query.filter_by(lead_id=lead.id).all()]
     if not assigned_user_ids and lead.assigned_to:
         assigned_user_ids = [lead.assigned_to]
     for uid in assigned_user_ids:
         db.session.add(TaskAssignment(task_id=t.id, user_id=uid))
     return t
+
+def _sync_assignees_to_company(lead):
+    if not lead.company_id:
+        return
+    assigned_ids = [a.user_id for a in LeadAssignment.query.filter_by(lead_id=lead.id).all()]
+    from models import CompanyAssignment
+    CompanyAssignment.query.filter_by(company_id=lead.company_id).delete()
+    for uid in assigned_ids:
+        db.session.add(CompanyAssignment(company_id=lead.company_id, user_id=uid))
+    if lead.company:
+        lead.company.assigned_to = lead.assigned_to
 
 
 def _record_status_change(lead, old, new, reason=""):
@@ -146,7 +157,7 @@ def index():
         q = q.filter(Lead.priority == priority)
     if assigned:
         try:
-            q = q.filter(Lead.assigned_to == int(assigned))
+            q = q.filter(or_(Lead.assigned_to == int(assigned), Lead.assignees.any(User.id == int(assigned))))
         except ValueError:
             pass
     if company_id:
@@ -400,6 +411,8 @@ def create():
             uid = uid.strip()
             if uid:
                 db.session.add(LeadAssignment(lead_id=lead.id, user_id=int(uid)))
+                
+        _sync_assignees_to_company(lead)
 
         if lead.next_contact_date:
             _ensure_followup_task(lead, prev_date=None)
@@ -452,6 +465,8 @@ def edit(lid):
                     db.session.add(LeadAssignment(lead_id=lead.id, user_id=int(uid)))
             # Keep legacy field: first assignee
             lead.assigned_to = int(assigned_ids[0]) if assigned_ids and assigned_ids[0].strip() else None
+
+        _sync_assignees_to_company(lead)
 
         log_activity("update", "lead", lead.id, f"Editado: {lead.full_name}")
         db.session.commit()
@@ -537,11 +552,18 @@ def quick_assigned(lid):
     lead = db.session.get(Lead, lid)
     if not lead:
         return jsonify({"error": "not_found"}), 404
-    val = (request.form.get("assigned_to") or "").strip()
-    lead.assigned_to = int(val) if val else None
+    assigned_ids = request.form.getlist("assigned_to")
+    LeadAssignment.query.filter_by(lead_id=lead.id).delete()
+    for uid in assigned_ids:
+        if uid.strip():
+            db.session.add(LeadAssignment(lead_id=lead.id, user_id=int(uid)))
+    lead.assigned_to = int(assigned_ids[0]) if assigned_ids and assigned_ids[0].strip() else None
+    
+    _sync_assignees_to_company(lead)
+
     db.session.commit()
     push_change("leads", lead.id)
-    return jsonify({"ok": True, "assigned_to": lead.assigned_to})
+    return jsonify({"ok": True})
 
 
 # ──────────────────────────────────────────────

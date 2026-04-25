@@ -34,7 +34,7 @@ def _ensure_followup_task(company, prev_date):
     new_date = company.next_contact_date
     if not new_date or new_date == prev_date:
         return None
-    title = f"Seguir con {company.name}"
+    title = f"Contactar {company.name}"
     existing = (
         Task.query
         .filter_by(company_id=company.id, title=title, due_date=new_date)
@@ -53,9 +53,22 @@ def _ensure_followup_task(company, prev_date):
     )
     db.session.add(t)
     db.session.flush()
-    if company.assigned_to:
-        db.session.add(TaskAssignment(task_id=t.id, user_id=company.assigned_to))
+    assigned_user_ids = [a.user_id for a in CompanyAssignment.query.filter_by(company_id=company.id).all()]
+    if not assigned_user_ids and company.assigned_to:
+        assigned_user_ids = [company.assigned_to]
+    for uid in assigned_user_ids:
+        db.session.add(TaskAssignment(task_id=t.id, user_id=uid))
     return t
+
+def _sync_assignees_to_leads(company):
+    assigned_ids = [a.user_id for a in CompanyAssignment.query.filter_by(company_id=company.id).all()]
+    from models import LeadAssignment
+    leads = Lead.query.filter_by(company_id=company.id).all()
+    for lead in leads:
+        LeadAssignment.query.filter_by(lead_id=lead.id).delete()
+        for uid in assigned_ids:
+            db.session.add(LeadAssignment(lead_id=lead.id, user_id=uid))
+        lead.assigned_to = company.assigned_to
 
 
 @companies_bp.route("/empresas")
@@ -75,7 +88,7 @@ def index():
         q = q.filter_by(priority=priority)
     if assigned:
         try:
-            q = q.filter_by(assigned_to=int(assigned))
+            q = q.filter(or_(Company.assigned_to == int(assigned), Company.assignees.any(User.id == int(assigned))))
         except ValueError:
             pass
     if search:
@@ -220,6 +233,7 @@ def create():
             uid = uid.strip()
             if uid:
                 db.session.add(CompanyAssignment(company_id=c.id, user_id=int(uid)))
+        _sync_assignees_to_leads(c)
         # If next_contact_date set on creation → spawn follow-up task
         _ensure_followup_task(c, prev_date=None)
         log_activity("create", "company", details=f"Nueva empresa: {c.name}")
@@ -265,6 +279,7 @@ def edit(cid):
             uid = uid.strip()
             if uid:
                 db.session.add(CompanyAssignment(company_id=c.id, user_id=int(uid)))
+        _sync_assignees_to_leads(c)
         # Auto-create follow-up task if next_contact_date changed
         _ensure_followup_task(c, prev_date=prev_next_date)
         log_activity("update", "company", c.id, f"Editada: {c.name}")

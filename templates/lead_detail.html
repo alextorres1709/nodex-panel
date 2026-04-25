@@ -27,11 +27,11 @@
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
         {% if lead.phone %}
-        <a href="tel:{{ lead.phone }}" class="btn"
+        <button class="btn" onclick="openScheduleCallModal('{{ lead.full_name }}', '{{ lead.phone }}')"
            style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;padding:10px 18px;font-weight:700;border-radius:8px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(34,197,94,.3)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
-            LLAMAR <span class="tabular" style="opacity:.85">{{ lead.phone }}</span>
-        </a>
+            Agendar llamada
+        </button>
         {% endif %}
         {% if lead.email %}
         <a href="mailto:{{ lead.email }}" class="btn btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="vertical-align:-2px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Email</a>
@@ -39,6 +39,10 @@
         {% if lead.linkedin %}
         <a href="{{ lead.linkedin }}" target="_blank" rel="noopener" class="btn btn-secondary">LinkedIn ↗</a>
         {% endif %}
+        <button class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:6px" onclick="openScheduleMeeting('Reunión interna: {{ lead.full_name }}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Reunión interna
+        </button>
         <button class="btn btn-secondary" onclick="openModal('enrollModal')">+ Inscribir en secuencia</button>
         <button class="btn btn-secondary" onclick="openModal('editLeadModal')">Editar</button>
         <form method="post" action="{{ url_for('leads.delete', lid=lead.id) }}" style="display:inline">
@@ -49,6 +53,51 @@
             <button class="btn btn-primary" onclick="return confirm('Convertir este lead en cliente?')">Convertir a cliente</button>
         </form>
         {% endif %}
+    </div>
+</div>
+
+<!-- Schedule Call Modal -->
+<div class="modal-overlay" id="scheduleCallModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <h3>Agendar llamada</h3>
+            <button class="modal-close" onclick="closeModal('scheduleCallModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:20px 24px">
+            <form id="scheduleCallForm" style="display:flex;flex-direction:column;gap:12px">
+                <div>
+                    <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Lead</label>
+                    <input type="text" id="scheduleCallLeadName" readonly style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);opacity:.7">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div>
+                        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Fecha</label>
+                        <input type="date" id="scheduleCallDate" required style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Hora</label>
+                        <input type="time" id="scheduleCallTime" required style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">¿Quién asiste?</label>
+                    <select id="scheduleCallAssignee" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+                        <option value="">Solo yo</option>
+                        {% for u in users %}
+                        <option value="{{ u.id }}">{{ u.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Notas</label>
+                    <textarea id="scheduleCallNotes" rows="2" placeholder="Objetivo de la llamada..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);resize:vertical"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer" style="padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="closeModal('scheduleCallModal')">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitScheduleCall()">Agendar en calendario</button>
+        </div>
     </div>
 </div>
 
@@ -80,11 +129,14 @@
     </div>
     <div>
         <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Asignado</div>
-        <select id="assignedSelect" onchange="updateField('quick-assigned', 'assigned_to', this.value)"
-                style="width:100%;padding:6px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:12px">
-            <option value="">—</option>
+        <select id="assignedSelect" onchange="
+            const fd = new FormData();
+            Array.from(this.selectedOptions).forEach(opt => fd.append('assigned_to', opt.value));
+            fetch('/leads/{{ lead.id }}/quick-assigned', {method:'POST', body: fd});
+        " multiple
+                style="width:100%;padding:6px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:12px;min-height:60px">
             {% for u in users %}
-            <option value="{{ u.id }}" {% if lead.assigned_to == u.id %}selected{% endif %}>{{ u.name or u.email }}</option>
+            <option value="{{ u.id }}" {% if u in lead.assignees or lead.assigned_to == u.id %}selected{% endif %}>{{ u.name or u.email }}</option>
             {% endfor %}
         </select>
     </div>
@@ -326,9 +378,8 @@
         <div><label>Origen</label><input type="text" name="source" value="{{ lead.source }}"></div>
         <div>
           <label>Asignado</label>
-          <select name="assigned_to">
-            <option value="">—</option>
-            {% for u in users %}<option value="{{ u.id }}" {% if lead.assigned_to == u.id %}selected{% endif %}>{{ u.name or u.email }}</option>{% endfor %}
+          <select name="assigned_to" multiple style="min-height:60px">
+            {% for u in users %}<option value="{{ u.id }}" {% if u in lead.assignees or lead.assigned_to == u.id %}selected{% endif %}>{{ u.name or u.email }}</option>{% endfor %}
           </select>
         </div>
         <div><label>Próx. contacto</label><input type="date" name="next_contact_date" value="{{ lead.next_contact_date.isoformat() if lead.next_contact_date else '' }}"></div>
@@ -357,6 +408,45 @@ async function updateField(endpoint, field, value){
             if (endpoint === 'quick-status') setTimeout(()=>location.reload(), 200);
         }
     } catch(e){ console.error(e); }
+}
+
+function openScheduleCallModal(leadName, phone) {
+    document.getElementById('scheduleCallLeadName').value = leadName + (phone ? ' · ' + phone : '');
+    const now = new Date();
+    document.getElementById('scheduleCallDate').value = now.toISOString().split('T')[0];
+    document.getElementById('scheduleCallTime').value = now.toTimeString().slice(0,5);
+    openModal('scheduleCallModal');
+}
+
+async function submitScheduleCall() {
+    const date = document.getElementById('scheduleCallDate').value;
+    const time = document.getElementById('scheduleCallTime').value;
+    const assigneeId = document.getElementById('scheduleCallAssignee').value;
+    const notes = document.getElementById('scheduleCallNotes').value;
+    if (!date) return alert('Selecciona una fecha');
+
+    const title = 'Contactar {{ lead.full_name }}' + (notes ? ': ' + notes : '');
+
+    const payload = { title, date, time, assignee_id: assigneeId };
+    try {
+        const r = await fetch('/api/meetings/schedule', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const d = await r.json();
+        if (d.ok) {
+            closeModal('scheduleCallModal');
+            // Flash success
+            const flash = document.createElement('div');
+            flash.className = 'flash-message flash-success';
+            flash.textContent = '✓ Llamada agendada en el calendario';
+            document.querySelector('.main-content').prepend(flash);
+            setTimeout(() => flash.remove(), 4000);
+        } else {
+            alert(d.error || 'Error al agendar');
+        }
+    } catch(e) { alert('Error de conexión'); }
 }
 </script>
 {% endblock %}
