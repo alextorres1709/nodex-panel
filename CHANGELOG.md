@@ -1,6 +1,13 @@
 # Changelog
 
-## v4.5.34 — 2026-04-23
+## v4.6.1 — 2026-04-25
+*Implementado por Alex & Antigravity*
+- **Colaboración CRM:** Botón LLAMAR reemplazado por modal "Agendar llamada" con fecha/hora/asistente → crea evento en calendario y notifica al equipo.
+- **Reunión interna:** Nuevo botón "Reunión interna" en leads y empresas para programar reuniones con el equipo vía `/api/meetings/schedule`.
+- **Dashboard:** Acceso rápido a "Reunión Nodex" desde la barra de acciones rápidas.
+- **Notificaciones SSE en tiempo real:** Las invitaciones de tipo `meeting_invite` abren automáticamente un modal de aceptar/rechazar en el navegador.
+- **Kanban optimizado:** Las tareas completadas se limitan a las 15 más recientes para evitar acumulación visual.
+- **Tareas renombradas:** "Llamar a" y "Seguir con" ahora se generan como "Contactar" para unificar terminología.
 *Implementado por Alex*
 - **Ajustes visuales Dashboard:** Se han acortado las listas de "Mis tareas" y "Proyectos activos" para que no ocupen tanto espacio vertical. Además, se ha añadido una nueva sección de "Tareas atrasadas" justo debajo de "Proyectos activos" aprovechando el nuevo espacio libre.
 
