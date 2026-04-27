@@ -38,10 +38,6 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-2px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             Email (n8n)
         </button>
-        <button class="btn btn-secondary" onclick="openLogModal('meeting')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-            Reunión
-        </button>
         <button class="btn btn-secondary" onclick="openLogModal('note')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             Nota
@@ -820,14 +816,24 @@ function openEmpresaScheduleCall(name, phone) {
 async function submitEmpresaScheduleCall() {
     const date = document.getElementById('empCallDate').value;
     const time = document.getElementById('empCallTime').value;
-    const assigneeId = document.getElementById('empCallAssignee').value;
+    const callType = document.getElementById('empCallType').value;
+    const attendees = document.getElementById('empCallAssignee').value;
     const notes = document.getElementById('empCallNotes').value;
     if (!date) return alert('Selecciona una fecha');
 
     const name = document.getElementById('empCallLeadName').value.split(' · ')[0];
-    const title = 'Contactar ' + name + (notes ? ': ' + notes : '');
+    const title = '[' + callType + '] Contactar ' + name + (notes ? ' — ' + notes : '');
 
-    const payload = { title, date, time, assignee_id: assigneeId };
+    // Build assignee_ids list
+    let assigneeIds = [];
+    if (attendees === 'all') {
+        // All active users — backend will filter out the creator
+        assigneeIds = [{{ users | map(attribute='id') | list | join(', ') }}];
+    } else if (attendees) {
+        assigneeIds = [parseInt(attendees)];
+    }
+
+    const payload = { title, date, time, assignee_ids: assigneeIds };
     try {
         const r = await fetch('/api/meetings/schedule', {
             method: 'POST',
@@ -839,7 +845,7 @@ async function submitEmpresaScheduleCall() {
             closeModal('empresaScheduleCallModal');
             const flash = document.createElement('div');
             flash.className = 'flash-message flash-success';
-            flash.textContent = '✓ Llamada agendada en el calendario';
+            flash.textContent = '✓ Llamada agendada — ' + callType;
             document.querySelector('.main-content, main').prepend(flash);
             setTimeout(() => flash.remove(), 4000);
         } else {
@@ -851,13 +857,13 @@ async function submitEmpresaScheduleCall() {
 
 <!-- Empresa Schedule Call Modal -->
 <div class="modal-overlay" id="empresaScheduleCallModal">
-    <div class="modal" style="max-width:420px">
+    <div class="modal" style="max-width:440px">
         <div class="modal-header">
             <h3>Agendar llamada</h3>
             <button class="modal-close" onclick="closeModal('empresaScheduleCallModal')">&times;</button>
         </div>
         <div class="modal-body" style="padding:20px 24px">
-            <form style="display:flex;flex-direction:column;gap:12px">
+            <form style="display:flex;flex-direction:column;gap:14px">
                 <div>
                     <label style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;display:block">Con</label>
                     <input type="text" id="empCallLeadName" readonly style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);opacity:.7">
@@ -873,17 +879,27 @@ async function submitEmpresaScheduleCall() {
                     </div>
                 </div>
                 <div>
-                    <label style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;display:block">¿Quién asiste?</label>
-                    <select id="empCallAssignee" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
-                        <option value="">Solo yo</option>
-                        {% for u in users %}
-                        <option value="{{ u.id }}">{{ u.name }}</option>
-                        {% endfor %}
+                    <label style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;display:block">Tipo de llamada</label>
+                    <select id="empCallType" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+                        <option value="Telefónica">📞 Telefónica</option>
+                        <option value="Zoom">🎥 Zoom</option>
+                        <option value="Google Meet">📹 Google Meet</option>
+                        <option value="Teams">💼 Teams</option>
+                        <option value="Presencial">🤝 Presencial</option>
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;display:block">Notas</label>
-                    <textarea id="empCallNotes" rows="2" placeholder="Objetivo de la llamada..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);resize:vertical"></textarea>
+                    <label style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;display:block">¿Quién asiste?</label>
+                    <select id="empCallAssignee" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+                        {% for u in users if u.id != current_user.id %}
+                        <option value="{{ u.id }}">Solo {{ u.name.split()[0] }}</option>
+                        {% endfor %}
+                        <option value="all">Mi socio y yo</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px;display:block">Objetivo de la llamada</label>
+                    <textarea id="empCallNotes" rows="2" placeholder="¿Qué queremos conseguir en esta llamada?" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);resize:vertical"></textarea>
                 </div>
             </form>
         </div>

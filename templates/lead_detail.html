@@ -58,13 +58,13 @@
 
 <!-- Schedule Call Modal -->
 <div class="modal-overlay" id="scheduleCallModal">
-    <div class="modal" style="max-width:420px">
+    <div class="modal" style="max-width:440px">
         <div class="modal-header">
             <h3>Agendar llamada</h3>
             <button class="modal-close" onclick="closeModal('scheduleCallModal')">&times;</button>
         </div>
         <div class="modal-body" style="padding:20px 24px">
-            <form id="scheduleCallForm" style="display:flex;flex-direction:column;gap:12px">
+            <form id="scheduleCallForm" style="display:flex;flex-direction:column;gap:14px">
                 <div>
                     <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Lead</label>
                     <input type="text" id="scheduleCallLeadName" readonly style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);opacity:.7">
@@ -80,17 +80,27 @@
                     </div>
                 </div>
                 <div>
-                    <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">¿Quién asiste?</label>
-                    <select id="scheduleCallAssignee" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
-                        <option value="">Solo yo</option>
-                        {% for u in users %}
-                        <option value="{{ u.id }}">{{ u.name }}</option>
-                        {% endfor %}
+                    <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Tipo de llamada</label>
+                    <select id="scheduleCallType" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+                        <option value="Telefónica">📞 Telefónica</option>
+                        <option value="Zoom">🎥 Zoom</option>
+                        <option value="Google Meet">📹 Google Meet</option>
+                        <option value="Teams">💼 Teams</option>
+                        <option value="Presencial">🤝 Presencial</option>
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Notas</label>
-                    <textarea id="scheduleCallNotes" rows="2" placeholder="Objetivo de la llamada..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);resize:vertical"></textarea>
+                    <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">¿Quién asiste?</label>
+                    <select id="scheduleCallAssignee" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+                        {% for u in users if u.id != current_user.id %}
+                        <option value="{{ u.id }}">Solo {{ u.name.split()[0] }}</option>
+                        {% endfor %}
+                        <option value="all">Mi socio y yo</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Objetivo de la llamada</label>
+                    <textarea id="scheduleCallNotes" rows="2" placeholder="¿Qué queremos conseguir en esta llamada?" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);resize:vertical"></textarea>
                 </div>
             </form>
         </div>
@@ -421,13 +431,21 @@ function openScheduleCallModal(leadName, phone) {
 async function submitScheduleCall() {
     const date = document.getElementById('scheduleCallDate').value;
     const time = document.getElementById('scheduleCallTime').value;
-    const assigneeId = document.getElementById('scheduleCallAssignee').value;
+    const callType = document.getElementById('scheduleCallType').value;
+    const attendees = document.getElementById('scheduleCallAssignee').value;
     const notes = document.getElementById('scheduleCallNotes').value;
     if (!date) return alert('Selecciona una fecha');
 
-    const title = 'Contactar {{ lead.full_name }}' + (notes ? ': ' + notes : '');
+    const title = '[' + callType + '] Contactar {{ lead.full_name }}' + (notes ? ' — ' + notes : '');
 
-    const payload = { title, date, time, assignee_id: assigneeId };
+    let assigneeIds = [];
+    if (attendees === 'all') {
+        assigneeIds = [{{ users | map(attribute='id') | list | join(', ') }}];
+    } else if (attendees) {
+        assigneeIds = [parseInt(attendees)];
+    }
+
+    const payload = { title, date, time, assignee_ids: assigneeIds };
     try {
         const r = await fetch('/api/meetings/schedule', {
             method: 'POST',
@@ -440,7 +458,7 @@ async function submitScheduleCall() {
             // Flash success
             const flash = document.createElement('div');
             flash.className = 'flash-message flash-success';
-            flash.textContent = '✓ Llamada agendada en el calendario';
+            flash.textContent = '✓ Llamada agendada — ' + callType;
             document.querySelector('.main-content').prepend(flash);
             setTimeout(() => flash.remove(), 4000);
         } else {

@@ -386,9 +386,17 @@ class SyncManager:
                 remote_ts = values.get("updated_at") or values.get("created_at")
                 local_ts = local_timestamps.get(row_id)
 
-                if local_ts and remote_ts and local_ts > remote_ts:
-                    # Local is newer — don't overwrite, push local to remote instead
-                    continue
+                if local_ts and remote_ts:
+                    # Normalize both to naive UTC — SQLite returns naive datetimes
+                    # while PostgreSQL returns timezone-aware ones; comparing them
+                    # directly raises TypeError and skips the entire table.
+                    def _naive_utc(dt):
+                        if dt.tzinfo is not None:
+                            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+                        return dt
+                    if _naive_utc(local_ts) > _naive_utc(remote_ts):
+                        # Local is newer — don't overwrite, push local to remote instead
+                        continue
 
                 # UPDATE existing row with remote data
                 update_vals = {k: v for k, v in values.items() if k != "id"}

@@ -84,6 +84,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var offlineOverlay: LinearLayout
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
+    // Only show the pull-to-refresh spinner when the user explicitly pulls,
+    // not on every in-app navigation (which makes sections feel sluggish).
+    private var isPullRefreshing = false
 
     // Pending download info captured when the user taps "Descargar" and
     // handed off to the ACTION_CREATE_DOCUMENT picker result.
@@ -150,6 +153,7 @@ class MainActivity : AppCompatActivity() {
             resources.getColor(R.color.accent_blue, theme)
         )
         swipeRefresh.setOnRefreshListener {
+            isPullRefreshing = true
             webView.reload()
         }
 
@@ -210,15 +214,15 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
-                swipeRefresh.isRefreshing = true
-                // Inject CSS as early as possible to suppress flash toasts
-                // before they have a chance to render on screen.
+                // Only show spinner for explicit pull-to-refresh, not in-app navigation
+                if (isPullRefreshing) swipeRefresh.isRefreshing = true
                 view?.evaluateJavascript(HIDE_FLASHES_JS, null)
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 swipeRefresh.isRefreshing = false
+                isPullRefreshing = false
                 offlineOverlay.visibility = View.GONE
 
                 // Inject viewport meta if missing, mark as Android, and
@@ -395,20 +399,35 @@ class MainActivity : AppCompatActivity() {
         FirebaseMessaging.getInstance().token
             .addOnSuccessListener { token ->
                 Log.d("NodexFCM", "FCM token: $token")
-                getSharedPreferences("nodexai", MODE_PRIVATE).edit()
-                    .putString("fcm_token", token).apply()
-                webView?.evaluateJavascript("""
-                    fetch('/api/push/register', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({token: '$token', platform: 'android'})
-                    }).then(function(r){ console.log('FCM register: ' + r.status); })
-                      .catch(function(e){ console.error('FCM register err: ' + e); });
-                """.trimIndent(), null)
+                val prefs = getSharedPreferences("nodexai", MODE_PRIVATE)
+                prefs.edit().putString("fcm_token", token).apply()
+                // Also clear any pending token saved by the background service
+                prefs.edit().remove("pending_fcm_token").apply()
+                sendTokenViaJs(webView, token)
             }
             .addOnFailureListener { e ->
                 Log.e("NodexFCM", "Token error: ${e.message}")
+                // Try to register any token the background service saved when
+                // onNewToken fired without an active WebView session.
+                val pending = getSharedPreferences("nodexai", MODE_PRIVATE)
+                    .getString("pending_fcm_token", null)
+                if (pending != null) {
+                    sendTokenViaJs(webView, pending)
+                }
             }
+    }
+
+    private fun sendTokenViaJs(webView: WebView?, token: String) {
+        val escaped = token.replace("'", "\\'")
+        webView?.evaluateJavascript("""
+            fetch('/api/push/register', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({token: '$escaped', platform: 'android'})
+            }).then(function(r){ console.log('FCM register: ' + r.status); })
+              .catch(function(e){ console.error('FCM register err: ' + e); });
+        """.trimIndent(), null)
     }
 
     private fun saveSessionCookie() {

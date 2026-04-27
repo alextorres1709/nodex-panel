@@ -754,8 +754,7 @@ window._nodexCustomSync = true;
             );
             lastData = data;
             if (changed) {
-                // Reload page to reflect all changes (charts, task lists, etc.)
-                window.location.reload();
+                window.softReload();
             }
         }).catch(function() {});
     });

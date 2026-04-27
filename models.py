@@ -21,6 +21,8 @@ class User(db.Model):
     totp_secret = db.Column(db.String(64), nullable=True)  # base32 secret for 2FA
     totp_enabled = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
     last_seen_at = db.Column(db.DateTime, nullable=True)
     is_tracking = db.Column(db.Boolean, default=False)
     tracking_started = db.Column(db.String(100), nullable=True)
@@ -57,6 +59,8 @@ class Payment(db.Model):
     next_date = db.Column(db.Date, nullable=True)
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
 
 class Project(db.Model):
@@ -74,6 +78,8 @@ class Project(db.Model):
     description = db.Column(db.Text, default="")
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     company = db.relationship("Company", foreign_keys=[company_id])
     lead = db.relationship("Lead", foreign_keys=[lead_id])
@@ -98,6 +104,8 @@ class Company(db.Model):
     phone = db.Column(db.String(50), default="")  # teléfono principal de la empresa (centralita)
     email = db.Column(db.String(200), default="")  # email genérico (info@/contacto@)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     assignee = db.relationship("User", foreign_keys=[assigned_to])
     assignees = db.relationship("User", secondary="company_assignments", backref="assigned_companies")
@@ -113,6 +121,8 @@ class CompanyContact(db.Model):
     email = db.Column(db.String(200), default="")
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     company = db.relationship("Company", foreign_keys=[company_id])
 
@@ -141,6 +151,8 @@ class EmailTemplate(db.Model):
     body = db.Column(db.Text, default="")
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
 
 # ═══════════════════════════════════════════
@@ -177,6 +189,8 @@ class CompanyInteraction(db.Model):
     template_id = db.Column(db.Integer, db.ForeignKey("email_templates.id"), nullable=True)
     sent_at = db.Column(db.DateTime, nullable=True)  # cuando n8n confirma envío
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     company = db.relationship("Company", foreign_keys=[company_id])
     contact = db.relationship("CompanyContact", foreign_keys=[contact_id])
@@ -195,6 +209,8 @@ class ProjectContact(db.Model):
     email = db.Column(db.String(200), default="")
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     project = db.relationship("Project", foreign_keys=[project_id])
 
@@ -209,6 +225,8 @@ class Tool(db.Model):
     description = db.Column(db.Text, default="")
     used_by = db.Column(db.String(50), default="ambos")  # alex, socio, ambos
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
 
 REMINDER_CHOICES = [
@@ -239,6 +257,8 @@ class Task(db.Model):
     reminder_minutes = db.Column(db.Integer, default=0)  # 0=off, 30/60/120/240/480/1440
     last_notified_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     assignee = db.relationship("User", foreign_keys=[assigned_to])
     assignees = db.relationship("User", secondary="task_assignments", backref="assigned_tasks")
@@ -331,6 +351,8 @@ class Idea(db.Model):
     company_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     author = db.relationship("User", foreign_keys=[created_by])
     project = db.relationship("Project", foreign_keys=[project_id])
@@ -351,6 +373,8 @@ class Objective(db.Model):
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     assignee = db.relationship("User", foreign_keys=[assigned_to]) # Legacy
     assignees = db.relationship("User", secondary="objective_assignments", backref="assigned_objectives")
@@ -373,6 +397,8 @@ class Income(db.Model):
     paid_date = db.Column(db.Date, nullable=True)
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     project = db.relationship("Project", foreign_keys=[project_id])
 
@@ -389,6 +415,8 @@ class Credential(db.Model):
     notes = db.Column(db.Text, default="")
     category = db.Column(db.String(50), default="otro")  # hosting, ia, dominio, desarrollo, email, otro
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
 
 class CompanyInfo(db.Model):
@@ -463,6 +491,8 @@ class Client(db.Model):
     source = db.Column(db.String(50), default="")
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
 
 class Notification(db.Model):
@@ -475,6 +505,8 @@ class Notification(db.Model):
     link = db.Column(db.String(300), default="")
     read = db.Column(db.Boolean, default=False, index=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     user = db.relationship("User", foreign_keys=[user_id])
 
@@ -491,6 +523,8 @@ class TimeEntry(db.Model):
     started_at = db.Column(db.DateTime, nullable=True)
     ended_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     user = db.relationship("User", foreign_keys=[user_id])
     task = db.relationship("Task", foreign_keys=[task_id])
@@ -515,6 +549,8 @@ class Invoice(db.Model):
     paid_date = db.Column(db.Date, nullable=True)
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     client = db.relationship("Client", foreign_keys=[client_id])
     lead = db.relationship("Lead", foreign_keys=[lead_id])
@@ -528,6 +564,8 @@ class Subtask(db.Model):
     title = db.Column(db.String(300), nullable=False)
     done = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     task = db.relationship("Task", backref=db.backref("subtasks", lazy="dynamic", cascade="all, delete-orphan"))
 
@@ -551,6 +589,8 @@ class Document(db.Model):
     uploaded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     notes = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     project = db.relationship("Project", foreign_keys=[project_id])
     client = db.relationship("Client", foreign_keys=[client_id])
@@ -591,6 +631,8 @@ class Automation(db.Model):
     run_count = db.Column(db.Integer, default=0)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     creator = db.relationship("User", foreign_keys=[created_by])
 
@@ -682,6 +724,8 @@ class ProjectTemplate(db.Model):
     default_progress = db.Column(db.Integer, default=0)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     creator = db.relationship("User", foreign_keys=[created_by])
 
@@ -779,6 +823,8 @@ class Lead(db.Model):
     converted_at = db.Column(db.DateTime, nullable=True)  # cuando pasó a cliente
     lost_reason = db.Column(db.String(300), default="")
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
 
     company = db.relationship("Company", foreign_keys=[company_id])
     assignee = db.relationship("User", foreign_keys=[assigned_to])

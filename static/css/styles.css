@@ -334,6 +334,147 @@ a:hover {
     display: none;
 }
 
+/* Android WebView — mobile-first UI improvements */
+/* Sidebar nav: bigger touch targets, more breathing room */
+.android-webview .sidebar-nav li a {
+    min-height: 48px;
+    padding: 12px 20px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.android-webview .sidebar-nav .sidebar-label {
+    font-size: 10px;
+    padding: 16px 20px 4px;
+    letter-spacing: 0.08em;
+}
+.android-webview .sidebar-user {
+    padding: 14px 16px;
+}
+
+/* Content: generous padding so nothing touches screen edges */
+@media (max-width: 768px) {
+    .android-webview .main-content {
+        padding: calc(var(--header-height) + 12px) 12px 80px;
+    }
+
+    /* Cards: more internal space and rounder feel */
+    .android-webview .card,
+    .android-webview .table-card,
+    .android-webview .chart-card {
+        border-radius: 14px;
+        padding: 16px;
+    }
+
+    /* Buttons: always full min-height for fat fingers */
+    .android-webview .btn {
+        min-height: 46px;
+        font-size: 14px;
+        padding: 11px 18px;
+        border-radius: 10px;
+    }
+
+    /* Page header: stack title + actions */
+    .android-webview .page-header {
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .android-webview .page-header h1 {
+        font-size: 22px;
+    }
+
+    /* KPI grid: 2 cols, taller cards */
+    .android-webview .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .android-webview .kpi-card {
+        padding: 16px 14px;
+        border-radius: 14px;
+    }
+    .android-webview .kpi-value {
+        font-size: 22px;
+    }
+    .android-webview .kpi-label {
+        font-size: 11px;
+    }
+
+    /* Form inputs: 48px min height, readable font */
+    .android-webview input,
+    .android-webview select,
+    .android-webview textarea {
+        min-height: 48px;
+        font-size: 15px !important;
+        border-radius: 10px;
+    }
+    .android-webview textarea {
+        min-height: 90px;
+    }
+
+    /* Tables: larger tap area per row */
+    .android-webview .data-table tbody td {
+        padding: 13px 10px;
+        font-size: 13px;
+    }
+    .android-webview .data-table thead th {
+        padding: 10px 10px;
+        font-size: 11px;
+    }
+
+    /* Status badges slightly bigger */
+    .android-webview .badge,
+    .android-webview .status-badge {
+        font-size: 11px;
+        padding: 3px 9px;
+        border-radius: 20px;
+    }
+
+    /* Kanban: single column for very small screens */
+    .android-webview .kanban-board {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .android-webview .kanban-col {
+        max-height: none;
+    }
+    .android-webview .kanban-card {
+        padding: 14px;
+        border-radius: 12px;
+    }
+
+    /* Filter bar: vertical stack with full-width controls */
+    .android-webview .filter-bar {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .android-webview .filter-bar select,
+    .android-webview .filter-bar input {
+        width: 100%;
+    }
+
+    /* Modal: near-fullscreen */
+    .android-webview .modal-overlay .modal {
+        width: 96vw;
+        max-width: 96vw;
+        max-height: 90vh;
+        border-radius: 18px;
+        padding: 20px;
+        overflow-y: auto;
+    }
+
+    /* Quick actions: 2-column grid with bigger buttons */
+    .android-webview .quick-actions {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    .android-webview .quick-action-btn {
+        min-height: 64px;
+        font-size: 13px;
+        border-radius: 12px;
+    }
+}
+
 .header-actions, .header-actions * {
     -webkit-app-region: no-drag;
 }

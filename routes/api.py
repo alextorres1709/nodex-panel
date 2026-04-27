@@ -257,11 +257,16 @@ def api_schedule_meeting():
     title = data.get("title", "Reunión interna")
     date_str = data.get("date")
     time_str = data.get("time")
-    assignee_id = data.get("assignee_id")
-    
+
+    # Accept both single assignee_id (legacy) and assignee_ids array
+    assignee_ids_raw = data.get("assignee_ids") or []
+    if not assignee_ids_raw and data.get("assignee_id"):
+        assignee_ids_raw = [data["assignee_id"]]
+    assignee_ids = [int(x) for x in assignee_ids_raw if str(x).isdigit() and int(x) != g.user.id]
+
     if not date_str:
         return jsonify({"error": "Fecha obligatoria"}), 400
-        
+
     # Create CalendarEvent for creator
     ev = CalendarEvent(
         title=title,
@@ -272,37 +277,36 @@ def api_schedule_meeting():
     )
     db.session.add(ev)
     db.session.commit()
-    
+
     from services.gcal import push_event
     gcal_id = push_event(ev, g.user.id)
     if gcal_id:
         ev.gcal_event_id = gcal_id
         db.session.commit()
-        
-    if assignee_id and str(assignee_id) != str(g.user.id):
-        # Notify the partner
-        payload = {
-            "title": title,
-            "date": date_str,
-            "time": time_str,
-            "creator_id": g.user.id,
-            "creator_name": g.user.name
-        }
-        from services.notifications import notify
+
+    from services.notifications import notify
+    payload = {
+        "title": title,
+        "date": date_str,
+        "time": time_str,
+        "creator_id": g.user.id,
+        "creator_name": g.user.name
+    }
+    for uid in assignee_ids:
         notify(
-            user_id=int(assignee_id),
-            title=f"Nueva invitación a reunión de {g.user.name}",
-            body=f"{title} el {date_str} a las {time_str}",
+            user_id=uid,
+            title=f"Nueva invitación de {g.user.name}",
+            body=f"{title} — {date_str} {time_str or ''}".strip(),
             type="meeting_invite",
             link=json.dumps(payload)
         )
-        # Try native notification too
-        try:
+    try:
+        if assignee_ids:
             from services.native_notify import send_native_notification
-            send_native_notification(f"Reunión: {title}", f"{g.user.name} te ha invitado el {date_str} {time_str}")
-        except:
-            pass
-        
+            send_native_notification(f"Reunión: {title}", f"{g.user.name} te ha invitado el {date_str}")
+    except Exception:
+        pass
+
     return jsonify({"ok": True, "message": "Reunión programada"})
 
 

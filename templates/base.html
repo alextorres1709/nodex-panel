@@ -1197,6 +1197,59 @@
         setTimeout(checkCalendarReminders, 5000);
         setInterval(checkCalendarReminders, 60000);
 
+        // ── Soft reload: swap only main content + page scripts, no full navigation ──
+        // Avoids chart re-animation and page flash caused by window.location.reload()
+        // on every sync event. Falls back to full reload on error or session expiry.
+        window.softReload = function() {
+            fetch(window.location.href, { credentials: 'same-origin', cache: 'no-store' })
+                .then(function(r) {
+                    if (!r.ok || (r.redirected && r.url.indexOf('/login') !== -1)) {
+                        window.location.reload(); return null;
+                    }
+                    return r.text();
+                })
+                .then(function(html) {
+                    if (!html) return;
+                    var doc = (new DOMParser()).parseFromString(html, 'text/html');
+                    var newMain = doc.querySelector('.main-content');
+                    var curMain = document.querySelector('.main-content');
+                    if (!newMain || !curMain) { window.location.reload(); return; }
+
+                    // Destroy all Chart.js instances so canvases can be reused
+                    if (typeof Chart !== 'undefined') {
+                        try {
+                            Object.values(Chart.instances || {}).forEach(function(c) {
+                                try { c.destroy(); } catch(e) {}
+                            });
+                        } catch(e) {}
+                        // Disable animation for this refresh cycle
+                        Chart.defaults.animation = false;
+                    }
+
+                    // Swap content
+                    curMain.innerHTML = newMain.innerHTML;
+
+                    // Swap and re-execute page scripts
+                    var curScripts = document.getElementById('nodex-page-scripts');
+                    var newScripts = doc.getElementById('nodex-page-scripts');
+                    if (curScripts && newScripts) {
+                        curScripts.innerHTML = '';
+                        newScripts.querySelectorAll('script').forEach(function(old) {
+                            var s = document.createElement('script');
+                            Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+                            s.textContent = old.textContent;
+                            curScripts.appendChild(s);
+                        });
+                    }
+
+                    // Re-enable chart animations after DOM settles
+                    setTimeout(function() {
+                        if (typeof Chart !== 'undefined') Chart.defaults.animation = { duration: 400 };
+                    }, 60);
+                })
+                .catch(function() { window.location.reload(); });
+        };
+
         // ── SSE connection (replaces 3 separate polling intervals) ──
         var firstSync = true;
 
@@ -1210,14 +1263,14 @@
                     return;
                 }
                 document.dispatchEvent(new CustomEvent('nodex-sync', { detail: data }));
-                // Global auto-reload for pages without custom sync handler
-                // Skip reload if a modal is open (user is editing/creating)
+                // Global soft-reload for pages without custom sync handler
+                // Skip if a modal is open (user is editing/creating)
                 if (!window._nodexCustomSync) {
                     var modalOpen = document.querySelector('.modal-overlay.active');
                     if (modalOpen) {
                         window._nodexPendingReload = true;
                     } else {
-                        window.location.reload();
+                        window.softReload();
                     }
                 }
             });
@@ -1302,7 +1355,7 @@
     });
     </script>
 
-    {% block scripts %}{% endblock %}
+    <div id="nodex-page-scripts">{% block scripts %}{% endblock %}</div>
 </body>
 
 </html>

@@ -23,6 +23,9 @@ class NodexFirebaseService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d(TAG, "New FCM token: $token")
+        // Always save the latest token so MainActivity can register it on next load
+        getSharedPreferences("nodexai", MODE_PRIVATE).edit()
+            .putString("pending_fcm_token", token).apply()
         registerTokenWithBackend(token)
     }
 
