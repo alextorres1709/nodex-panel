@@ -406,11 +406,13 @@ function openModal(id){const m=document.getElementById(id);if(m)m.classList.add(
 function closeModal(id){const m=document.getElementById(id);if(m)m.classList.remove('active');}
 
 function openLeadScheduleCall(name, phone) {
+    const modal = document.getElementById('leadScheduleCallModal');
+    if (!modal) { alert('Modal no encontrado'); return; }
     document.getElementById('leadCallName').value = name + (phone ? ' · ' + phone : '');
     const now = new Date();
     document.getElementById('leadCallDate').value = now.toISOString().split('T')[0];
     document.getElementById('leadCallTime').value = now.toTimeString().slice(0,5);
-    openModal('leadScheduleCallModal');
+    modal.style.display = 'flex';
 }
 
 async function submitLeadScheduleCall() {
@@ -439,7 +441,7 @@ async function submitLeadScheduleCall() {
         });
         const d = await r.json();
         if (d.ok) {
-            closeModal('leadScheduleCallModal');
+            document.getElementById('leadScheduleCallModal').style.display = 'none';
             const flash = document.createElement('div');
             flash.className = 'flash-message flash-success';
             flash.textContent = '✓ Llamada agendada — ' + callType;
@@ -451,11 +453,11 @@ async function submitLeadScheduleCall() {
 </script>
 
 <!-- Lead Schedule Call Modal (lista) -->
-<div class="modal-overlay" id="leadScheduleCallModal">
+<div id="leadScheduleCallModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;padding:20px">
     <div class="modal" style="max-width:440px">
         <div class="modal-header">
             <h3>Agendar llamada</h3>
-            <button class="modal-close" onclick="closeModal('leadScheduleCallModal')">&times;</button>
+            <button class="modal-close" onclick="document.getElementById('leadScheduleCallModal').style.display='none'">&times;</button>
         </div>
         <div class="modal-body" style="padding:20px 24px">
             <form style="display:flex;flex-direction:column;gap:14px">
@@ -499,7 +501,7 @@ async function submitLeadScheduleCall() {
             </form>
         </div>
         <div class="modal-footer" style="padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
-            <button class="btn btn-secondary" onclick="closeModal('leadScheduleCallModal')">Cancelar</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('leadScheduleCallModal').style.display='none'">Cancelar</button>
             <button class="btn btn-primary" onclick="submitLeadScheduleCall()">Agendar en calendario</button>
         </div>
     </div>

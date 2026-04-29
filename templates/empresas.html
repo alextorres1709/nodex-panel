@@ -452,11 +452,11 @@
 </div>
 
 <!-- Schedule Call Modal -->
-<div class="modal-overlay" id="companyScheduleCallModal">
+<div id="companyScheduleCallModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;padding:20px">
     <div class="modal" style="max-width:440px">
         <div class="modal-header">
             <h3>Agendar llamada</h3>
-            <button class="modal-close" onclick="closeModal('companyScheduleCallModal')">&times;</button>
+            <button class="modal-close" onclick="document.getElementById('companyScheduleCallModal').style.display='none'">&times;</button>
         </div>
         <div class="modal-body" style="padding:20px 24px">
             <form style="display:flex;flex-direction:column;gap:14px">
@@ -500,7 +500,7 @@
             </form>
         </div>
         <div class="modal-footer" style="padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
-            <button class="btn btn-secondary" onclick="closeModal('companyScheduleCallModal')">Cancelar</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('companyScheduleCallModal').style.display='none'">Cancelar</button>
             <button class="btn btn-primary" onclick="submitCompanyScheduleCall()">Agendar en calendario</button>
         </div>
     </div>
@@ -531,11 +531,13 @@ function editCompany(btn) {
 function openCompanyCall(btn) {
     const phone = btn.getAttribute('data-phone') || '';
     const name = btn.getAttribute('data-company') || '';
+    const modal = document.getElementById('companyScheduleCallModal');
+    if (!modal) { alert('Modal no encontrado'); return; }
     document.getElementById('cCallName').value = name + (phone ? ' · ' + phone : '');
     const now = new Date();
     document.getElementById('cCallDate').value = now.toISOString().split('T')[0];
     document.getElementById('cCallTime').value = now.toTimeString().slice(0,5);
-    openModal('companyScheduleCallModal');
+    modal.style.display = 'flex';
 }
 
 async function submitCompanyScheduleCall() {
@@ -564,7 +566,7 @@ async function submitCompanyScheduleCall() {
         });
         const d = await r.json();
         if (d.ok) {
-            closeModal('companyScheduleCallModal');
+            document.getElementById('companyScheduleCallModal').style.display = 'none';
             const flash = document.createElement('div');
             flash.className = 'flash-message flash-success';
             flash.textContent = '✓ Llamada agendada — ' + callType;
