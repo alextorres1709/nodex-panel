@@ -401,8 +401,8 @@
 </div>
 
 <script>
-function openModal(id){const m=document.getElementById(id);if(m)m.classList.add('open');}
-function closeModal(id){const m=document.getElementById(id);if(m)m.classList.remove('open');}
+function openModal(id){const m=document.getElementById(id);if(m)m.classList.add('active');}
+function closeModal(id){const m=document.getElementById(id);if(m)m.classList.remove('active');}
 
 function openLeadScheduleCall(name, phone) {
     document.getElementById('leadCallName').value = name + (phone ? ' · ' + phone : '');

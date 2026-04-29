@@ -188,12 +188,20 @@
                     <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(168,85,247,.10);color:#a855f7;font-weight:600">{{ c.assignee.name|truncate(10) }}</span>
                     {% endif %}
                 </div>
-                {% if c.phone or contact_counts.get(c.id, 0) %}
-                <div style="display:flex;gap:8px;margin-top:6px;font-size:11px;color:var(--text-tertiary)">
-                    {% if c.phone %}<span>Tel</span>{% endif %}
-                    {% if contact_counts.get(c.id, 0) %}<span>{{ contact_counts[c.id] }} contactos</span>{% endif %}
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                    <div style="font-size:11px;color:var(--text-tertiary)">
+                        {% if contact_counts.get(c.id, 0) %}<span>{{ contact_counts[c.id] }} contactos</span>{% endif %}
+                    </div>
+                    {% if c.phone %}
+                    <button type="button"
+                            onclick="event.preventDefault();event.stopPropagation();openCompanyCall(this)"
+                            data-phone="{{ c.phone or '' }}" data-company="{{ c.name|e }}"
+                            style="background:#22c55e;color:#fff;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+                        Llamar
+                    </button>
+                    {% endif %}
                 </div>
-                {% endif %}
             </a>
             {% endfor %}
             {% if not items %}
