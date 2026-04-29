@@ -63,13 +63,22 @@ _META_CACHE_TTL = 300  # 5 minutes
 class SyncManager:
     """Bidirectional sync between local SQLite and remote PostgreSQL."""
 
-    def __init__(self, local_url, remote_url):
+    def __init__(self, local_url, remote_url, migrations=None):
+        # migrations: list of (table, column, col_type) tuples from app.py MIGRATIONS.
+        # Used to add missing columns to remote PG before first push.
+        self._migrations = migrations or []
         self.local_engine = sa.create_engine(local_url)
         self.remote_engine = sa.create_engine(
             remote_url,
             pool_pre_ping=True,
             pool_size=2,
-            connect_args={"connect_timeout": 10},
+            connect_args={
+                "connect_timeout": 10,
+                # Kill any catalog query that hangs > 15 s (e.g. locked pg_class).
+                # Without this, MetaData.reflect() blocks forever when Railway PG
+                # has stale connection locks from previous crashed instances.
+                "options": "-c statement_timeout=15000",
+            },
         )
         self._stop = threading.Event()
         self._thread = None
@@ -138,6 +147,35 @@ class SyncManager:
         except Exception as e:
             log.warning(f"Failed to ensure remote tables: {e}")
 
+    def _ensure_remote_columns(self):
+        """Add any columns in self._migrations that are missing from remote PG.
+
+        Runs once in the background sync thread (after first pull) so it never
+        blocks startup. Idempotent — uses IF NOT EXISTS so safe to retry.
+        """
+        if not self._migrations:
+            return
+        import re
+        _ident_re = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+        try:
+            with self.remote_engine.connect() as conn:
+                for table, column, col_type in self._migrations:
+                    if not (_ident_re.match(table) and _ident_re.match(column)):
+                        continue
+                    try:
+                        conn.execute(sa.text(
+                            f'ALTER TABLE "{table}" ADD COLUMN IF NOT EXISTS "{column}" {col_type}'
+                        ))
+                        conn.commit()
+                    except Exception:
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+            log.info("Remote column migration complete")
+        except Exception as e:
+            log.warning(f"Remote column migration failed: {e}")
+
     def start(self):
         """Start the background sync thread."""
         # NOTE: ensure_remote_tables() and FK migration both run inside
@@ -173,10 +211,13 @@ class SyncManager:
                 or (now - self._meta_cache_time) > _META_CACHE_TTL):
             local_meta = sa.MetaData()
             local_meta.reflect(bind=self.local_engine)
-            remote_meta = sa.MetaData()
-            remote_meta.reflect(bind=self.remote_engine)
+            # Reuse local schema for remote: both DBs share the same table/column
+            # definitions (they are kept in sync), so reflecting remote PG is
+            # redundant. Worse, MetaData.reflect() blocks on pg_catalog queries
+            # when Railway has stale locks from crashed connections — eliminating
+            # the remote reflect makes push/pull immune to this.
             self._cached_local_meta = local_meta
-            self._cached_remote_meta = remote_meta
+            self._cached_remote_meta = local_meta
             self._meta_cache_time = now
         return self._cached_local_meta, self._cached_remote_meta
 
@@ -214,10 +255,11 @@ class SyncManager:
                 if not self._first_sync_done.is_set():
                     self._first_sync_done.set()
                     log.info("First sync complete")
-                # Ensure remote tables and run FK migration AFTER first sync
-                # so app startup isn't blocked by remote PG round-trips.
+                # Ensure remote tables/columns and run FK migration AFTER first
+                # sync so app startup is never blocked by remote PG round-trips.
                 if not remote_tables_ensured:
                     self.ensure_remote_tables()
+                    self._ensure_remote_columns()
                     remote_tables_ensured = True
                 if not fk_migrated:
                     try:

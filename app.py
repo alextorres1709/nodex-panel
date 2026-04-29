@@ -43,6 +43,7 @@ MIGRATIONS = [
     ("companies", "assigned_to", "INTEGER"),
     ("companies", "phone", "VARCHAR(50) DEFAULT ''"),
     ("companies", "email", "VARCHAR(200) DEFAULT ''"),
+    ("company_info", "nif", "VARCHAR(20) DEFAULT ''"),
     ("projects", "company_id", "INTEGER"),
     ("projects", "lead_id", "INTEGER"),
     ("documents", "drive_file_id", "VARCHAR(100) DEFAULT ''"),
@@ -209,38 +210,40 @@ def _auto_migrate_pg():
     _ident_re = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
     conn = db.engine.connect()
-    # 1. Add missing columns
-    for table, column, col_type in MIGRATIONS:
-        if not (_ident_re.match(table) and _ident_re.match(column)):
-            log.warning(f"Skipping invalid migration identifier: {table}.{column}")
-            continue
-        try:
-            conn.execute(text(
-                f'ALTER TABLE "{table}" ADD COLUMN IF NOT EXISTS "{column}" {col_type}'
-            ))
-            conn.commit()
-        except Exception:
-            conn.rollback()
-    # 2. Fix auto-increment sequences (sync inserts rows with explicit IDs,
-    #    leaving the sequence behind, causing duplicate key errors on INSERT)
     try:
-        tables = conn.execute(text(
-            "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
-        )).fetchall()
-        for (tbl,) in tables:
-            if not _ident_re.match(tbl):
+        # 1. Add missing columns
+        for table, column, col_type in MIGRATIONS:
+            if not (_ident_re.match(table) and _ident_re.match(column)):
+                log.warning(f"Skipping invalid migration identifier: {table}.{column}")
                 continue
             try:
                 conn.execute(text(
-                    f'SELECT setval(pg_get_serial_sequence(\'{tbl}\', \'id\'), '
-                    f'COALESCE((SELECT MAX(id) FROM "{tbl}"), 1))'
+                    f'ALTER TABLE "{table}" ADD COLUMN IF NOT EXISTS "{column}" {col_type}'
                 ))
                 conn.commit()
             except Exception:
                 conn.rollback()
-    except Exception:
-        conn.rollback()
-    conn.close()
+        # 2. Fix auto-increment sequences (sync inserts rows with explicit IDs,
+        #    leaving the sequence behind, causing duplicate key errors on INSERT)
+        try:
+            tables = conn.execute(text(
+                "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+            )).fetchall()
+            for (tbl,) in tables:
+                if not _ident_re.match(tbl):
+                    continue
+                try:
+                    conn.execute(text(
+                        f'SELECT setval(pg_get_serial_sequence(\'{tbl}\', \'id\'), '
+                        f'COALESCE((SELECT MAX(id) FROM "{tbl}"), 1))'
+                    ))
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+        except Exception:
+            conn.rollback()
+    finally:
+        conn.close()
     log.info("PostgreSQL migration + sequence fix complete")
 
 
@@ -283,14 +286,20 @@ def create_app():
 
     with app.app_context():
         db.create_all()
-        _seed_email_templates()
 
         if HOSTED_MODE:
             log.info("Hosted mode — using PostgreSQL directly, sync disabled")
-            _auto_migrate_pg()
+            # Migrate BEFORE seed: seed queries models with updated_at which
+            # may not exist in PG yet. Migration adds missing columns first.
+            try:
+                _auto_migrate_pg()
+            except Exception as e:
+                log.error(f"Auto-migrate PG failed (continuing): {e}")
+            _seed_email_templates()
         else:
             # Auto-migrate: add missing columns to existing SQLite tables
             _auto_migrate(app)
+            _seed_email_templates()
 
             # Migrate legacy assigned_to → task_assignments (one-time)
             _migrate_task_assignments()
@@ -301,6 +310,7 @@ def create_app():
             mgr = SyncManager(
                 local_url=Config.SQLALCHEMY_DATABASE_URI,
                 remote_url=REMOTE_DATABASE_URL,
+                migrations=MIGRATIONS,
             )
             sync_mod.sync_manager = mgr
             mgr.start()
