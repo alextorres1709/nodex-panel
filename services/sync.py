@@ -140,10 +140,8 @@ class SyncManager:
 
     def start(self):
         """Start the background sync thread."""
-        self.ensure_remote_tables()
-        # NOTE: FK migration runs inside _loop() on the first iteration
-        # (not here) because it does 20+ ALTER TABLE round-trips against
-        # remote PG and would block app startup for ~1 minute otherwise.
+        # NOTE: ensure_remote_tables() and FK migration both run inside
+        # _loop() on the first iteration so they never block app startup.
         self._thread = threading.Thread(target=self._loop, daemon=True, name="sync")
         self._thread.start()
 
@@ -203,6 +201,7 @@ class SyncManager:
     def _loop(self):
         log.info("Sync thread started")
         fk_migrated = False
+        remote_tables_ensured = False
         while not self._stop.is_set():
             try:
                 self.is_syncing = True
@@ -215,8 +214,11 @@ class SyncManager:
                 if not self._first_sync_done.is_set():
                     self._first_sync_done.set()
                     log.info("First sync complete")
-                # Run FK migration AFTER first sync so app startup isn't
-                # blocked waiting for ~20 remote ALTER TABLEs.
+                # Ensure remote tables and run FK migration AFTER first sync
+                # so app startup isn't blocked by remote PG round-trips.
+                if not remote_tables_ensured:
+                    self.ensure_remote_tables()
+                    remote_tables_ensured = True
                 if not fk_migrated:
                     try:
                         migrate_pg_fk_ondelete(self.remote_engine)
