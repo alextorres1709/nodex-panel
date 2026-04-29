@@ -267,13 +267,14 @@ def api_schedule_meeting():
     if not date_str:
         return jsonify({"error": "Fecha obligatoria"}), 400
 
-    # Create CalendarEvent for creator
+    # Create a CalendarEvent for the creator
     ev = CalendarEvent(
         title=title,
         event_type="reunion",
         date=datetime.strptime(date_str, "%Y-%m-%d").date(),
         start_time=time_str,
-        created_by=g.user.id
+        created_by=g.user.id,
+        assigned_to=assignee_ids[0] if len(assignee_ids) == 1 else None,
     )
     db.session.add(ev)
     db.session.commit()
@@ -282,6 +283,21 @@ def api_schedule_meeting():
     gcal_id = push_event(ev, g.user.id)
     if gcal_id:
         ev.gcal_event_id = gcal_id
+        db.session.commit()
+
+    # When multiple assignees, create a separate CalendarEvent for each so
+    # everyone sees the event in their own calendar view.
+    if len(assignee_ids) > 1:
+        for uid in assignee_ids:
+            extra = CalendarEvent(
+                title=title,
+                event_type="reunion",
+                date=ev.date,
+                start_time=time_str,
+                created_by=g.user.id,
+                assigned_to=uid,
+            )
+            db.session.add(extra)
         db.session.commit()
 
     from services.notifications import notify
@@ -300,12 +316,6 @@ def api_schedule_meeting():
             type="meeting_invite",
             link=json.dumps(payload)
         )
-    try:
-        if assignee_ids:
-            from services.native_notify import send_native_notification
-            send_native_notification(f"Reunión: {title}", f"{g.user.name} te ha invitado el {date_str}")
-    except Exception:
-        pass
 
     return jsonify({"ok": True, "message": "Reunión programada"})
 

@@ -30,6 +30,7 @@ def notify(user_id, type, title, body="", link=""):
         from services.sse import sse_bus
         count = get_unread_count(user_id)
         sse_bus.publish("notification", {
+            "user_id": user_id,
             "count": count,
             "title": title,
             "body": body,
